@@ -244,6 +244,6 @@ If you use SiLR-Agent in your research, please cite:
   author = {Chenyu Zhou},
   title  = {SiLR-Agent: Simulation-in-the-Loop Reasoning for LLM Agents},
   year   = {2025},
-  url    = {https://github.com/SciTokyo/SILR-Agent}
+  url    = {https://github.com/zcyyyds-test/SiLR-Agent}
 }
 ```
