@@ -1,0 +1,21 @@
+id: "s03_load_increase"
+name: "Load Surge at Bus 15 (+50%)"
+difficulty: "easy"
+
+fault_sequence:
+  - type: "load_increase"
+    target_id: 15
+    increase_pct: 50
+
+prestress:
+  load_scale: 1.35
+
+ground_truth:
+  actions:
+    - tool_name: "adjust_gen"
+      params: {gen_id: "GENROU_1", delta_p_mw: 30}
+  expected_steps: 1
+
+metadata:
+  description: "Load surge +50% @Bus15 under 1.35x load. Vmin≈0.89 @Bus9, 1 low-voltage bus."
+  expected_violations: ["voltage"]

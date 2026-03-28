@@ -1,0 +1,21 @@
+id: "s02_gen_reduce"
+name: "Generator Output Reduction 50%"
+difficulty: "easy"
+
+fault_sequence:
+  - type: "gen_reduce"
+    target_id: "GENROU_2"
+    reduce_pct: 50
+
+prestress:
+  load_scale: 1.35
+
+ground_truth:
+  actions:
+    - tool_name: "adjust_gen"
+      params: {gen_id: "GENROU_1", delta_p_mw: 50}
+  expected_steps: 1
+
+metadata:
+  description: "Gen reduce 50% under 1.35x load. Vmin≈0.87 @Bus9, 2 low-voltage buses."
+  expected_violations: ["voltage"]
