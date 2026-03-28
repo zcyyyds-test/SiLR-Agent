@@ -1,10 +1,10 @@
 # SiLR-Agent
 
-**Simulation-in-the-Loop Reasoning framework for LLM agents in safety-critical domains.**
+**Simulation-in-the-Loop Reasoning framework that integrates domain knowledge into LLM agent decision loops.**
 
 *Any domain with a simulator can have a verified LLM agent.*
 
-SiLR-Agent is a domain-agnostic framework that uses physics simulators as safety nets for LLM-driven decision making. Before any action reaches the real system, SiLR clones the simulator state, executes the proposed action on the shadow copy, runs the domain solver, and checks constraint satisfaction — rejecting unsafe actions before they cause damage.
+SiLR-Agent integrates domain simulators and constraint knowledge into LLM-driven decision making. Before any action reaches the real system, SiLR clones the simulator state, executes the proposed action on the shadow copy, runs the domain solver, and checks constraint satisfaction — rejecting unsafe actions before they cause damage.
 
 ## Architecture
 
@@ -34,7 +34,7 @@ The verification pipeline:
 ## Why SiLR?
 
 - **Safety guarantee**: every action is pre-verified on a shadow copy before reaching the real system
-- **Domain-agnostic**: any simulator with state + solver + constraints can plug in
+- **Domain-extensible**: any simulator with state + solver + constraints can plug in
 - **Training-ready**: verified trajectories feed directly into SFT / DPO / GRPO pipelines
 
 ## Installation
@@ -117,17 +117,25 @@ Subclass `BaseSystemManager` with your simulator's lifecycle:
 from silr.core.interfaces import BaseSystemManager
 
 class MyManager(BaseSystemManager):
+    @property
+    def sim_time(self) -> float:
+        return self._time
+
+    @property
+    def base_mva(self) -> float:
+        return 1.0  # use 1.0 if your domain has no per-unit system
+
+    @property
+    def system_state(self) -> dict:
+        """Current state snapshot for constraint checkers."""
+        ...
+
     def run_pflow(self) -> bool:
         """Run steady-state solver. Return True if converged."""
         ...
 
     def create_shadow_copy(self) -> "MyManager":
         """Return an independent deep copy for verification."""
-        ...
-
-    @property
-    def system_state(self) -> dict:
-        """Current state snapshot for constraint checkers."""
         ...
 ```
 
@@ -152,6 +160,7 @@ class TemperatureChecker(BaseConstraintChecker):
         return CheckResult(
             checker_name=self.name,
             passed=len(violations) == 0,
+            summary={"max_temp": max(z["temp_c"] for z in state["thermal_zones"])},
             violations=violations,
         )
 ```
@@ -167,9 +176,13 @@ class AdjustCoolingTool(BaseTool):
     name = "adjust_cooling"
     description = "Adjust cooling power for a thermal zone."
 
-    def execute(self, zone_id: str, delta_kw: float) -> dict:
-        self._manager.set_cooling(zone_id, delta_kw)
-        return {"status": "success", "data": {"adjusted": True}}
+    def _validate_params(self, zone_id: str = "", delta_kw: float = 0, **kw):
+        if not zone_id:
+            raise ValidationError("zone_id is required")
+
+    def _run(self, zone_id: str = "", delta_kw: float = 0, **kw) -> dict:
+        self.manager.set_cooling(zone_id, delta_kw)
+        return {"adjusted": True, "zone_id": zone_id}
 ```
 
 ### Step 4: Domain Config
@@ -179,14 +192,12 @@ Bundle everything into a `DomainConfig`:
 ```python
 from silr.core.config import DomainConfig
 
-def build_my_domain_config(manager):
+def build_my_domain_config():
     return DomainConfig(
         domain_name="thermal_plant",
         checkers=[TemperatureChecker(), PressureChecker()],
         allowed_actions=frozenset(["adjust_cooling", "open_valve"]),
-        toolset=create_my_toolset(manager),
-        system_prompt="You are a thermal plant operator...",
-        tool_schemas=[...],  # OpenAI function-calling format
+        create_toolset=create_my_toolset,  # callable: manager → {name: tool}
     )
 ```
 
@@ -211,26 +222,6 @@ examples/                # Runnable demos
 tests/                   # pytest suite
 ```
 
-## Key Design Decisions
-
-| Decision | Rationale |
-|----------|-----------|
-| Zero forced dependencies for `silr/` | Maximizes installability; domain simulators and LLM clients are optional extras |
-| `DomainConfig` is required, not optional | Clean API for a new framework — no legacy compat paths |
-| Shadow-copy verification | Non-destructive: original simulator state is never modified |
-| `post_solve_hook` for domain-specific solvers | Extra solver passes (e.g. time-domain simulation) are domain concepts, not framework concepts |
-| `ActionParser` accepts injectable `allowed_actions` | Decouples parsing from any specific domain's action set |
-
-## Testing
-
-```bash
-# Install dev dependencies
-pip install -e '.[dev]'
-
-# Run tests (network domain only — no external dependencies)
-pytest tests/ -v
-```
-
 ## License
 
 MIT
@@ -243,7 +234,7 @@ If you use SiLR-Agent in your research, please cite:
 @misc{silr-agent,
   author = {Chenyu Zhou},
   title  = {SiLR-Agent: Simulation-in-the-Loop Reasoning for LLM Agents},
-  year   = {2025},
+  year   = {2026},
   url    = {https://github.com/zcyyyds-test/SiLR-Agent}
 }
 ```
