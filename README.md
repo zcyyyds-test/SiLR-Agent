@@ -109,6 +109,37 @@ result = agent.run_episode(scenario_id="scenario_01")
 print(f"Recovered: {result.recovered}, Steps: {result.total_steps}")
 ```
 
+## Multi-Agent Coordinator
+
+For cascading faults where multiple constraints conflict, SiLR supports a multi-agent coordinator that dispatches specialist agents:
+
+```python
+from silr.agent import CoordinatorAgent, CoordinatorConfig, SpecialistSpec
+from domains.network import (
+    build_network_domain_config,
+    build_connectivity_specialist_config,
+    build_utilization_specialist_config,
+)
+
+specialists = [
+    SpecialistSpec(name="connectivity", domain_config=build_connectivity_specialist_config()),
+    SpecialistSpec(name="utilization", domain_config=build_utilization_specialist_config()),
+]
+
+coordinator = CoordinatorAgent(
+    manager=manager,
+    verifier=verifier,
+    llm_client=llm_client,
+    specialists=specialists,
+    full_domain_config=build_network_domain_config(),
+    config=CoordinatorConfig(max_rounds=6),
+)
+result = coordinator.run_episode(scenario_id="cascade_hard")
+print(f"Recovered: {result.recovered}, Rounds: {result.total_rounds}")
+```
+
+Each specialist is a standard `ReActAgent` with a restricted `DomainConfig` (subset of tools). The coordinator observes the full system state, dispatches specialists via LLM reasoning, and detects cross-constraint conflicts by comparing pre/post observations.
+
 ## Add Your Own Domain
 
 Implementing a new domain requires four components:
@@ -214,12 +245,16 @@ silr/                    # Framework core (pip install silr)
 ├── core/                # ABCs: BaseSystemManager, BaseConstraintChecker, DomainConfig
 ├── tools/               # BaseTool ABC
 ├── verifier/            # SiLRVerifier + shadow-copy verification pipeline
-├── agent/               # ReAct loop, ActionParser, LLM clients
+├── agent/               # ReAct loop, CoordinatorAgent, LLM clients
+│   ├── coordinator.py   # Multi-agent coordinator + specialist dispatch
+│   └── react_loop.py    # Single-agent ReAct loop (also used as specialist)
 ├── training/            # SFT/DPO trainers, reward computation
-└── eval/                # EvalRunner, metrics
+└── eval/                # EvalRunner, MultiAgentEvalRunner, metrics
 
 domains/                 # Reference implementations
 ├── network/             # Toy 5-node network (zero dependencies)
+│   ├── scenarios.py     # Cascading fault scenarios for multi-agent testing
+│   └── specialists.py   # Connectivity / utilization specialist configs
 └── grid/                # Power grid domain (requires ANDES)
 
 examples/                # Runnable demos
