@@ -4,95 +4,79 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-**Simulation-in-the-Loop Reasoning framework that integrates domain knowledge into LLM agent decision loops.**
+**Simulation-in-the-Loop Reasoning for verified LLM agent actions.**
 
 *Any domain with a simulator can have a verified LLM agent.*
 
-SiLR-Agent integrates domain simulators and constraint knowledge into LLM-driven decision making. Before any action reaches the real system, SiLR clones the simulator state, executes the proposed action on the shadow copy, runs the domain solver, and checks constraint satisfaction — rejecting unsafe actions before they cause damage.
+SiLR clones the simulator state before every action, executes the proposal on the shadow copy, runs the domain solver, and checks constraint satisfaction — rejecting unsafe actions before they reach the real system.
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                   ReAct Agent                       │
-│  (LLM reasoning loop with bounded retries)          │
+│            Coordinator (optional)                    │
+│  LLM-driven dispatch of specialist agents           │
+├──────────────┬──────────────┬───────────────────────┤
+│ Specialist A │ Specialist B │  ...                   │
+│  (ReAct)     │  (ReAct)     │                        │
+├──────────────┴──────────────┴───────────────────────┤
+│                  SiLR Verifier                       │
+│  shadow copy → execute → solve → check constraints   │
 ├─────────────────────────────────────────────────────┤
-│                  SiLR Verifier                      │
-│  shadow copy → execute → solve → check constraints  │
+│              Domain Tools & Checkers                 │
 ├─────────────────────────────────────────────────────┤
-│               Domain Tools & Checkers               │
-│  (actions, observations, constraint checkers)        │
-├─────────────────────────────────────────────────────┤
-│              Domain Simulator                       │
+│              Domain Simulator                        │
 │  (any system with state + solver + constraints)      │
 └─────────────────────────────────────────────────────┘
 ```
 
-The verification pipeline:
+**Verification pipeline:**
 1. **Clone** — `create_shadow_copy()` produces an independent simulator snapshot
 2. **Execute** — the proposed action runs on the shadow copy only
-3. **Solve** — `run_pflow()` (and optional `post_solve_hook`) re-solves the system
+3. **Solve** — `run_pflow()` re-solves the system
 4. **Check** — all registered `ConstraintChecker`s evaluate the new state
-5. **Verdict** — PASS (all checks green), FAIL (violations found), or ERROR (solver diverged)
+5. **Verdict** — PASS / FAIL / ERROR
 
 ## Why SiLR?
 
-- **Safety guarantee**: every action is pre-verified on a shadow copy before reaching the real system
-- **Domain-extensible**: any simulator with state + solver + constraints can plug in
-- **Training-ready**: verified trajectories feed directly into SFT / DPO / GRPO pipelines
+- **Safety guarantee** — every action is pre-verified on a shadow copy before reaching the real system
+- **Domain-extensible** — any simulator with state + solver + constraints can plug in
+- **Multi-agent coordination** — LLM coordinator dispatches specialist agents, each with restricted tools, while the verifier enforces global safety
+- **Training-ready** — verified trajectories feed directly into SFT / DPO / GRPO pipelines
 
 ## Installation
 
 ```bash
-# Core framework (zero dependencies)
-pip install -e .
-
-# With LLM agent support
-pip install -e '.[agent]'
-
-# With power grid domain (requires ANDES simulator)
-pip install -e '.[grid]'
-
-# With training support (PyTorch + HuggingFace)
-pip install -e '.[training]'
-
-# Everything
-pip install -e '.[all]'
+pip install -e .            # Core framework (zero dependencies)
+pip install -e '.[agent]'   # + LLM agent support (OpenAI)
+pip install -e '.[grid]'    # + power grid domain (ANDES)
+pip install -e '.[training]' # + training (PyTorch + HuggingFace)
+pip install -e '.[all]'     # Everything
 ```
 
 ## Quick Start
 
-### Network Domain (Zero Dependencies)
-
-The toy network domain ships with SiLR as a self-contained demo — no external packages needed.
+### Verify an Action (Zero Dependencies)
 
 ```python
 from domains.network import NetworkManager, build_network_domain_config
 from silr.verifier import SiLRVerifier, Verdict
 
-# 1. Set up domain
 manager = NetworkManager()          # 5-node network topology
 config = build_network_domain_config()
 
-# 2. Inject a fault
 manager.fail_link(1, 2)
 manager.run_pflow()
 
-# 3. Verify a recovery action (shadow-copy verification)
 verifier = SiLRVerifier(manager, domain_config=config)
 result = verifier.verify(
     {"tool_name": "restore_link", "params": {"src": 1, "dst": 2}},
 )
-
-print(result.verdict)        # Verdict.PASS
+print(result.verdict)          # Verdict.PASS
 print(result.pflow_converged)  # True
 ```
 
-### Power Grid Domain
-
-A reference power grid implementation is included under `domains/grid/`, built on the [ANDES](https://docs.andes.app/) simulator. See `domains/grid/` for the full integration.
-
-### Running the ReAct Agent
+### Run the ReAct Agent
 
 ```python
 from silr.agent import ReActAgent, AgentConfig
@@ -102,25 +86,36 @@ agent = ReActAgent(
     manager=manager,
     verifier=verifier,
     llm_client=OpenAIClient(model="gpt-4o"),
-    config=AgentConfig(max_steps=5),
     domain_config=config,
+    config=AgentConfig(max_steps=5),
 )
 result = agent.run_episode(scenario_id="scenario_01")
 print(f"Recovered: {result.recovered}, Steps: {result.total_steps}")
 ```
 
-## Multi-Agent Coordinator
+### Multi-Agent Coordinator
 
-For cascading faults where multiple constraints conflict, SiLR supports a multi-agent coordinator that dispatches specialist agents:
+For cascading faults where constraints conflict, the coordinator dispatches specialist agents — each limited to a subset of tools — while the verifier enforces global safety:
 
 ```python
 from silr.agent import CoordinatorAgent, CoordinatorConfig, SpecialistSpec
 from domains.network import (
+    NetworkManager, NetworkScenarioLoader,
     build_network_domain_config,
     build_connectivity_specialist_config,
     build_utilization_specialist_config,
 )
+from silr.verifier import SiLRVerifier
 
+# Set up a cascading fault scenario
+manager = NetworkManager()
+loader = NetworkScenarioLoader()
+loader.setup_episode(manager, loader.load("cascade_hard"))
+
+full_config = build_network_domain_config()
+verifier = SiLRVerifier(manager, domain_config=full_config)
+
+# Define specialists (each is a standard ReActAgent with restricted tools)
 specialists = [
     SpecialistSpec(name="connectivity", domain_config=build_connectivity_specialist_config()),
     SpecialistSpec(name="utilization", domain_config=build_utilization_specialist_config()),
@@ -129,54 +124,42 @@ specialists = [
 coordinator = CoordinatorAgent(
     manager=manager,
     verifier=verifier,
-    llm_client=llm_client,
+    llm_client=llm_client,  # any BaseLLMClient
     specialists=specialists,
-    full_domain_config=build_network_domain_config(),
+    full_domain_config=full_config,
     config=CoordinatorConfig(max_rounds=6),
 )
 result = coordinator.run_episode(scenario_id="cascade_hard")
-print(f"Recovered: {result.recovered}, Rounds: {result.total_rounds}")
+print(f"Recovered: {result.recovered}, Rounds: {result.total_rounds}, Conflicts: {result.conflict_count}")
 ```
 
-Each specialist is a standard `ReActAgent` with a restricted `DomainConfig` (subset of tools). The coordinator observes the full system state, dispatches specialists via LLM reasoning, and detects cross-constraint conflicts by comparing pre/post observations.
+The coordinator observes full system state each round, asks the LLM which specialist to activate, then compares pre/post observations to detect cross-constraint conflicts.
+
+### Power Grid Domain
+
+A reference power grid implementation is included under `domains/grid/`, built on the [ANDES](https://docs.andes.app/) simulator.
 
 ## Add Your Own Domain
 
-Implementing a new domain requires four components:
+Four components:
 
-### Step 1: System Manager
-
-Subclass `BaseSystemManager` with your simulator's lifecycle:
+### 1. System Manager
 
 ```python
 from silr.core.interfaces import BaseSystemManager
 
 class MyManager(BaseSystemManager):
     @property
-    def sim_time(self) -> float:
-        return self._time
-
+    def sim_time(self) -> float: ...
     @property
-    def base_mva(self) -> float:
-        return 1.0  # use 1.0 if your domain has no per-unit system
-
+    def base_mva(self) -> float: return 1.0
     @property
-    def system_state(self) -> dict:
-        """Current state snapshot for constraint checkers."""
-        ...
-
-    def run_pflow(self) -> bool:
-        """Run steady-state solver. Return True if converged."""
-        ...
-
-    def create_shadow_copy(self) -> "MyManager":
-        """Return an independent deep copy for verification."""
-        ...
+    def system_state(self) -> dict: ...
+    def run_pflow(self) -> bool: ...
+    def create_shadow_copy(self) -> "MyManager": ...
 ```
 
-### Step 2: Constraint Checkers
-
-Define what "safe" means in your domain:
+### 2. Constraint Checkers
 
 ```python
 from silr.core.interfaces import BaseConstraintChecker
@@ -188,21 +171,16 @@ class TemperatureChecker(BaseConstraintChecker):
         return "temperature_limits"
 
     def check(self, state: dict, base_mva: float) -> CheckResult:
-        violations = []
-        for zone in state["thermal_zones"]:
-            if zone["temp_c"] > 85.0:
-                violations.append(...)
+        violations = [...]  # check state against limits
         return CheckResult(
             checker_name=self.name,
             passed=len(violations) == 0,
-            summary={"max_temp": max(z["temp_c"] for z in state["thermal_zones"])},
+            summary={"max_temp": ...},
             violations=violations,
         )
 ```
 
-### Step 3: Domain Tools
-
-Wrap simulator actions as `BaseTool` instances:
+### 3. Domain Tools
 
 ```python
 from silr.tools.base import BaseTool
@@ -220,9 +198,7 @@ class AdjustCoolingTool(BaseTool):
         return {"adjusted": True, "zone_id": zone_id}
 ```
 
-### Step 4: Domain Config
-
-Bundle everything into a `DomainConfig`:
+### 4. Domain Config
 
 ```python
 from silr.core.config import DomainConfig
@@ -232,29 +208,29 @@ def build_my_domain_config():
         domain_name="thermal_plant",
         checkers=[TemperatureChecker(), PressureChecker()],
         allowed_actions=frozenset(["adjust_cooling", "open_valve"]),
-        create_toolset=create_my_toolset,  # callable: manager → {name: tool}
+        create_toolset=create_my_toolset,
     )
 ```
 
-That's it. The SiLR verifier, ReAct agent, and training pipeline all work with your new domain automatically.
+The SiLR verifier, ReAct agent, coordinator, and training pipeline all work with your new domain automatically.
 
 ## Project Structure
 
 ```
-silr/                    # Framework core (pip install silr)
+silr/                    # Framework core
 ├── core/                # ABCs: BaseSystemManager, BaseConstraintChecker, DomainConfig
 ├── tools/               # BaseTool ABC
-├── verifier/            # SiLRVerifier + shadow-copy verification pipeline
+├── verifier/            # SiLRVerifier — shadow-copy verification pipeline
 ├── agent/               # ReAct loop, CoordinatorAgent, LLM clients
 │   ├── coordinator.py   # Multi-agent coordinator + specialist dispatch
-│   └── react_loop.py    # Single-agent ReAct loop (also used as specialist)
+│   └── react_loop.py    # Single-agent ReAct loop (reused as specialist)
 ├── training/            # SFT/DPO trainers, reward computation
 └── eval/                # EvalRunner, MultiAgentEvalRunner, metrics
 
 domains/                 # Reference implementations
 ├── network/             # Toy 5-node network (zero dependencies)
-│   ├── scenarios.py     # Cascading fault scenarios for multi-agent testing
-│   └── specialists.py   # Connectivity / utilization specialist configs
+│   ├── scenarios.py     # Cascading fault scenarios
+│   └── specialists.py   # Specialist agent configs
 └── grid/                # Power grid domain (requires ANDES)
 
 examples/                # Runnable demos
@@ -266,8 +242,6 @@ tests/                   # pytest suite
 MIT
 
 ## Citation
-
-If you use SiLR-Agent in your research, please cite:
 
 ```bibtex
 @misc{silr-agent,
