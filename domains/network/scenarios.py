@@ -72,14 +72,21 @@ class NetworkScenarioLoader:
         return list(SCENARIOS)
 
     def setup_episode(self, manager: NetworkManager, scenario: CascadingScenario) -> None:
-        """Apply all faults and overloads to the manager."""
+        """Apply all faults and overloads to the manager.
+
+        Overloads are applied AFTER run_pflow() because the solver
+        resets all traffic to 0 and recalculates from demands.
+        Manual overloads simulate pre-existing stress that the solver
+        alone doesn't produce.
+        """
         for fault in scenario.faults:
             if fault["type"] == "fail_link":
                 manager.fail_link(fault["src"], fault["dst"])
 
+        manager.run_pflow()
+
+        # Apply overloads after solver to avoid being wiped out
         for overload in scenario.overloads:
             key = (overload["src"], overload["dst"])
             if key in manager._links:
                 manager._links[key]["traffic"] = overload["traffic"]
-
-        manager.run_pflow()

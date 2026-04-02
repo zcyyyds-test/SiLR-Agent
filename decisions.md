@@ -30,6 +30,12 @@
 
 ## 坑点记录
 
+### 坑点（已修复）：run_pflow() 会覆盖手动设置的 traffic overload
+
+`NetworkManager.run_pflow()` 先 reset 所有 traffic 为 0，再按 demand shortest-path 重新路由。如果在 `run_pflow()` 前设置 overload，值会被清零。
+
+**修复**：`setup_episode()` 中先 `run_pflow()` 让 solver 算完，再手动设置 overload。这样 observer 能看到真实的高负载状态。下次 specialist 执行 action 触发的 `run_pflow()` 会重新计算，但此时拓扑已变（链路恢复），traffic 分布自然不同。
+
 ### 坑点：specialist 的 DomainConfig.checkers 不影响验证
 
 specialist 的 DomainConfig 中的 checkers 只用于 observation（让 specialist 知道自己负责哪些约束），不影响 SiLRVerifier 的验证。verifier 始终用 full_domain_config 的完整 checker 列表。如果搞混了，specialist 提的 action 可能通过自己的子集 checker 但被全局 verifier 拒绝 — 这是正确行为，不是 bug。
