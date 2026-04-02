@@ -25,6 +25,10 @@ classifiers = [
 ]
 dependencies = []
 
+[project.urls]
+Homepage = "https://github.com/zcyyyds-test/SiLR-Agent"
+Repository = "https://github.com/zcyyyds-test/SiLR-Agent"
+
 [project.optional-dependencies]
 agent = [
     "openai>=1.0",
@@ -54,6 +58,11 @@ all = [
 
 [tool.setuptools.packages.find]
 include = ["silr*", "domains*"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

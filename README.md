@@ -1,5 +1,9 @@
 # SiLR-Agent
 
+[![CI](https://github.com/zcyyyds-test/SiLR-Agent/actions/workflows/ci.yml/badge.svg)](https://github.com/zcyyyds-test/SiLR-Agent/actions/workflows/ci.yml)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
 **Simulation-in-the-Loop Reasoning framework that integrates domain knowledge into LLM agent decision loops.**
 
 *Any domain with a simulator can have a verified LLM agent.*
