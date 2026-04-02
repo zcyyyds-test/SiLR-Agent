@@ -59,6 +59,9 @@ class MultiAgentEpisodeResult:
             total_steps=len(steps),
             total_proposals=self.total_proposals,
             total_rejections=self.total_rejections,
+            failsafe_triggered=any(
+                a.episode_result.failsafe_triggered for a in self.activations
+            ),
             final_observation=self.final_observation,
             error=self.error,
         )

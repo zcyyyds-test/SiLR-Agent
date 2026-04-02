@@ -81,11 +81,15 @@ class CoordinatorAgent:
         self._full_config = full_domain_config
         self._config = config
 
-        self._observer: BaseObserver = (
-            full_domain_config.create_observer(manager)
-            if full_domain_config.create_observer
-            else _FallbackObserver()
-        )
+        if full_domain_config.create_observer:
+            self._observer: BaseObserver = full_domain_config.create_observer(manager)
+        else:
+            logger.warning(
+                "No observer provided in full_domain_config. "
+                "Using fallback that always reports unstable — "
+                "coordinator requires a real observer to function."
+            )
+            self._observer = _FallbackObserver()
 
     def run_episode(self, scenario_id: str = "unknown") -> MultiAgentEpisodeResult:
         """Run a multi-agent coordinator episode."""
