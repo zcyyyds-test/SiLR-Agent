@@ -60,3 +60,43 @@ class TestReActAgentNetwork:
         agent = self._make_agent(responses)
         result = agent.run_episode(scenario_id="test")
         assert result.total_steps >= 1
+
+    def test_rejection_then_recovery(self):
+        """First proposal rejected (unknown action) → second proposal passes."""
+        responses = [
+            # Step 1, proposal 1: invalid action → SiLR rejects
+            LLMResponse(content=(
+                'Thought: Try deleting the node.\n'
+                '```json\n{"tool_name": "delete_node", "params": {"id": 1}}\n```'
+            )),
+            # Step 1, proposal 2: valid action → SiLR passes
+            LLMResponse(content=(
+                'Thought: Restore the failed link instead.\n'
+                '```json\n{"tool_name": "restore_link", "params": {"src": 1, "dst": 2}}\n```'
+            )),
+            # Step 2: system stable
+            LLMResponse(content=(
+                'Thought: System recovered.\n'
+                '```json\n{"tool_name": "none", "params": {}}\n```'
+            )),
+        ]
+        agent = self._make_agent(responses)
+        result = agent.run_episode(scenario_id="test")
+
+        # First step: had a rejection then a success
+        assert result.total_rejections >= 1
+        assert result.steps[0].outcome == StepOutcome.SUCCESS
+        assert result.steps[0].applied_action["tool_name"] == "restore_link"
+        assert len(result.steps[0].verification_results) >= 2
+
+    def test_max_steps_reached(self):
+        """Agent exhausts max_steps without recovering."""
+        # Always propose an invalid action
+        bad_response = LLMResponse(content=(
+            'Thought: Try something.\n'
+            '```json\n{"tool_name": "delete_node", "params": {"id": 1}}\n```'
+        ))
+        responses = [bad_response] * 10  # more than max_steps * max_proposals
+        agent = self._make_agent(responses)
+        result = agent.run_episode(scenario_id="test")
+        assert result.total_steps == 3  # max_steps from AgentConfig
