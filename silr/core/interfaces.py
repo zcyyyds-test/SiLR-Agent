@@ -10,7 +10,10 @@ in the dependency graph, preventing circular imports.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from silr.verifier.types import CheckResult
 
 
 class BaseSystemManager(ABC):
@@ -86,7 +89,7 @@ class BaseConstraintChecker(ABC):
     name: str  # Unique checker name (e.g. "voltage", "link_utilization")
 
     @abstractmethod
-    def check(self, system_state: Any, base_mva: float) -> Any:
+    def check(self, system_state: Any, base_mva: float) -> CheckResult:
         """Check constraints against the given system state.
 
         Args:
