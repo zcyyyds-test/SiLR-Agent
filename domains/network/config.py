@@ -3,6 +3,7 @@
 from silr.core.config import DomainConfig
 from .checkers import LinkUtilizationChecker, ConnectivityChecker
 from .tools import create_network_toolset
+from .observation import NetworkObserver
 
 
 def build_network_domain_config() -> DomainConfig:
@@ -17,4 +18,5 @@ def build_network_domain_config() -> DomainConfig:
         checkers=[LinkUtilizationChecker(), ConnectivityChecker()],
         allowed_actions=frozenset(["restore_link", "reroute_traffic"]),
         create_toolset=create_network_toolset,
+        create_observer=lambda mgr: NetworkObserver(mgr),
     )
