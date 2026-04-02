@@ -90,3 +90,54 @@ def compute_unsafe_action_rate(
     if total_actions == 0:
         return 0.0
     return unsafe_actions / total_actions
+
+
+def compute_multi_agent_metrics(
+    episodes: list[Any],
+    difficulty_fn: Any = None,
+) -> dict[str, Any]:
+    """Compute aggregate metrics for multi-agent coordinator episodes.
+
+    Args:
+        episodes: List of MultiAgentEpisodeResult.
+        difficulty_fn: Optional callable(scenario_id) -> difficulty label.
+
+    Returns dict with single-agent compatible metrics plus:
+    - avg_rounds: average coordinator rounds per episode
+    - avg_specialist_activations: average specialist dispatches
+    - conflict_rate: fraction of activations that worsened a constraint
+    - per_specialist: per-specialist activation and success breakdown
+    """
+    if not episodes:
+        return {"error": "No episodes to evaluate"}
+
+    # Flatten to single-agent view for base metrics
+    flat = [ep.to_single_agent_view() for ep in episodes]
+    base = compute_metrics(flat, difficulty_fn)
+
+    n = len(episodes)
+    total_rounds = sum(ep.total_rounds for ep in episodes)
+    total_activations = sum(len(ep.activations) for ep in episodes)
+    total_conflicts = sum(ep.conflict_count for ep in episodes)
+
+    base["avg_rounds"] = total_rounds / n
+    base["avg_specialist_activations"] = total_activations / n
+    base["conflict_rate"] = total_conflicts / total_activations if total_activations > 0 else 0.0
+
+    # Per-specialist breakdown
+    specialist_stats: dict[str, dict[str, int]] = {}
+    for ep in episodes:
+        for a in ep.activations:
+            stats = specialist_stats.setdefault(a.specialist_name, {
+                "activations": 0, "steps": 0, "improved": 0, "worsened": 0,
+            })
+            stats["activations"] += 1
+            stats["steps"] += a.episode_result.total_steps
+            if a.constraints_improved:
+                stats["improved"] += 1
+            if a.constraints_worsened:
+                stats["worsened"] += 1
+
+    base["per_specialist"] = specialist_stats
+
+    return base
