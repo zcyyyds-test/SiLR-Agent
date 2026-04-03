@@ -22,9 +22,9 @@ class TestDefaultTopology:
         assert len(cluster_manager.get_node_ids()) == 15
 
     def test_job_count(self, cluster_manager):
-        """45-55 jobs generated (~70-80% cluster utilization)."""
+        """35-40 jobs generated (~65-70% cluster utilization)."""
         num_jobs = len(cluster_manager.get_job_ids())
-        assert 45 <= num_jobs <= 55
+        assert 35 <= num_jobs <= 40
 
     def test_racks(self, cluster_manager):
         """3 racks, 5 nodes each."""

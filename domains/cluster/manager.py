@@ -83,17 +83,20 @@ def _build_default_jobs(node_ids: list[str], rng: random.Random) -> dict[str, di
         "benchmark", "distillation",
     ]
 
-    num_jobs = rng.randint(45, 55)  # ~70-80% cluster utilization, leaving headroom
+    # 72 total GPUs across 15 nodes. Target ~65-70% utilization (46-50 GPUs used)
+    # so scenarios have headroom for rescheduling after failures.
+    # avg GPU/job ≈ 1.33 with this distribution, 38 jobs × 1.33 ≈ 50 GPUs ≈ 70%
+    num_jobs = rng.randint(35, 40)
     jobs: dict[str, dict] = {}
     for i in range(num_jobs):
         job_id = f"job-{i:04d}"
         priority = rng.choices(priorities, weights=priority_weights, k=1)[0]
         group = rng.choice(job_groups)
 
-        # Resource requests — small to large spread
-        gpu = rng.choice([1, 1, 1, 2, 2, 4])
+        # Resource requests — mostly small, few large
+        gpu = rng.choice([1, 1, 1, 1, 2, 2])
         cpu = rng.choice([4, 8, 8, 16, 16, 32])
-        ram_gb = rng.choice([16, 32, 32, 64, 64, 128, 256])
+        ram_gb = rng.choice([16, 32, 32, 64, 64, 128])
 
         # ~20% of jobs have rack affinity
         rack_affinity: Optional[str] = None
