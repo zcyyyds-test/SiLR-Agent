@@ -83,7 +83,7 @@ def _build_default_jobs(node_ids: list[str], rng: random.Random) -> dict[str, di
         "benchmark", "distillation",
     ]
 
-    num_jobs = rng.randint(60, 80)
+    num_jobs = rng.randint(45, 55)  # ~70-80% cluster utilization, leaving headroom
     jobs: dict[str, dict] = {}
     for i in range(num_jobs):
         job_id = f"job-{i:04d}"

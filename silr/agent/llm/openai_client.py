@@ -40,7 +40,7 @@ class OpenAIClient(BaseLLMClient):
             kwargs["default_headers"] = default_headers
         self._client = openai.OpenAI(**kwargs)
         self._model = model
-        self._is_gemini = model.startswith("gemini")
+        self._is_gemini = "gemini" in model.lower()
 
     def chat(
         self,

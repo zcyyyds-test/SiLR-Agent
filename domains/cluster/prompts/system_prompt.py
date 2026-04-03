@@ -74,19 +74,20 @@ Node types:
 
 ## Response Format
 
-Respond with a JSON object:
-{{
-  "thought": "<brief reasoning about the current situation>",
-  "actions": [
-    {{"tool_name": "<action>", "params": {{...}}}}
-  ]
-}}
+Respond with a JSON object containing exactly ONE action:
+{{"tool_name": "<action>", "params": {{...}}}}
 
-Guidelines:
-- Propose ONE action at a time for safety verification.
-- Prioritise urgent jobs over normal jobs over preemptible jobs.
-- Prefer assigning to nodes with spare capacity before preempting.
-- Respect rack affinity constraints when placing jobs.
-- If the system is stable with no violations, respond with an empty actions list.
+If the system is stable with no queued jobs and no violations:
+{{"tool_name": "none", "params": {{}}}}
+
+## Strategy Guidelines
+
+- If nodes have spare GPU capacity, directly assign_job queued jobs there.
+- If no node has capacity, preempt_job a preemptible running job first to free GPUs, then assign_job the queued job on the next step.
+- For priority conflicts: preempt preemptible jobs to make room for urgent queued jobs.
+- For node failures: redistribute displaced jobs across remaining nodes with available capacity.
+- Always check which nodes have free GPUs before deciding where to place a job.
+- Respect rack affinity: if a job requires a specific rack, only assign to nodes in that rack.
+- If rejected for capacity overflow, try a different node or preempt first.
 """
     return prompt
