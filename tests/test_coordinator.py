@@ -95,33 +95,36 @@ class TestCoordinatorDispatch:
         assert result.activations[0].specialist_name == "connectivity"
 
     def test_two_specialist_sequential(self):
-        """cascade_easy: connectivity then utilization."""
+        """cascade_medium: two link failures requiring two specialist rounds."""
         coordinator_responses = [
-            LLMResponse(content='{"specialist": "connectivity", "reason": "link down"}'),
-            LLMResponse(content='{"specialist": "utilization", "reason": "overload after restore"}'),
+            LLMResponse(content='{"specialist": "connectivity", "reason": "node 3 isolated"}'),
+            LLMResponse(content='{"specialist": "connectivity", "reason": "still one link down"}'),
             LLMResponse(content='{"action": "done", "reason": "stable"}'),
         ]
         specialist_responses = [
-            # Connectivity: restore
+            # Round 1: restore link 2-3
             LLMResponse(content=(
-                'Thought: Restore.\n'
-                '```json\n{"tool_name": "restore_link", "params": {"src": 1, "dst": 2}}\n```'
+                'Thought: Restore 2-3.\n'
+                '```json\n{"tool_name": "restore_link", "params": {"src": 2, "dst": 3}}\n```'
             )),
             LLMResponse(content='Thought: Done.\n```json\n{"tool_name": "none", "params": {}}\n```'),
-            # Utilization: reroute
+            # Round 2: restore link 3-5
             LLMResponse(content=(
-                'Thought: Reroute.\n'
-                '```json\n{"tool_name": "reroute_traffic", "params": {"src": 2, "dst": 5, "amount_mbps": 10}}\n```'
+                'Thought: Restore 3-5.\n'
+                '```json\n{"tool_name": "restore_link", "params": {"src": 3, "dst": 5}}\n```'
             )),
             LLMResponse(content='Thought: Done.\n```json\n{"tool_name": "none", "params": {}}\n```'),
         ]
 
-        agent = _make_coordinator(coordinator_responses, specialist_responses)
+        agent = _make_coordinator(
+            coordinator_responses, specialist_responses,
+            scenario_id="cascade_medium",
+        )
         result = agent.run_episode(scenario_id="test_two")
 
         assert result.total_rounds >= 2
         assert result.activations[0].specialist_name == "connectivity"
-        assert result.activations[1].specialist_name == "utilization"
+        assert result.activations[1].specialist_name == "connectivity"
 
     def test_already_stable(self):
         """No faults -> coordinator should return immediately."""
