@@ -69,11 +69,12 @@ class TestDomainConfig:
         assert domain_config.domain_name == "gpu_cluster"
 
     def test_checkers_count(self, domain_config):
-        assert len(domain_config.checkers) == 5
+        # Verifier only has safety checkers; global-state checkers are observer-only
+        assert len(domain_config.checkers) == 2
 
     def test_checker_names(self, domain_config):
         names = {c.name for c in domain_config.checkers}
-        expected = {"resource_capacity", "affinity", "rack_spread", "priority", "queue"}
+        expected = {"resource_capacity", "affinity"}
         assert names == expected
 
     def test_allowed_actions(self, domain_config):

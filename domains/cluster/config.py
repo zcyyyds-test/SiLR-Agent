@@ -23,12 +23,13 @@ def build_cluster_domain_config(with_observer: bool = True) -> DomainConfig:
     """
     return DomainConfig(
         domain_name="gpu_cluster",
+        # Verifier checkers: only per-action SAFETY constraints.
+        # Global state checks (queue, priority, rack_spread) are handled by
+        # the observer for episode termination — they require multiple actions
+        # to resolve and would reject every intermediate step otherwise.
         checkers=[
             ResourceCapacityChecker(),
             AffinityChecker(),
-            RackSpreadChecker(),
-            PriorityChecker(),
-            QueueChecker(),
         ],
         allowed_actions=frozenset([
             "assign_job",
