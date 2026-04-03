@@ -160,6 +160,18 @@ def _margin_for_check(
         margin = 1.0 - (max_sep / max_deg)
         return max(0.0, min(1.0, margin))
 
+    # --- Cluster domain checkers ---
+
+    if name == "resource_capacity":
+        max_util = _get_first(summary, "max_gpu_util")
+        if max_util is not None:
+            return max(0.0, min(1.0, 1.0 - max_util))
+
+    if name == "queue":
+        ratio = _get_first(summary, "queue_ratio")
+        if ratio is not None:
+            return max(0.0, min(1.0, 1.0 - ratio))
+
     # Unknown checker — generic margin from n_violations
     n_viol = summary.get("n_violations")
     if n_viol is not None:
