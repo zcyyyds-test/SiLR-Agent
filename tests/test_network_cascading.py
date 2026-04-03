@@ -23,8 +23,10 @@ class TestNetworkObserver:
         assert obs.violations == []
 
     def test_observe_with_failure(self):
+        """Isolating node 3 creates connectivity violations."""
         mgr = NetworkManager()
-        mgr.fail_link(1, 2)
+        mgr.fail_link(2, 3)
+        mgr.fail_link(3, 5)
         mgr.run_pflow()
         obs = NetworkObserver(mgr).observe()
         assert obs.is_stable is False
@@ -67,8 +69,8 @@ class TestNetworkScenarios:
 
         # Link 1-2 should be down
         assert mgr._links[(1, 2)]["up"] is False
-        # Link 2-5 should be near overload
-        assert mgr._links[(2, 5)]["traffic"] >= 50
+        # Link 2-5 should be overloaded (>90% of capacity 60)
+        assert mgr._links[(2, 5)]["traffic"] >= 55
 
     def test_setup_cascade_medium(self):
         loader = NetworkScenarioLoader()
@@ -76,7 +78,7 @@ class TestNetworkScenarios:
         scenario = loader.load("cascade_medium")
         loader.setup_episode(mgr, scenario)
 
-        assert mgr._links[(1, 2)]["up"] is False
+        assert mgr._links[(2, 3)]["up"] is False
         assert mgr._links[(3, 5)]["up"] is False
 
     def test_setup_cascade_hard(self):
@@ -86,7 +88,7 @@ class TestNetworkScenarios:
         loader.setup_episode(mgr, scenario)
 
         assert mgr._links[(1, 2)]["up"] is False
-        assert mgr._links[(2, 5)]["traffic"] >= 55
+        assert mgr._links[(2, 5)]["traffic"] >= 58
 
     def test_all_scenarios_create_violations(self):
         """Every cascading scenario should produce at least one violation."""

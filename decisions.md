@@ -30,6 +30,16 @@
 
 ## 坑点记录
 
+### 坑点（已修复）：默认 DomainConfig 加 observer 破坏了单 agent 测试
+
+给 `build_network_domain_config()` 默认加上 `create_observer=NetworkObserver` 后，所有单 agent 测试挂了。原因：旧测试依赖 `_MinimalObserver`（永远返回 `is_stable=False`），而 `NetworkObserver` 正确检测到"断一条链路 ≠ 有违规"（5 节点网络有冗余路径）。
+
+**修复**：`with_observer` 默认为 False，coordinator 测试显式传 True。observer 是 opt-in 而非 default。
+
+### 坑点（已修复）：cascade 场景的 overload 值低于 90% 阈值
+
+link 2-5 capacity=60，overload 设为 52 → 86.7% < 90% → 无违规。改为 55（easy）和 58（hard）才能触发。cascade_medium 改为断 2-3+3-5 隔离 node 3 造成 connectivity 违规。
+
 ### 坑点（已修复）：run_pflow() 会覆盖手动设置的 traffic overload
 
 `NetworkManager.run_pflow()` 先 reset 所有 traffic 为 0，再按 demand shortest-path 重新路由。如果在 `run_pflow()` 前设置 overload，值会被清零。

@@ -34,16 +34,16 @@ class CascadingScenario:
 SCENARIOS = [
     CascadingScenario(
         id="cascade_easy",
-        description="Link failure + near-overload: restore then reroute",
+        description="Link failure + overload: restore then reroute",
         faults=[{"type": "fail_link", "src": 1, "dst": 2}],
-        overloads=[{"src": 2, "dst": 5, "traffic": 52}],
+        overloads=[{"src": 2, "dst": 5, "traffic": 55}],  # 91.7% > 90% threshold
         difficulty="easy",
     ),
     CascadingScenario(
         id="cascade_medium",
-        description="Two link failures: restoration order affects traffic",
+        description="Two link failures: node isolation causes connectivity violation",
         faults=[
-            {"type": "fail_link", "src": 1, "dst": 2},
+            {"type": "fail_link", "src": 2, "dst": 3},
             {"type": "fail_link", "src": 3, "dst": 5},
         ],
         difficulty="medium",
@@ -52,7 +52,7 @@ SCENARIOS = [
         id="cascade_hard",
         description="Link failure + critical overload: restoring link worsens overload",
         faults=[{"type": "fail_link", "src": 1, "dst": 2}],
-        overloads=[{"src": 2, "dst": 5, "traffic": 57}],
+        overloads=[{"src": 2, "dst": 5, "traffic": 58}],  # 96.7% > 90% threshold
         difficulty="hard",
     ),
 ]

@@ -31,7 +31,7 @@ def _make_coordinator(
     scenario = loader.load(scenario_id)
     loader.setup_episode(mgr, scenario)
 
-    full_config = build_network_domain_config()
+    full_config = build_network_domain_config(with_observer=True)
     verifier = SiLRVerifier(mgr, domain_config=full_config)
 
     specialists = [
@@ -128,7 +128,7 @@ class TestCoordinatorDispatch:
         mgr = NetworkManager()
         mgr.run_pflow()
 
-        full_config = build_network_domain_config()
+        full_config = build_network_domain_config(with_observer=True)
         verifier = SiLRVerifier(mgr, domain_config=full_config)
 
         agent = CoordinatorAgent(
@@ -189,9 +189,11 @@ class TestConstraintChangeDetection:
             LLMResponse(content='{"action": "done", "reason": "check"}'),
         ]
         specialist_responses = [
+            # cascade_medium: links 2-3 and 3-5 are down (node 3 isolated)
+            # Restoring 2-3 reconnects node 3 via path 2-3
             LLMResponse(content=(
-                'Thought: Restore.\n'
-                '```json\n{"tool_name": "restore_link", "params": {"src": 1, "dst": 2}}\n```'
+                'Thought: Restore link 2-3.\n'
+                '```json\n{"tool_name": "restore_link", "params": {"src": 2, "dst": 3}}\n```'
             )),
             LLMResponse(content='Thought: Done.\n```json\n{"tool_name": "none", "params": {}}\n```'),
         ]
