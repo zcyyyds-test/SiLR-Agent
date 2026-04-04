@@ -407,16 +407,16 @@ class TestQueueChecker:
         assert any(v.device_id == jid for v in result.violations)
 
     def test_summary_queue_ratio(self, mgr):
-        """queue_ratio = queued_count / total_jobs."""
+        """queue_ratio = critical_queued / total_jobs."""
         checker = QueueChecker()
         result = checker.check(mgr.system_state, mgr.base_mva)
         total = result.summary["total_jobs"]
-        queued = result.summary["queued_count"]
-        expected_ratio = round(queued / total, 3) if total else 0
+        critical = result.summary["critical_queued"]
+        expected_ratio = round(critical / total, 3) if total else 0
         assert result.summary["queue_ratio"] == expected_ratio
 
     def test_all_queued(self, mgr):
-        """All jobs Queued -> ratio = 1.0, all violations."""
+        """All jobs Queued -> violations only for urgent+normal, not preemptible."""
         for job in mgr._jobs.values():
             job["status"] = "Queued"
         mgr._assignments.clear()
@@ -424,9 +424,12 @@ class TestQueueChecker:
         checker = QueueChecker()
         result = checker.check(mgr.system_state, mgr.base_mva)
         assert not result.passed
-        assert result.summary["queue_ratio"] == 1.0
-        assert result.summary["queued_count"] == result.summary["total_jobs"]
-        assert len(result.violations) == result.summary["total_jobs"]
+        total = result.summary["total_jobs"]
+        critical = result.summary["critical_queued"]
+        preemptible = result.summary["preemptible_queued"]
+        assert critical + preemptible == total
+        # Only urgent+normal jobs create violations
+        assert len(result.violations) == critical
 
     def test_violation_severity(self, mgr):
         """Queue violations have severity='violation'."""
