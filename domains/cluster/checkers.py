@@ -238,7 +238,12 @@ class PriorityChecker(BaseConstraintChecker):
 
 
 class QueueChecker(BaseConstraintChecker):
-    """All jobs must be scheduled (no Queued jobs remaining)."""
+    """Urgent and normal jobs must be scheduled. Preemptible may stay queued.
+
+    Recovery target: no urgent or normal jobs in the queue.
+    Preemptible jobs are by definition non-critical — leaving them
+    queued when capacity is exhausted is the correct triage decision.
+    """
 
     name = "queue"
 
@@ -247,12 +252,21 @@ class QueueChecker(BaseConstraintChecker):
         violations: list[Violation] = []
 
         queued = [jid for jid, j in jobs.items() if j["status"] == "Queued"]
+        critical_queued = [
+            jid for jid in queued
+            if jobs[jid]["priority"] in ("urgent", "normal")
+        ]
+        preemptible_queued = [
+            jid for jid in queued
+            if jobs[jid]["priority"] == "preemptible"
+        ]
         total = len(jobs)
 
-        for jid in queued:
+        for jid in critical_queued:
             job = jobs[jid]
             gpu = job.get("gpu", job.get("gpu_req", "?"))
             group = job.get("group", "unknown")
+            severity = "critical" if job["priority"] == "urgent" else "violation"
             violations.append(Violation(
                 constraint_type="queue",
                 device_type="job",
@@ -261,7 +275,7 @@ class QueueChecker(BaseConstraintChecker):
                 value=1.0,
                 limit=0.0,
                 unit="bool",
-                severity="violation",
+                severity=severity,
                 detail=f"{jid} ({group}, {job['priority']}) needs {gpu} GPUs",
             ))
 
@@ -270,8 +284,10 @@ class QueueChecker(BaseConstraintChecker):
             passed=len(violations) == 0,
             summary={
                 "queued_count": len(queued),
+                "critical_queued": len(critical_queued),
+                "preemptible_queued": len(preemptible_queued),
                 "total_jobs": total,
-                "queue_ratio": round(len(queued) / total, 3) if total else 0,
+                "queue_ratio": round(len(critical_queued) / total, 3) if total else 0,
                 "n_violations": len(violations),
             },
             violations=violations,

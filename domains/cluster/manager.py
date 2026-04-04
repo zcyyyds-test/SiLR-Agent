@@ -83,10 +83,10 @@ def _build_default_jobs(node_ids: list[str], rng: random.Random) -> dict[str, di
         "benchmark", "distillation",
     ]
 
-    # 72 total GPUs across 15 nodes. Target ~65-70% utilization (46-50 GPUs used)
+    # 72 total GPUs across 15 nodes. Target ~55-65% utilization (40-47 GPUs used)
     # so scenarios have headroom for rescheduling after failures.
-    # avg GPU/job ≈ 1.33 with this distribution, 38 jobs × 1.33 ≈ 50 GPUs ≈ 70%
-    num_jobs = rng.randint(35, 40)
+    # avg GPU/job ≈ 1.33 with this distribution, 33 jobs × 1.33 ≈ 44 GPUs ≈ 61%
+    num_jobs = rng.randint(30, 35)
     jobs: dict[str, dict] = {}
     for i in range(num_jobs):
         job_id = f"job-{i:04d}"
