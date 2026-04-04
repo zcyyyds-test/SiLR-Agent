@@ -3,8 +3,8 @@
 Usage:
     python scripts/collect_sft_data.py \
         --model gemini-3-flash-preview \
-        --base-url https://new.lemonapi.site/v1 \
-        --api-key sk-xxx \
+        --base-url https://api.openai.com/v1 \
+        --api-key $OPENAI_API_KEY \
         --repeats 10 \
         --output outputs/sft_collection
 
@@ -43,7 +43,7 @@ def setup_logging(name: str, log_dir: str = "."):
 def main():
     parser = argparse.ArgumentParser(description="Collect SFT data for cluster domain")
     parser.add_argument("--model", default="gemini-3-flash-preview")
-    parser.add_argument("--base-url", default="https://new.lemonapi.site/v1")
+    parser.add_argument("--base-url", default=None, help="OpenAI-compatible API base URL")
     parser.add_argument("--api-key", required=True)
     parser.add_argument("--repeats", type=int, default=10)
     parser.add_argument("--max-steps", type=int, default=8)

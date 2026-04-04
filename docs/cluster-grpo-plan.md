@@ -1,7 +1,5 @@
 # GPU Cluster Scheduling + GRPO Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Add a GPU cluster job scheduling domain and step-level GRPO trainer to SILR-Agent, producing a measurable SFT→GRPO improvement.
 
 **Architecture:** New `domains/cluster/` implements `BaseSystemManager`, 5 constraint checkers, 6 tools, and a scenario loader following the exact patterns in `domains/network/`. A new `silr/training/grpo_trainer.py` implements the iterative offline GRPO loop using step-level (observation, action, reward) tuples grouped by (scenario, step_number).
