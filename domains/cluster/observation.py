@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 from silr.agent.observation import BaseObserver
 from silr.agent.types import Observation
@@ -63,13 +64,38 @@ class ClusterObserver(BaseObserver):
             if n["status"] == "Cordoned"
         ]
 
-        queued_jobs = [
-            {"job_id": jid, "priority": jobs[jid]["priority"], "gpu": jobs[jid]["gpu"]}
-            for jid in sorted(jobs.keys())
-            if jobs[jid]["status"] == "Queued"
-        ]
+        queued_jobs = []
+        for jid in sorted(jobs.keys()):
+            if jobs[jid]["status"] != "Queued":
+                continue
+            entry: dict[str, Any] = {
+                "job_id": jid,
+                "priority": jobs[jid]["priority"],
+                "gpu": jobs[jid]["gpu"],
+                "cpu": jobs[jid]["cpu"],
+                "ram_gb": jobs[jid]["ram_gb"],
+            }
+            if jobs[jid].get("rack_affinity"):
+                entry["rack_affinity"] = jobs[jid]["rack_affinity"]
+            queued_jobs.append(entry)
 
-        # Busy nodes: >70% GPU utilization among Ready nodes
+        # Available nodes: all Ready nodes with free GPU capacity
+        available_nodes = []
+        for nid, n in sorted(nodes.items()):
+            if n["status"] != "Ready":
+                continue
+            gpu_free = n["gpu_total"] - n["gpu_used"]
+            if gpu_free > 0:
+                available_nodes.append({
+                    "node_id": nid,
+                    "rack": n["rack"],
+                    "gpu_free": gpu_free,
+                    "gpu_total": n["gpu_total"],
+                    "cpu_free": n["cpu_total"] - n["cpu_used"],
+                    "ram_free_gb": n["ram_total_gb"] - n["ram_used_gb"],
+                })
+
+        # Busy nodes: 0 free GPUs among Ready nodes
         busy_nodes = []
         for nid, n in sorted(nodes.items()):
             if n["status"] != "Ready":
@@ -77,19 +103,35 @@ class ClusterObserver(BaseObserver):
             gpu_total = n["gpu_total"]
             if gpu_total <= 0:
                 continue
-            gpu_util = n["gpu_used"] / gpu_total
-            if gpu_util > 0.70:
+            if n["gpu_used"] >= gpu_total:
                 busy_nodes.append({
                     "node_id": nid,
-                    "gpu_util_pct": round(gpu_util * 100, 1),
                     "gpu_used": n["gpu_used"],
                     "gpu_total": gpu_total,
                 })
+
+        # Preemptible running jobs: targets for preempt_job when capacity is tight
+        preemptible_running = []
+        for jid in sorted(jobs.keys()):
+            if jobs[jid]["status"] != "Running":
+                continue
+            if jobs[jid]["priority"] != "preemptible":
+                continue
+            if jid not in assignments:
+                continue
+            preemptible_running.append({
+                "job_id": jid,
+                "node_id": assignments[jid],
+                "rack": nodes[assignments[jid]]["rack"],
+                "gpu": jobs[jid]["gpu"],
+            })
 
         compressed = {
             "down_nodes": sorted(down_nodes),
             "cordoned_nodes": sorted(cordoned_nodes),
             "queued_jobs": queued_jobs,
+            "available_nodes": available_nodes,
+            "preemptible_running": preemptible_running,
             "busy_nodes": busy_nodes,
             "checkers": checker_summaries,
             "n_violations": len(violations),

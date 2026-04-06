@@ -82,12 +82,27 @@ If the system is stable with no queued jobs and no violations:
 
 ## Strategy Guidelines
 
-- If nodes have spare GPU capacity, directly assign_job queued jobs there.
-- If no node has capacity, preempt_job a preemptible running job first to free GPUs, then assign_job the queued job on the next step.
-- For priority conflicts: preempt preemptible jobs to make room for urgent queued jobs.
-- For node failures: redistribute displaced jobs across remaining nodes with available capacity.
-- Always check which nodes have free GPUs before deciding where to place a job.
-- Respect rack affinity: if a job requires a specific rack, only assign to nodes in that rack.
-- If rejected for capacity overflow, try a different node or preempt first.
+1. **Read available_nodes first**: The observation lists all nodes with free GPUs,
+   including rack, gpu_free, cpu_free, ram_free_gb. Pick target nodes from this list.
+2. **Check rack_affinity on each queued job**: If a job has rack_affinity, you MUST
+   assign it to a node in that rack. Assigning elsewhere will be rejected.
+3. **Preempt to free capacity**: If no available node has enough gpu_free for a
+   queued job, use preempt_job on a preemptible running job to free GPUs, then
+   assign_job on the next step. This is common when you've placed several jobs
+   and remaining nodes are too full — don't keep retrying assign, switch to preempt.
+   Example: rack-b is full but job-X needs rack-b → preempt_job a preemptible job
+   on rack-b → next step assign_job job-X to the freed node.
+4. **Migrate to resolve affinity deadlocks**: If a queued job needs a specific rack
+   but all nodes there are full with non-preemptible jobs, use migrate_job to move
+   a lower-priority job from that rack to another rack with free capacity, then
+   assign the queued job.
+   Example: job-X needs rack-a, rack-a-f4 is full → migrate_job a normal job from
+   rack-a-f4 to rack-c-h3 (which has free GPUs) → assign_job job-X to rack-a-f4.
+5. **Use all 6 tools**: assign_job places queued jobs. preempt_job frees GPUs by
+   stopping low-priority jobs. migrate_job moves running jobs between nodes.
+   restore_node brings failed nodes back. Don't rely only on assign_job.
+6. **Priority conflicts**: Preempt preemptible jobs to make room for urgent ones.
+7. **Pick the right node**: Match job GPU/CPU/RAM needs to a node with enough free
+   resources. A node with gpu_free=2 cannot host a gpu=4 job.
 """
     return prompt

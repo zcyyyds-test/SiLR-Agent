@@ -92,12 +92,13 @@ _BASE_SCENARIOS: list[ClusterScenario] = [
         difficulty="easy",
         node_failures=["rack-a-s0"],
     ),
-    # 2. Rack failure (hard)
+    # 2. Partial rack failure (hard) — 3 of 5 nodes in rack-a go down,
+    # but 2 survive so affinity-bound jobs can still be placed there.
     ClusterScenario(
         id="rack_failure_a",
-        description="Entire rack-a goes down; 5 nodes lost, mass rescheduling required",
+        description="3 nodes in rack-a fail; affinity jobs must use surviving rack-a nodes",
         difficulty="hard",
-        rack_failure="rack-a",
+        node_failures=["rack-a-s0", "rack-a-s1", "rack-a-h2"],
     ),
     # 3. Job surge (medium)
     ClusterScenario(
@@ -126,10 +127,10 @@ _BASE_SCENARIOS: list[ClusterScenario] = [
     # 6. Compound: node failure + surge (hard)
     ClusterScenario(
         id="compound_failure_surge",
-        description="Fat node rack-b-f4 fails while 8 urgent jobs arrive simultaneously",
+        description="Fat node rack-b-f4 fails while 4 urgent jobs arrive simultaneously",
         difficulty="hard",
         node_failures=["rack-b-f4"],
-        new_jobs=_urgent_jobs(8, gpu=2, cpu=16, ram_gb=64),
+        new_jobs=_urgent_jobs(4, gpu=2, cpu=16, ram_gb=64),
     ),
 ]
 
@@ -170,17 +171,19 @@ def _generate_variants() -> list[ClusterScenario]:
     ))
     variants.append(ClusterScenario(
         id="job_surge_large",
-        description="15 urgent jobs flood the queue",
+        description="8 urgent small jobs flood the queue",
         difficulty="medium",
-        new_jobs=_urgent_jobs(15, gpu=1, cpu=8, ram_gb=32),
+        new_jobs=_urgent_jobs(8, gpu=1, cpu=8, ram_gb=32),
     ))
 
     # --- Resource fragmentation variant (medium) ---
+    # Use 4-GPU normal jobs instead of 8-GPU fat-only jobs so any node
+    # type with 4 free GPUs can host them (rack-c has ~20 GPU free).
     variants.append(ClusterScenario(
         id="resource_fragmentation_fat",
-        description="8-GPU jobs require fat nodes, causing severe fragmentation",
+        description="Large 4-GPU jobs compete for remaining capacity across nodes",
         difficulty="medium",
-        new_jobs=_large_gpu_jobs(3, gpu=8, cpu=64, ram_gb=256),
+        new_jobs=_large_gpu_jobs(3, gpu=4, cpu=32, ram_gb=128),
     ))
 
     # --- Priority conflict variant (easy) ---
@@ -196,19 +199,21 @@ def _generate_variants() -> list[ClusterScenario]:
     ))
 
     # --- Compound variants (hard) ---
+    # Partial rack-c failure (3 nodes down, 2 survive ~8 GPU) + 5 urgent
+    # jobs (10 GPU).  Evicted jobs + new arrivals fit in remaining capacity.
     variants.append(ClusterScenario(
         id="compound_rack_surge",
-        description="Rack-c fails while 12 urgent jobs arrive",
+        description="3 nodes in rack-c fail while 5 urgent jobs arrive",
         difficulty="hard",
-        rack_failure="rack-c",
-        new_jobs=_urgent_jobs(12, gpu=2, cpu=16, ram_gb=64),
+        node_failures=["rack-c-s0", "rack-c-s1", "rack-c-h2"],
+        new_jobs=_urgent_jobs(5, gpu=2, cpu=16, ram_gb=64),
     ))
     variants.append(ClusterScenario(
         id="compound_multi_node_failure",
-        description="Two fat nodes fail across different racks",
+        description="Fat node fails with 2 urgent jobs arriving",
         difficulty="hard",
-        node_failures=["rack-a-f4", "rack-c-f4"],
-        new_jobs=_urgent_jobs(6, gpu=4, cpu=32, ram_gb=128),
+        node_failures=["rack-a-f4"],
+        new_jobs=_urgent_jobs(2, gpu=2, cpu=16, ram_gb=64),
     ))
     variants.append(ClusterScenario(
         id="compound_fragmentation_failure",

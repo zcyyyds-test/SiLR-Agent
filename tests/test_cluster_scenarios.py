@@ -67,10 +67,14 @@ class TestClusterScenarioSetup:
         scenario = loader.load("rack_failure_a")
         loader.setup_episode(mgr, scenario)
 
-        # All rack-a nodes should be NotReady
+        # 3 rack-a nodes should be NotReady, 2 should survive
+        failed_nodes = {"rack-a-s0", "rack-a-s1", "rack-a-h2"}
         for nid, node in mgr._nodes.items():
-            if node["rack"] == "rack-a":
+            if nid in failed_nodes:
                 assert node["status"] == "NotReady", f"{nid} should be NotReady"
+        # Surviving rack-a nodes remain Ready for affinity-bound jobs
+        assert mgr._nodes["rack-a-h3"]["status"] == "Ready"
+        assert mgr._nodes["rack-a-f4"]["status"] == "Ready"
 
     def test_setup_job_surge_creates_queued(self):
         """Job surge scenario should add new jobs, some of which are Queued."""

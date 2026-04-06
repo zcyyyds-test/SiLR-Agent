@@ -291,7 +291,7 @@ class ClusterManager(BaseSystemManager):
             jid = f"job-{next_idx:04d}"
             next_idx += 1
             self._jobs[jid] = {
-                "group": jdef.get("group", "dynamic"),
+                "group": jdef.get("group", f"dynamic-{jid}"),
                 "gpu": jdef.get("gpu", 1),
                 "cpu": jdef.get("cpu", 8),
                 "ram_gb": jdef.get("ram_gb", 32),
