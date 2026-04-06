@@ -23,8 +23,8 @@ class GRPOConfig:
     num_iterations: int = 5
     rollouts_per_scenario: int = 8
     clip_eps: float = 0.2
-    kl_coeff: float = 0.1
-    lr: float = 1e-5
+    kl_coeff: float = 0.02
+    lr: float = 5e-6
     batch_size: int = 4
     grpo_epochs: int = 1
     max_seq_len: int = 4096
@@ -39,14 +39,14 @@ class StepSample:
     """One (observation, action) pair with its reward and group info.
 
     ``group_key`` identifies the normalisation group — typically
-    ``(scenario_id, step_number)`` — so that advantages are computed
-    relative to other rollouts at the same decision point.
+    ``(scenario_id,)`` — so that advantages are computed relative
+    to other steps/rollouts within the same scenario.
     """
 
     obs_text: str
     action_text: str
     reward: float
-    group_key: tuple  # (scenario_id, step_number)
+    group_key: tuple  # (scenario_id,)
     advantage: float = 0.0
     log_prob: float = 0.0
 
@@ -88,4 +88,5 @@ def compute_advantages(samples: Sequence[StepSample]) -> None:
             continue
 
         for s in members:
-            s.advantage = (s.reward - mean_r) / (std_r + 1e-8)
+            raw = (s.reward - mean_r) / (std_r + 1e-8)
+            s.advantage = max(-3.0, min(3.0, raw))

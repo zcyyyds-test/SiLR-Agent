@@ -17,8 +17,8 @@ class TestGRPOConfig:
         assert cfg.num_iterations == 5
         assert cfg.rollouts_per_scenario == 8
         assert cfg.clip_eps == 0.2
-        assert cfg.kl_coeff == 0.1
-        assert cfg.lr == 1e-5
+        assert cfg.kl_coeff == 0.02
+        assert cfg.lr == 5e-6
         assert cfg.batch_size == 4
         assert cfg.grpo_epochs == 1
         assert cfg.max_seq_len == 4096
@@ -42,7 +42,7 @@ class TestGRPOConfig:
         assert cfg.output_dir == "/tmp/grpo"
         # Unchanged defaults still hold.
         assert cfg.rollouts_per_scenario == 8
-        assert cfg.kl_coeff == 0.1
+        assert cfg.kl_coeff == 0.02
 
 
 # ── StepSample ───────────────────────────────────────────────────────
