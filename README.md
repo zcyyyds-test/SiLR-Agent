@@ -121,7 +121,9 @@ Each round, the coordinator observes full system state, asks the LLM which speci
 
 ### Power Grid Domain
 
-A reference power grid domain is included under `domains/grid/`, built on the [ANDES](https://docs.andes.app/) transient stability solver. Includes 4 constraint checkers (voltage, frequency, line loading, transient stability), a tool suite for generation, load, and breaker actions, and a scenario library covering N-1 contingencies and cascading faults. The same SiLR verifier framework that gates GPU cluster scheduling decisions also gates grid control actions — illustrating the domain-extensibility of the architecture.
+A reference power grid domain is included under `domains/grid/`, built on the [ANDES](https://docs.andes.app/) transient stability solver. Includes 4 constraint checkers (voltage, frequency, line loading, transient stability), a tool suite for generation, load, and breaker actions, and a scenario library covering N-1 contingencies and cascading faults on the IEEE 39-bus benchmark.
+
+A fine-tuned Qwen3-14B + LoRA agent achieves **97.0% recovery** across 66 fault scenarios, surpassing GPT-5.4 few-shot (94.2%) and zero-shot (82.1%) — showing that verifier-gated SFT alone can carry a domain-specialized open model past frontier baselines on physics-constrained recovery tasks. The same SiLR verifier framework that gates GPU cluster scheduling decisions also gates grid control actions, illustrating the architecture's domain-extensibility. See [`domains/grid/README.md`](domains/grid/README.md) for setup and the runnable example.
 
 ### GPU Cluster Scheduling Domain
 
