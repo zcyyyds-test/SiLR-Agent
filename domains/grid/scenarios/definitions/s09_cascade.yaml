@@ -1,0 +1,23 @@
+id: "s09_cascade"
+name: "Cascading Fault Sequence"
+difficulty: "hard"
+
+fault_sequence:
+  - type: "line_trip"
+    target_id: "Line_3"
+  - type: "gen_reduce"
+    target_id: "GENROU_4"
+    reduce_pct: 30
+  - type: "load_increase"
+    target_id: 20
+    increase_pct: 40
+
+prestress:
+  load_scale: 1.18
+
+ground_truth:
+  expected_steps: 3
+
+metadata:
+  description: "Cascade (line trip + gen -30% + load +40%) at 1.18x. Vmin≈0.87 @Bus3, 3 low-voltage buses."
+  expected_violations: ["voltage"]

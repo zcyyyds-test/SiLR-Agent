@@ -1,0 +1,68 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "silr"
+version = "0.1.0"
+description = "Simulation-in-the-Loop Reasoning (SiLR) framework for LLM agents in safety-critical domains"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Chenyu Zhou"},
+]
+keywords = ["llm", "agent", "safety", "simulation", "verification"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/zcyyyds-test/SiLR-Agent"
+Repository = "https://github.com/zcyyyds-test/SiLR-Agent"
+
+[project.optional-dependencies]
+agent = [
+    "openai>=1.0",
+]
+grid = [
+    "andes>=1.8,<2.0",
+    "numpy>=1.24",
+    "pyyaml>=6.0",
+]
+training = [
+    "torch>=2.1",
+    "transformers>=4.45",
+    "datasets>=2.16",
+    "peft>=0.7",
+    "trl>=0.12",
+    "bitsandbytes>=0.42",
+    "accelerate>=0.25",
+    "pyyaml>=6.0",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov",
+]
+all = [
+    "silr[agent,grid,training,dev]",
+]
+
+[tool.setuptools.packages.find]
+include = ["silr*", "domains*"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

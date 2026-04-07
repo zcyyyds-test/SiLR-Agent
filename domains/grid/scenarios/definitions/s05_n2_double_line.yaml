@@ -1,0 +1,19 @@
+id: "s05_n2_double_line"
+name: "N-2 Double Line Trip (Line_16+20)"
+difficulty: "medium"
+
+fault_sequence:
+  - type: "line_trip"
+    target_id: "Line_16"
+  - type: "line_trip"
+    target_id: "Line_20"
+
+prestress:
+  load_scale: 1.35
+
+ground_truth:
+  expected_steps: 2
+
+metadata:
+  description: "N-2 (Line_16+20) at 1.35x load. Vmin≈0.88 @Bus15, 1 low-voltage bus."
+  expected_violations: ["voltage"]

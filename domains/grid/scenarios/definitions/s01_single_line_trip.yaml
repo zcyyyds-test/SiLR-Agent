@@ -1,0 +1,20 @@
+id: "s01_single_line_trip"
+name: "N-1 Line Trip (Line 5)"
+difficulty: "easy"
+
+fault_sequence:
+  - type: "line_trip"
+    target_id: "Line_5"
+
+prestress:
+  load_scale: 1.40
+
+ground_truth:
+  actions:
+    - tool_name: "adjust_gen"
+      params: {gen_id: "GENROU_1", delta_p_mw: -20}
+  expected_steps: 1
+
+metadata:
+  description: "N-1 line trip under 1.40x load. Vmin≈0.89 @Bus9, 2 low-voltage buses."
+  expected_violations: ["voltage"]
