@@ -233,9 +233,12 @@ def grpo_policy_update(model, tokenizer, optimizer, samples, clip_eps, kl_coeff,
         logger.warning("No active samples (all advantages are zero)")
         return 0.0
 
+    # Gradient accumulation: backward per sample, step per batch.
+    # This keeps activation memory at O(1) sample instead of O(batch_size).
     for i in range(0, len(active), batch_size):
         batch = active[i:i + batch_size]
-        batch_loss = torch.tensor(0.0, device=model.device, requires_grad=True)
+        batch_loss_sum = 0.0
+        n_in_batch = 0
 
         for sample in batch:
             messages = [
@@ -259,21 +262,24 @@ def grpo_policy_update(model, tokenizer, optimizer, samples, clip_eps, kl_coeff,
 
             # KL penalty (approximate)
             kl = (ratio - 1) - torch.log(ratio)
-            loss = policy_loss + kl_coeff * kl
+            loss = (policy_loss + kl_coeff * kl) / len(batch)
 
-            batch_loss = batch_loss + loss
+            if torch.isnan(loss) or torch.isinf(loss):
+                logger.warning(f"  Skipping sample at batch {i}: loss is {loss.item()}")
+                continue
+            loss.backward()  # accumulate gradient (don't zero_grad until batch done)
+            batch_loss_sum += loss.item()
+            n_in_batch += 1
 
-        batch_loss = batch_loss / len(batch)
-        if torch.isnan(batch_loss) or torch.isinf(batch_loss):
-            logger.warning(f"  Skipping batch {i}: loss is {batch_loss.item()}")
+        if n_in_batch == 0:
             optimizer.zero_grad()
             continue
-        batch_loss.backward()
+
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
         optimizer.zero_grad()
 
-        total_loss += batch_loss.item()
+        total_loss += batch_loss_sum
         n_batches += 1
 
     if log_ratio_vals:
