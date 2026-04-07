@@ -139,34 +139,11 @@ The coordinator observes full system state each round, asks the LLM which specia
 
 A reference power grid implementation is included under `domains/grid/`, built on the [ANDES](https://docs.andes.app/) simulator.
 
-## Cluster Scheduling Case Study
+### GPU Cluster Scheduling Domain
 
-A reference implementation applying SiLR to GPU cluster scheduling is included under `domains/cluster/`. The agent (Qwen3-14B + LoRA) is post-trained via SFT → GRPO using the SiLR verifier as the reward signal.
+A reference GPU cluster scheduling domain is included under `domains/cluster/`, with a complete SFT → GRPO post-training pipeline using the SiLR verifier as the reward signal.
 
-**Failure modes** (17 scenarios across 6 categories):
-- Hardware failures — node down, rack-level outage
-- Workload surges — urgent job queue overflow
-- Resource fragmentation — mismatched job/node capacities
-- Priority and affinity conflicts
-- Compound failures — multiple modes simultaneously
-
-**Results** (3-repeat eval, greedy decoding, 51 episodes):
-
-| Model | Recovery Rate |
-|-------|---------------|
-| GPT-5.4 (teacher) | 67% |
-| Qwen3-14B + SFT | 88.2% |
-| **Qwen3-14B + SFT + GRPO** | **94.1%** |
-
-GRPO post-training improved the hardest scenario from 0% → 100% recovery while maintaining 100% on all 15 already-solved scenarios. The training pipeline, hyperparameter choices, and a detailed bug-fix journey (log-prob masking, gradient accumulation, policy stability) are documented in [`decisions.md`](decisions.md).
-
-### Application context
-
-The benchmark's failure scenarios and constraint model are derived from common GPU cluster operation patterns at **TSUBAME 4.0**, the H100-based supercomputer at Institute of Science Tokyo.
-
-**Future work**:
-- Validate the trained agent on a 4-8 GPU TSUBAME 4.0 allocation against real workload traces
-- Integrate as a verifier-gated *advisor* alongside PBS Professional (TSUBAME's production scheduler), where the LLM proposes scheduling decisions and the verifier checks safety before execution
+A trained Qwen3-14B + LoRA agent achieves **94.1% recovery** across 51 evaluation episodes (vs 88.2% for the SFT baseline and 67% for the GPT-5.4 teacher), demonstrating that verifier-gated reward signals can improve LLM agent reliability beyond imitation learning. See [`domains/cluster/README.md`](domains/cluster/README.md) for the full case study, training pipeline, and application context.
 
 ## Add Your Own Domain
 
@@ -261,11 +238,12 @@ domains/                 # Reference implementations
 │   ├── scenarios.py     # Cascading fault scenarios
 │   └── specialists.py   # Specialist agent configs
 ├── grid/                # Power grid domain (requires ANDES)
-└── cluster/             # GPU cluster scheduling (Qwen3-14B + GRPO)
+└── cluster/             # GPU cluster scheduling (SFT + GRPO case study)
+    ├── README.md        # Full case study and training pipeline
     ├── manager.py       # ClusterManager: state, transitions, shadow copy
     ├── observation.py   # Compressed JSON observation builder
     ├── scenarios/       # 17 failure scenarios across 6 categories
-    └── checkers/        # ResourceCapacity, Affinity, RackSpread, Priority, Queue
+    └── checkers.py      # ResourceCapacity, Affinity, RackSpread, Priority, Queue
 
 examples/                # Runnable demos
 tests/                   # pytest suite
@@ -273,7 +251,7 @@ tests/                   # pytest suite
 
 ## Affiliation
 
-Developed as part of doctoral research at **Institute of Science Tokyo** (formerly Tokyo Institute of Technology).
+Developed as part of doctoral research on **LLM agents for industrial applications** at Institute of Science Tokyo (formerly Tokyo Institute of Technology).
 
 ## License
 

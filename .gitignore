@@ -46,3 +46,6 @@ data/
 
 # Server-specific launchers (personal Windows paths)
 run_*.bat
+
+# Internal decision log (not for public release)
+decisions.md
