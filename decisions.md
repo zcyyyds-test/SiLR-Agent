@@ -221,3 +221,54 @@ GRPO Iter 1 后 recovery 从 SFT 的 88.2% 降至 58.8%，Iter 2 rollout 中模�
 **根因**：log_prob 包含 prompt tokens + per-token 平均，导致：(1) 梯度方向错误——模型被训练预测 observation 而非选择 action；(2) ratio 信号被稀释到接近 1，有效学习几乎是随机扰动；(3) KL penalty 基于错误的 ratio，无法约束模型不偏离 SFT 分布。一轮 update（192 samples × batch_size=4 × 2h）就足以摧毁 SFT 学到的 JSON 格式。
 
 **教训**：PPO/GRPO 的 log_prob 计算是 RL 后训练最关键的基础设施。必须验证：(1) 只计算 action tokens；(2) 用 sum 不用 mean；(3) old 和 new 的计算方式完全一致。上线前应跑 sanity check：ratio 初始值应非常接近 1.0（因为 old/new 用同一模型）。
+
+### 决策：GRPO 超参数 lr=1e-6, batch_size=16 + gradient accumulation
+
+**v3 (lr=5e-6, batch=4)** Phase 3 后 log_ratio mean=-16.249，88% clamped → policy 偏移过大，模型崩。
+
+**v4 (lr=1e-6, batch=16)** 直接放大 batch_size 触发 OOM：原代码累积所有样本的 computation graph 再 backward，O(batch_size) 内存 → 16 个样本 95GB 不够。
+
+**v5 (lr=1e-6, batch=16, grad accum)** 改为每个样本单独 backward + gradient 累加，O(1) 内存，3 iter 全部稳定：
+- log_ratio mean: -0.733 → 0.025 → -0.066（教科书级 PPO）
+- clamped: 1/120, 0/28, 1/28（基本零 clamp）
+- Loss: 0.5073 → 0.2972 → 4.9732（最后一轮 KL 项主导属正常）
+
+**关键修复**：用 gradient accumulation 而非 batch loss 累积。功能等价但内存从 O(batch_size) 降到 O(1)。
+
+### GRPO Eval 结果（2026-04-07）
+
+GRPO final adapter (4-bit Qwen3-14B + LoRA) vs SFT baseline，eval 用 temperature=0 greedy，3 repeats × 17 scenarios = 51 episodes：
+
+| 模型 | Overall Recovery | Per-Scenario 100% |
+|------|------------------|-------------------|
+| GPT-5.4 teacher (v5) | 67% (~34/51) | 8/17 |
+| **SFT** | **88.2% (45/51)** | **15/17** |
+| **SFT + GRPO** | **94.1% (48/51)** | **16/17** |
+
+**唯一 0% 的场景**：`compound_multi_node_failure`（SFT 数据里 0 条样本，纯靠迁移学不会）
+
+**关键提升**：
+- `compound_failure_surge`: SFT 0/3 (0%) → **GRPO 3/3 (100%)** 🔥
+- 其他 15 个 100% 场景全部维持，无任何退化
+
+**为什么训练 rollout 看不到提升但 eval 有提升？**
+
+训练 rollout 用 temperature=0.7（exploration），eval 用 temperature=0 (greedy)。两个测量灵敏度完全不同：
+- Sampling 模式下，模型即使有 5% 的概率改善，2 个 rollout 之间也几乎看不出差异（被随机性淹没）
+- Greedy 模式下，概率分布的小幅变化可能直接翻转 argmax → 完全不同的决策路径
+
+GRPO 训练时 Iter 2/3 在 sampling rollout 下显示 0% recovery，让人以为没学到东西。实际上模型的内部参数确实在朝正确方向移动（log_ratio mean 接近 0、loss 收敛证明了这一点），只是 sampling 测量噪声压过了信号。eval 用 greedy 解码才暴露了真实改善。
+
+**教训**：rollout success rate ≠ deployment success rate。RL 后训练评估必须用 deployment 的 inference 模式（greedy）做最终判断，sampling 只能用作 exploration 信号。
+
+### 坑点（隐蔽）：domain 修改未 commit 导致 GRPO 跑了一轮无效训练
+
+GRPO v3 第一次启动后发现 recovery 异常低（rack_failure_a 等场景从 SFT 的 100% 降到 0%）。以为是 GRPO 退化了。
+
+**实际原因**：服务器上 `domains/cluster/observation.py`、`scenarios/loader.py`、`prompts/system_prompt.py` 是旧版本——SFT 阶段所有 observation 增强（available_nodes, preemptible_running, rack_affinity）和 scenario 修复**从未 commit**。`git pull` 时这些文件被 reset 到了某个早期 commit 状态。
+
+GRPO rollout 用旧 observer 看不到空闲节点和 preemptible jobs，自然做不了正确调度。连续浪费 ~4h GPU 时间才发现。
+
+**修复**：commit 所有 working tree 的修改，重新部署。
+
+**教训**：实验 pipeline 跨多机时，**任何代码变更必须 commit**（即使是临时修改）。`git status` 显示有 working tree changes 时不能假设服务器和本地代码一致。

@@ -40,3 +40,9 @@ Thumbs.db
 outputs/
 data/
 *.log
+
+# Claude Code workspace
+.claude/
+
+# Server-specific launchers (personal Windows paths)
+run_*.bat

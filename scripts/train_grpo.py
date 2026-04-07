@@ -296,7 +296,7 @@ def grpo_policy_update(model, tokenizer, optimizer, samples, clip_eps, kl_coeff,
 
 def main():
     parser = argparse.ArgumentParser(description="Step-Level GRPO Training")
-    parser.add_argument("--base-model", default="/d/zcy/models/Qwen/Qwen3-14B")
+    parser.add_argument("--base-model", default="Qwen/Qwen3-14B")
     parser.add_argument("--sft-adapter", default="outputs/sft_model/final")
     parser.add_argument("--output", default="outputs/grpo_model")
     parser.add_argument("--iterations", type=int, default=5)

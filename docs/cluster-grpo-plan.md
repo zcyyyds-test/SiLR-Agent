@@ -179,7 +179,7 @@ __all__ = ["ClusterManager"]
 
 ```python
 # domains/cluster/manager.py
-"""ClusterManager: GPU cluster simulator for SiLR framework.
+"""ClusterManager: GPU cluster environment for SiLR framework.
 
 Topology: 15 GPU nodes across 3 racks (rack-a, rack-b, rack-c).
   - 6 standard: 4 GPU (80GB), 64 CPU, 256 GB RAM
@@ -342,7 +342,7 @@ def _build_default_jobs(nodes: dict[str, dict]) -> tuple[dict, dict]:
 
 
 class ClusterManager(BaseSystemManager):
-    """GPU cluster simulator. Pure Python, no external dependencies.
+    """GPU cluster environment. Pure Python, no external dependencies.
 
     Implements BaseSystemManager for SiLR verification compatibility.
     """

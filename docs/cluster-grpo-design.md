@@ -2,7 +2,7 @@
 
 ## Goal
 
-Add a GPU cluster job scheduling domain to SILR-Agent and implement a step-level GRPO post-training pipeline, demonstrating that simulator-derived reward signals can improve LLM agent performance beyond SFT alone.
+Add a GPU cluster job scheduling domain to SILR-Agent and implement a step-level GRPO post-training pipeline, demonstrating that verifier-derived reward signals can improve LLM agent performance beyond SFT alone.
 
 Target: SFT baseline ~80-85% recovery → GRPO ~90-95% on 50+ fault scenarios.
 
