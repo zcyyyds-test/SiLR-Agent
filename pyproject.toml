@@ -48,6 +48,13 @@ training = [
     "accelerate>=0.25",
     "pyyaml>=6.0",
 ]
+# Optional accelerator. Unsloth has strict CUDA/torch version coupling, so it is
+# not part of `training`. The SFT/DPO trainers automatically fall back to
+# transformers+peft if unsloth is not installed.
+training-accel = [
+    "silr[training]",
+    "unsloth",
+]
 dev = [
     "pytest>=7.0",
     "pytest-cov",

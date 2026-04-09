@@ -30,7 +30,8 @@ def main():
     scenario = loader.load("cascade_easy")
     loader.setup_episode(manager, scenario)
 
-    full_config = build_network_domain_config()
+    # CoordinatorAgent requires an observer — pass with_observer=True
+    full_config = build_network_domain_config(with_observer=True)
     verifier = SiLRVerifier(manager, domain_config=full_config)
 
     # 2. Define specialists

@@ -79,8 +79,24 @@ print(result.solver_converged)  # True
 ### Run the ReAct Agent
 
 ```python
+from domains.network import (
+    NetworkManager,
+    NetworkScenarioLoader,
+    build_network_domain_config,
+)
 from silr.agent import ReActAgent, AgentConfig
 from silr.agent.llm.openai_client import OpenAIClient
+from silr.verifier import SiLRVerifier
+
+# Inject a cascading fault: link 1-2 down + link 2-5 near overload
+manager = NetworkManager()
+loader = NetworkScenarioLoader()
+scenario = loader.load("cascade_easy")
+loader.setup_episode(manager, scenario)
+
+# Agent needs an observer to see live violations — pass with_observer=True
+config = build_network_domain_config(with_observer=True)
+verifier = SiLRVerifier(manager, domain_config=config)
 
 agent = ReActAgent(
     manager=manager,
@@ -89,7 +105,7 @@ agent = ReActAgent(
     domain_config=config,
     config=AgentConfig(max_steps=5),
 )
-result = agent.run_episode(scenario_id="scenario_01")
+result = agent.run_episode(scenario_id="cascade_easy")
 print(f"Recovered: {result.recovered}, Steps: {result.total_steps}")
 ```
 
@@ -98,21 +114,38 @@ print(f"Recovered: {result.recovered}, Steps: {result.total_steps}")
 For cascading faults where constraints conflict, the coordinator dispatches specialist agents — each limited to a subset of tools — while the verifier enforces global safety:
 
 ```python
-from silr.agent import CoordinatorAgent, CoordinatorConfig, SpecialistSpec
 from domains.network import (
+    NetworkManager,
+    NetworkScenarioLoader,
     build_network_domain_config,
     build_connectivity_specialist_config,
     build_utilization_specialist_config,
 )
+from silr.agent import CoordinatorAgent, CoordinatorConfig, SpecialistSpec
+from silr.agent.llm.openai_client import OpenAIClient
+from silr.verifier import SiLRVerifier
+
+# Inject a cascading fault where restoring the link worsens an existing overload
+manager = NetworkManager()
+loader = NetworkScenarioLoader()
+scenario = loader.load("cascade_hard")
+loader.setup_episode(manager, scenario)
+
+# CoordinatorAgent requires an observer — pass with_observer=True
+full_config = build_network_domain_config(with_observer=True)
+verifier = SiLRVerifier(manager, domain_config=full_config)
 
 specialists = [
     SpecialistSpec(name="connectivity", domain_config=build_connectivity_specialist_config()),
     SpecialistSpec(name="utilization",  domain_config=build_utilization_specialist_config()),
 ]
 coordinator = CoordinatorAgent(
-    manager=manager, verifier=verifier,
+    manager=manager,
+    verifier=verifier,
     llm_client=OpenAIClient(model="gpt-4o"),
-    specialists=specialists, full_domain_config=build_network_domain_config(),
+    specialists=specialists,
+    full_domain_config=full_config,
+    config=CoordinatorConfig(max_rounds=4, max_specialist_steps=3),
 )
 result = coordinator.run_episode(scenario_id="cascade_hard")
 ```
