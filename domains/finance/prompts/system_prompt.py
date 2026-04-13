@@ -60,9 +60,9 @@ Sector exposure:
 
 ## Compliance Rules (all must hold simultaneously)
 
-1. **Position concentration**: No single stock may exceed 25% of portfolio value.
-2. **Sector exposure**: No single sector may exceed 45% of portfolio value.
-3. **Drawdown limit**: Portfolio drawdown from peak must not exceed 10%.
+1. **Position concentration**: No single stock may exceed 20% of portfolio value.
+2. **Sector exposure**: No single sector may exceed 40% of portfolio value.
+3. **Drawdown limit**: Portfolio drawdown from peak must not exceed 8%.
 4. **Cash reserve**: Cash must be at least 5% of portfolio value.
 
 ## Available Actions

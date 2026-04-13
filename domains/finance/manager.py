@@ -1,13 +1,16 @@
 """FinanceManager: portfolio simulator for SiLR framework.
 
-Universe: 8 stocks across 3 sectors (tech/health/energy).
+Universe: 8 US equities across 3 sectors (tech/health/energy).
+Baseline prices: 2024-01-02 closing prices from Yahoo Finance.
 Initial portfolio: ~$1M in stocks + $100K cash.
 
 Actions mutate positions/cash.  solve() recalculates derived
 metrics (weights, sector exposure, drawdown).  Constraints are
 checked against the derived state, not raw positions.
 
-No external dependencies — all prices and volumes are synthetic.
+Price data source: data/close_prices.csv (Yahoo Finance OHLCV 2019-2024).
+Runtime has no external dependencies — baseline values are hardcoded from
+the source data for reproducibility.
 """
 
 from __future__ import annotations
@@ -21,27 +24,28 @@ from silr.core.interfaces import BaseSystemManager
 
 # ── Universe definition ──────────────────────────────────────────
 
+# Baseline: 2024-01-02 Yahoo Finance closing prices & avg daily volumes
 STOCKS = {
-    "AAPL": {"price": 150.0, "sector": "tech", "daily_volume": 50_000_000},
-    "MSFT": {"price": 300.0, "sector": "tech", "daily_volume": 25_000_000},
-    "NVDA": {"price": 800.0, "sector": "tech", "daily_volume": 40_000_000},
-    "JNJ":  {"price": 160.0, "sector": "health", "daily_volume": 8_000_000},
-    "PFE":  {"price": 28.0,  "sector": "health", "daily_volume": 30_000_000},
-    "UNH":  {"price": 500.0, "sector": "health", "daily_volume": 3_000_000},
-    "XOM":  {"price": 110.0, "sector": "energy", "daily_volume": 15_000_000},
-    "CVX":  {"price": 155.0, "sector": "energy", "daily_volume": 10_000_000},
+    "AAPL": {"price": 183.73, "sector": "tech",   "daily_volume": 55_000_000},
+    "MSFT": {"price": 364.59, "sector": "tech",   "daily_volume": 22_000_000},
+    "NVDA": {"price":  48.14, "sector": "tech",   "daily_volume": 250_000_000},
+    "JNJ":  {"price": 149.66, "sector": "health", "daily_volume": 7_000_000},
+    "PFE":  {"price":  25.70, "sector": "health", "daily_volume": 35_000_000},
+    "UNH":  {"price": 514.26, "sector": "health", "daily_volume": 3_000_000},
+    "XOM":  {"price":  94.85, "sector": "energy", "daily_volume": 16_000_000},
+    "CVX":  {"price": 135.63, "sector": "energy", "daily_volume": 8_000_000},
 }
 
-# Initial position: ~$125K notional per stock → ~$1M stock + $100K cash
+# ~$125K notional per stock at baseline prices → ~$1M stock + $100K cash
 _DEFAULT_POSITIONS = {
-    "AAPL": 833,
-    "MSFT": 417,
-    "NVDA": 156,
-    "JNJ":  781,
-    "PFE":  4464,
-    "UNH":  250,
-    "XOM":  1136,
-    "CVX":  806,
+    "AAPL": 680,
+    "MSFT": 343,
+    "NVDA": 2596,
+    "JNJ":  835,
+    "PFE":  4864,
+    "UNH":  243,
+    "XOM":  1318,
+    "CVX":  921,
 }
 
 _DEFAULT_CASH = 100_000.0

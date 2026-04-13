@@ -1,9 +1,9 @@
 """Portfolio compliance constraint checkers for SiLR verification.
 
-Four constraints:
-1. Position concentration: no single stock > 25% of portfolio
-2. Sector exposure: no single sector > 45% of portfolio
-3. Drawdown: portfolio drawdown from peak must stay within 10%
+Four constraints (thresholds reflect typical institutional mandates):
+1. Position concentration: no single stock > 20% of portfolio
+2. Sector exposure: no single sector > 40% of portfolio
+3. Drawdown: portfolio drawdown from peak must stay within 8%
 4. Cash reserve: cash must be at least 5% of portfolio
 """
 
@@ -20,7 +20,7 @@ class PositionConcentrationChecker(BaseConstraintChecker):
 
     name = "position_concentration"
 
-    def __init__(self, max_weight_pct: float = 25.0):
+    def __init__(self, max_weight_pct: float = 20.0):
         self._max_weight = max_weight_pct
 
     def check(self, system_state: Any, base_mva: float) -> CheckResult:
@@ -60,7 +60,7 @@ class SectorExposureChecker(BaseConstraintChecker):
 
     name = "sector_exposure"
 
-    def __init__(self, max_sector_weight_pct: float = 45.0):
+    def __init__(self, max_sector_weight_pct: float = 40.0):
         self._max_sector = max_sector_weight_pct
 
     def check(self, system_state: Any, base_mva: float) -> CheckResult:
@@ -101,7 +101,7 @@ class DrawdownChecker(BaseConstraintChecker):
 
     name = "drawdown"
 
-    def __init__(self, max_drawdown_pct: float = 10.0):
+    def __init__(self, max_drawdown_pct: float = 8.0):
         self._max_dd = max_drawdown_pct
 
     def check(self, system_state: Any, base_mva: float) -> CheckResult:
