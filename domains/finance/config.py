@@ -1,7 +1,6 @@
 """Portfolio compliance DomainConfig factory."""
 
 from silr.core.config import DomainConfig
-from .checkers import CashReserveChecker
 from .tools import create_finance_toolset
 from .observation import FinanceObserver
 from .prompts import build_finance_system_prompt, build_finance_tool_schemas
@@ -16,14 +15,15 @@ def build_finance_domain_config(with_observer: bool = True) -> DomainConfig:
     """
     return DomainConfig(
         domain_name="portfolio_compliance",
-        # Verifier checker: only per-action safety constraints.
-        # CashReserve blocks buys that would deplete cash below 5%.
-        # Position/Sector/Drawdown are multi-step global constraints
-        # handled by observer for episode termination — same pattern as
-        # cluster domain's queue/priority/rack_spread.
-        checkers=[
-            CashReserveChecker(),
-        ],
+        # No verifier checkers — all compliance constraints are global state
+        # metrics (position concentration, sector exposure, cash reserve,
+        # drawdown) that require multiple trades to resolve under the $30K
+        # per-trade limit.  Tool-level validation already prevents invalid
+        # actions (insufficient shares/cash, trade size limit).
+        # All constraints are checked by the observer for is_stable.
+        # Same pattern as cluster domain where queue/priority/rack_spread
+        # are observer-only.
+        checkers=[],
         allowed_actions=frozenset([
             "adjust_position",
             "liquidate_position",
