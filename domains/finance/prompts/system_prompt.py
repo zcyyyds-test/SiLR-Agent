@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ..manager import STOCKS
+from ..manager import STOCKS, MAX_TRADE_VALUE
 
 
 def build_finance_system_prompt(manager, tool_schemas: list[dict]) -> str:
@@ -40,6 +40,7 @@ def build_finance_system_prompt(manager, tool_schemas: list[dict]) -> str:
     sector_block = "\n".join(sector_lines)
 
     tool_names = [s["function"]["name"] for s in tool_schemas]
+    max_trade = MAX_TRADE_VALUE
 
     prompt = f"""\
 You are a portfolio compliance agent. Your job is to restore a portfolio to a
@@ -77,20 +78,23 @@ Respond with a JSON object containing exactly ONE action:
 If all compliance rules are satisfied and no action is needed:
 {{"tool_name": "none", "params": {{}}}}
 
+## Trading Constraint
+
+  Per-trade notional limit: ${max_trade:,.0f}
+  Large positions must be sold in multiple steps using adjust_position.
+  liquidate_position only works if position notional ≤ ${max_trade:,.0f}.
+
 ## Strategy Guidelines
 
 1. **Read the observation first**: Check which constraints are violated before acting.
 2. **Sell overweight positions**: If a stock or sector exceeds limits, sell shares
    to reduce weight. Prefer selling the most overweight positions first.
-3. **Mind cash impact**: Selling increases cash; buying decreases it. If cash is
+3. **Respect the per-trade limit**: Calculate how many shares you can sell in one
+   step. For example, at $137/share with an $80,000 limit, sell at most 583 shares.
+4. **Mind cash impact**: Selling increases cash; buying decreases it. If cash is
    already low, sell first before buying.
-4. **Drawdown recovery**: Drawdown is measured from the historical peak. You cannot
-   raise the peak — focus on stopping further losses by reducing exposure to
-   declining positions. Selling at a loss locks in the drawdown but prevents
-   further damage. The drawdown constraint checks whether the verifier's
-   post-action portfolio value stays within the limit.
 5. **One action per step**: The verifier checks each action independently. Plan
-   a sequence: fix the most critical violation first.
+   a multi-step sequence: fix the most critical violation first.
 6. **Cascading effects**: Selling stock to fix concentration may improve sector
    exposure and increase cash simultaneously. Think about side effects.
 """

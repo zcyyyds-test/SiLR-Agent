@@ -16,7 +16,6 @@ the source data for reproducibility.
 from __future__ import annotations
 
 import copy
-import math
 from typing import Any
 
 from silr.core.interfaces import BaseSystemManager
@@ -49,6 +48,9 @@ _DEFAULT_POSITIONS = {
 }
 
 _DEFAULT_CASH = 100_000.0
+
+# Per-trade notional limit — forces multi-step resolution
+MAX_TRADE_VALUE = 80_000.0
 
 
 class FinanceManager(BaseSystemManager):

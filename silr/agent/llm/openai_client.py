@@ -31,7 +31,12 @@ class OpenAIClient(BaseLLMClient):
                 "openai package required. Install with: pip install 'silr[agent]'"
             )
 
-        kwargs: dict[str, Any] = {}
+        import httpx
+
+        kwargs: dict[str, Any] = {
+            "timeout": httpx.Timeout(60.0, connect=10.0),
+            "max_retries": 2,
+        }
         if api_key is not None:
             kwargs["api_key"] = api_key
         if base_url is not None:

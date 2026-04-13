@@ -1,6 +1,7 @@
 """Portfolio compliance tools for SiLR verification.
 
-4 tools: 1 observe + 3 action.
+3 tools: 1 observe + 2 action.
+Per-trade notional capped at MAX_TRADE_VALUE to force multi-step resolution.
 All inherit from BaseTool for framework compatibility.
 """
 
@@ -9,7 +10,7 @@ from __future__ import annotations
 from silr.tools.base import BaseTool
 from silr.exceptions import DeviceNotFoundError, ValidationError
 
-from .manager import STOCKS
+from .manager import STOCKS, MAX_TRADE_VALUE
 
 
 class GetPortfolioStatusTool(BaseTool):
@@ -44,14 +45,18 @@ class GetPortfolioStatusTool(BaseTool):
                 s: round(w * 100, 2)
                 for s, w in state["sector_exposure"].items()
             },
+            "max_trade_value": MAX_TRADE_VALUE,
         }
 
 
 class AdjustPositionTool(BaseTool):
-    """Buy or sell shares of a stock."""
+    """Buy or sell shares of a stock, subject to per-trade notional limit."""
 
     name = "adjust_position"
-    description = "Buy (positive qty_delta) or sell (negative qty_delta) shares of a stock"
+    description = (
+        f"Buy (positive qty_delta) or sell (negative qty_delta) shares of a stock. "
+        f"Single trade notional capped at ${MAX_TRADE_VALUE:,.0f}."
+    )
 
     def _validate_params(self, symbol: str = "", qty_delta: int = 0, **kwargs) -> None:
         if not symbol:
@@ -63,6 +68,13 @@ class AdjustPositionTool(BaseTool):
             )
         if qty_delta == 0:
             raise ValidationError("qty_delta must be non-zero")
+        trade_value = abs(qty_delta) * self.manager._prices.get(symbol, 0)
+        if trade_value > MAX_TRADE_VALUE:
+            max_qty = int(MAX_TRADE_VALUE / self.manager._prices[symbol])
+            raise ValidationError(
+                f"Trade value ${trade_value:,.0f} exceeds per-trade limit "
+                f"${MAX_TRADE_VALUE:,.0f}. Max qty for {symbol}: {max_qty}"
+            )
 
     def _run(self, symbol: str = "", qty_delta: int = 0, **kwargs) -> dict:
         mgr = self.manager
@@ -82,10 +94,14 @@ class AdjustPositionTool(BaseTool):
 
 
 class LiquidatePositionTool(BaseTool):
-    """Sell entire position in a stock."""
+    """Sell entire position, only if notional is within per-trade limit."""
 
     name = "liquidate_position"
-    description = "Sell all shares of a stock to fully exit the position"
+    description = (
+        f"Sell all shares of a stock. Only works if position notional "
+        f"≤ ${MAX_TRADE_VALUE:,.0f}. For larger positions, use adjust_position "
+        f"to sell in chunks."
+    )
 
     def _validate_params(self, symbol: str = "", **kwargs) -> None:
         if not symbol:
@@ -94,6 +110,17 @@ class LiquidatePositionTool(BaseTool):
             raise DeviceNotFoundError(
                 f"Unknown symbol: {symbol}. "
                 f"Available: {sorted(STOCKS.keys())}"
+            )
+        qty = self.manager._positions.get(symbol, 0)
+        if qty == 0:
+            raise ValidationError(f"No position in {symbol}")
+        notional = qty * self.manager._prices.get(symbol, 0)
+        if notional > MAX_TRADE_VALUE:
+            max_qty = int(MAX_TRADE_VALUE / self.manager._prices[symbol])
+            raise ValidationError(
+                f"Position notional ${notional:,.0f} exceeds per-trade limit "
+                f"${MAX_TRADE_VALUE:,.0f}. Use adjust_position to sell "
+                f"up to {max_qty} shares at a time."
             )
 
     def _run(self, symbol: str = "", **kwargs) -> dict:
@@ -112,48 +139,11 @@ class LiquidatePositionTool(BaseTool):
         }
 
 
-class RebalanceSectorTool(BaseTool):
-    """Rebalance all positions in a sector to a target weight."""
-
-    name = "rebalance_sector"
-    description = "Adjust all positions in a sector to achieve a target portfolio weight"
-
-    def _validate_params(self, sector: str = "", target_weight: float = 0.0,
-                         **kwargs) -> None:
-        if not sector:
-            raise ValidationError("sector is required")
-        valid_sectors = sorted(set(STOCKS[s]["sector"] for s in STOCKS))
-        if sector not in valid_sectors:
-            raise DeviceNotFoundError(
-                f"Unknown sector: {sector}. Available: {valid_sectors}"
-            )
-        if target_weight < 0 or target_weight > 1.0:
-            raise ValidationError(
-                f"target_weight must be between 0.0 and 1.0, got {target_weight}"
-            )
-
-    def _run(self, sector: str = "", target_weight: float = 0.0,
-             **kwargs) -> dict:
-        mgr = self.manager
-        success = mgr.rebalance_sector(sector, target_weight)
-        return {
-            "sector": sector,
-            "target_weight": target_weight,
-            "success": success,
-            "message": (
-                f"Rebalanced {sector} sector to {target_weight:.1%} target weight"
-                if success
-                else f"Failed to rebalance {sector} (insufficient cash)"
-            ),
-        }
-
-
 def create_finance_toolset(manager) -> dict:
     """Create toolset for the portfolio compliance domain."""
     tools = [
         GetPortfolioStatusTool(manager),
         AdjustPositionTool(manager),
         LiquidatePositionTool(manager),
-        RebalanceSectorTool(manager),
     ]
     return {t.name: t for t in tools}

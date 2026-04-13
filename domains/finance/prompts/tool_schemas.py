@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from ..manager import STOCKS
+from ..manager import STOCKS, MAX_TRADE_VALUE
 
 
 def build_finance_tool_schemas(manager) -> list[dict]:
-    """Build OpenAI function-calling schemas for all 4 portfolio tools.
+    """Build OpenAI function-calling schemas for portfolio tools.
 
     Args:
         manager: FinanceManager instance (for dynamic enums).
@@ -15,7 +15,6 @@ def build_finance_tool_schemas(manager) -> list[dict]:
         List of schema dicts in OpenAI function-calling format.
     """
     symbols = manager.get_symbols()
-    sectors = manager.get_sectors()
 
     return [
         {
@@ -38,7 +37,8 @@ def build_finance_tool_schemas(manager) -> list[dict]:
                 "name": "adjust_position",
                 "description": (
                     "Buy (positive qty_delta) or sell (negative qty_delta) "
-                    "shares of a stock."
+                    f"shares of a stock. Single trade notional capped at "
+                    f"${MAX_TRADE_VALUE:,.0f}."
                 ),
                 "parameters": {
                     "type": "object",
@@ -52,7 +52,7 @@ def build_finance_tool_schemas(manager) -> list[dict]:
                             "type": "integer",
                             "description": (
                                 "Number of shares to buy (positive) or sell (negative). "
-                                "Must be non-zero."
+                                f"Trade notional must not exceed ${MAX_TRADE_VALUE:,.0f}."
                             ),
                         },
                     },
@@ -64,7 +64,11 @@ def build_finance_tool_schemas(manager) -> list[dict]:
             "type": "function",
             "function": {
                 "name": "liquidate_position",
-                "description": "Sell all shares of a stock to fully exit the position.",
+                "description": (
+                    f"Sell all shares of a stock. Only works if position notional "
+                    f"≤ ${MAX_TRADE_VALUE:,.0f}. For larger positions, use "
+                    f"adjust_position to sell in chunks."
+                ),
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -75,37 +79,6 @@ def build_finance_tool_schemas(manager) -> list[dict]:
                         },
                     },
                     "required": ["symbol"],
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "rebalance_sector",
-                "description": (
-                    "Adjust all positions in a sector to achieve a target "
-                    "portfolio weight. The weight is distributed equally among "
-                    "stocks in the sector."
-                ),
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "sector": {
-                            "type": "string",
-                            "description": "Sector to rebalance.",
-                            "enum": sectors,
-                        },
-                        "target_weight": {
-                            "type": "number",
-                            "description": (
-                                "Target total weight for the sector as a decimal "
-                                "(e.g., 0.30 for 30%)."
-                            ),
-                            "minimum": 0.0,
-                            "maximum": 1.0,
-                        },
-                    },
-                    "required": ["sector", "target_weight"],
                 },
             },
         },

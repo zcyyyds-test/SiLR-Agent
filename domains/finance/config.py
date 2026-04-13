@@ -32,7 +32,6 @@ def build_finance_domain_config(with_observer: bool = True) -> DomainConfig:
         allowed_actions=frozenset([
             "adjust_position",
             "liquidate_position",
-            "rebalance_sector",
         ]),
         create_toolset=create_finance_toolset,
         create_observer=(lambda mgr: FinanceObserver(mgr)) if with_observer else None,
