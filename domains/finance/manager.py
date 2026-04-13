@@ -50,7 +50,7 @@ _DEFAULT_POSITIONS = {
 _DEFAULT_CASH = 100_000.0
 
 # Per-trade notional limit — forces multi-step resolution
-MAX_TRADE_VALUE = 30_000.0
+MAX_TRADE_VALUE = 15_000.0
 
 
 class FinanceManager(BaseSystemManager):
