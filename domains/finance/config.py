@@ -4,7 +4,6 @@ from silr.core.config import DomainConfig
 from .checkers import (
     PositionConcentrationChecker,
     SectorExposureChecker,
-    DrawdownChecker,
     CashReserveChecker,
 )
 from .tools import create_finance_toolset
@@ -21,10 +20,13 @@ def build_finance_domain_config(with_observer: bool = True) -> DomainConfig:
     """
     return DomainConfig(
         domain_name="portfolio_compliance",
+        # Verifier checkers: only constraints fixable by trading actions.
+        # DrawdownChecker is observer-only — drawdown is a market condition
+        # that trading cannot resolve (selling doesn't change portfolio value),
+        # same pattern as cluster domain's queue/priority/rack_spread.
         checkers=[
             PositionConcentrationChecker(),
             SectorExposureChecker(),
-            DrawdownChecker(),
             CashReserveChecker(),
         ],
         allowed_actions=frozenset([

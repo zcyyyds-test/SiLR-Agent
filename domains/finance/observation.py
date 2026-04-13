@@ -23,42 +23,53 @@ class FinanceObserver(BaseObserver):
 
     def __init__(self, manager):
         self._manager = manager
-        self._checkers = [
+        # Actionable checkers: constraints fixable by trading
+        self._actionable_checkers = [
             PositionConcentrationChecker(),
             SectorExposureChecker(),
-            DrawdownChecker(),
             CashReserveChecker(),
+        ]
+        # Monitoring-only: drawdown is market-driven, not fixable by trading
+        self._monitoring_checkers = [
+            DrawdownChecker(),
         ]
 
     def observe(self) -> Observation:
         state = self._manager.system_state
 
-        # Run all checkers
-        violations = []
+        # Run actionable checkers (determine is_stable)
+        actionable_violations = []
         checker_summaries = {}
-        for checker in self._checkers:
+        for checker in self._actionable_checkers:
             cr = checker.check(state, self._manager.base_mva)
             checker_summaries[checker.name] = cr.summary
             for v in cr.violations:
-                violations.append({
+                actionable_violations.append({
                     "type": v.constraint_type,
                     "device": v.device_id,
                     "detail": v.detail,
                     "severity": v.severity,
                 })
 
-        # Violated positions (weight > 25%)
+        # Run monitoring checkers (shown to LLM but don't block stability)
+        for checker in self._monitoring_checkers:
+            cr = checker.check(state, self._manager.base_mva)
+            checker_summaries[checker.name] = cr.summary
+
+        violations = actionable_violations
+
+        # Violated positions (weight > 20%)
         violated_positions = [
             {"symbol": sym, "weight_pct": round(pos["weight"] * 100, 1)}
             for sym, pos in state["positions"].items()
-            if pos["weight"] * 100 > 25.0
+            if pos["weight"] * 100 > 20.0
         ]
 
-        # Violated sectors (weight > 45%)
+        # Violated sectors (weight > 40%)
         violated_sectors = [
             {"sector": sec, "weight_pct": round(w * 100, 1)}
             for sec, w in state["sector_exposure"].items()
-            if w * 100 > 45.0
+            if w * 100 > 40.0
         ]
 
         # Portfolio summary for LLM

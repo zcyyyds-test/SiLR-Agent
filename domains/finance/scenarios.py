@@ -60,8 +60,8 @@ SCENARIOS = [
     ),
     FinanceScenario(
         id="rate_hike_drawdown",
-        description="Broad market decline on aggressive rate hike; drawdown exceeded",
-        source_event="Fed 75bp hike Jun 2022: broad -10% to -16%",
+        description="Broad decline on rate hike + cash drained by margin call",
+        source_event="Fed 75bp hike Jun 2022: broad -10% to -16% + margin call",
         price_changes={
             "AAPL": 160.59,     # -12.6%
             "MSFT": 328.49,     #  -9.9%
@@ -72,15 +72,19 @@ SCENARIOS = [
             "XOM":   90.30,     #  -4.8%
             "CVX":  120.71,     # -11.0%
         },
+        cash_override=35_000.0,   # margin call depleted cash
         difficulty="easy",
     ),
     FinanceScenario(
         id="energy_covid_crash",
-        description="Energy sector collapses as in COVID-era; other sectors exceed limits",
-        source_event="COVID crash 2020.02-03: XOM -48%, CVX -51%",
+        description="Energy collapses + tech rallies; tech sector breaches 40%",
+        source_event="COVID 2020: XOM -48%, CVX -51% + flight to tech",
         price_changes={
             "XOM":  49.32,      # -48.0%
             "CVX":  66.46,      # -51.0%
+            "AAPL": 202.10,     # +10% (flight to quality)
+            "MSFT": 401.05,     # +10%
+            "NVDA":  55.36,     # +15%
         },
         difficulty="easy",
     ),
@@ -134,13 +138,17 @@ SCENARIOS = [
     ),
     FinanceScenario(
         id="health_crash_2020",
-        description="Health sector crash; drawdown + sector imbalance",
-        source_event="COVID crash 2020: JNJ -25%, PFE -21%, UNH -36%",
+        description="Health crash + tech rally; sector imbalance + cash strain",
+        source_event="COVID 2020: health -21~36%, tech rallied, cash drained",
         price_changes={
             "JNJ":  112.25,     # -25.0%
             "PFE":   20.30,     # -21.0%
             "UNH":  329.13,     # -36.0%
+            "AAPL": 220.48,     # +20% (pandemic tech boom)
+            "MSFT": 437.51,     # +20%
+            "NVDA":  62.58,     # +30%
         },
+        cash_override=35_000.0,
         difficulty="medium",
     ),
     FinanceScenario(
