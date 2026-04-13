@@ -1,10 +1,12 @@
 """Portfolio compliance constraint checkers for SiLR verification.
 
-Four constraints (thresholds reflect typical institutional mandates):
+Six constraints (thresholds reflect typical institutional mandates):
 1. Position concentration: no single stock > 20% of portfolio
 2. Sector exposure: no single sector > 40% of portfolio
 3. Drawdown: portfolio drawdown from peak must stay within 8%
 4. Cash reserve: cash must be at least 5% of portfolio
+5. Position minimum: every held stock must be >= 4% of portfolio
+6. Sector minimum: every sector must be >= 15% of portfolio
 """
 
 from __future__ import annotations
@@ -167,6 +169,88 @@ class CashReserveChecker(BaseConstraintChecker):
             summary={
                 "cash": round(cash, 2),
                 "cash_ratio_pct": round(cash_ratio_pct, 2),
+                "n_violations": len(violations),
+            },
+            violations=violations,
+        )
+
+
+class PositionMinimumChecker(BaseConstraintChecker):
+    """Check that every held stock meets a minimum weight threshold."""
+
+    name = "position_minimum"
+
+    def __init__(self, min_weight_pct: float = 4.0):
+        self._min_weight = min_weight_pct
+
+    def check(self, system_state: Any, base_mva: float) -> CheckResult:
+        positions = system_state["positions"]
+        violations = []
+        min_observed = 100.0
+
+        for symbol, pos in positions.items():
+            weight_pct = pos["weight"] * 100
+            if weight_pct > 0:
+                min_observed = min(min_observed, weight_pct)
+            if 0 < weight_pct < self._min_weight:
+                violations.append(Violation(
+                    constraint_type="position_minimum",
+                    device_type="position",
+                    device_id=symbol,
+                    metric="weight_pct",
+                    value=round(weight_pct, 2),
+                    limit=self._min_weight,
+                    unit="%",
+                    severity="violation",
+                    detail=f"{symbol}: {weight_pct:.1f}% weight (minimum: {self._min_weight}%)",
+                ))
+
+        return CheckResult(
+            checker_name=self.name,
+            passed=len(violations) == 0,
+            summary={
+                "min_position_weight_pct": round(min_observed, 2) if min_observed < 100 else 0,
+                "n_violations": len(violations),
+            },
+            violations=violations,
+        )
+
+
+class SectorMinimumChecker(BaseConstraintChecker):
+    """Check that every sector meets a minimum exposure threshold."""
+
+    name = "sector_minimum"
+
+    def __init__(self, min_sector_weight_pct: float = 15.0):
+        self._min_sector = min_sector_weight_pct
+
+    def check(self, system_state: Any, base_mva: float) -> CheckResult:
+        sector_exposure = system_state["sector_exposure"]
+        violations = []
+        min_observed = 100.0
+
+        for sector, weight in sector_exposure.items():
+            weight_pct = weight * 100
+            min_observed = min(min_observed, weight_pct)
+            if weight_pct < self._min_sector:
+                violations.append(Violation(
+                    constraint_type="sector_minimum",
+                    device_type="sector",
+                    device_id=sector,
+                    metric="sector_weight_pct",
+                    value=round(weight_pct, 2),
+                    limit=self._min_sector,
+                    unit="%",
+                    severity="violation",
+                    detail=f"Sector {sector}: {weight_pct:.1f}% exposure (minimum: {self._min_sector}%)",
+                ))
+
+        return CheckResult(
+            checker_name=self.name,
+            passed=len(violations) == 0,
+            summary={
+                "min_sector_weight_pct": round(min_observed, 2),
+                "sector_weights": {s: round(w * 100, 2) for s, w in sector_exposure.items()},
                 "n_violations": len(violations),
             },
             violations=violations,

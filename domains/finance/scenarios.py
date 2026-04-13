@@ -48,13 +48,14 @@ SCENARIOS = [
 
     FinanceScenario(
         id="nvda_ai_surge",
-        description="NVDA surges on AI demand; position concentration breached",
-        source_event="NVDA Jan-Jul 2024 (+185%): 48.14 → 137.25",
-        # NVDA +185% (actual 2024 move), rest slightly up
+        description="NVDA surges while energy lags; ceiling + floor violated",
+        source_event="NVDA Jan-Jul 2024 (+185%) + energy rotation out",
         price_changes={
             "NVDA": 137.25,     # 48.14 × 2.85
             "AAPL": 192.0,      # +4.5%
             "MSFT": 381.0,      # +4.5%
+            "XOM":  52.17,      # -45% (rotation out of energy)
+            "CVX":  74.60,      # -45%
         },
         difficulty="easy",
     ),
@@ -138,12 +139,12 @@ SCENARIOS = [
     ),
     FinanceScenario(
         id="health_crash_2020",
-        description="Health crash + tech rally; sector imbalance + cash strain",
-        source_event="COVID 2020: health -21~36%, tech rallied, cash drained",
+        description="Health crash + tech rally; sector ceiling + floor + cash",
+        source_event="COVID 2020: health -25~50%, tech rallied, cash drained",
         price_changes={
             "JNJ":  112.25,     # -25.0%
-            "PFE":   20.30,     # -21.0%
-            "UNH":  329.13,     # -36.0%
+            "PFE":   12.85,     # -50.0% (severe)
+            "UNH":  257.13,     # -50.0% (severe → below 4% position min)
             "AAPL": 220.48,     # +20% (pandemic tech boom)
             "MSFT": 437.51,     # +20%
             "NVDA":  62.58,     # +30%
@@ -235,29 +236,31 @@ SCENARIOS = [
     ),
     FinanceScenario(
         id="cascade_rebalance",
-        description="Selling NVDA to fix concentration depletes cash, triggers cascade",
-        source_event="NVDA full-year 2024 rally + tight cash",
+        description="Tech surges + energy crashes + low cash; ceiling + floor + cash cascade",
+        source_event="NVDA 2024 rally + energy rotation + tight cash",
         price_changes={
             "NVDA": 137.25,     # +185%
             "AAPL": 235.00,     # +28%
             "MSFT": 460.00,     # +26%
+            "XOM":  47.43,      # -50%
+            "CVX":  67.82,      # -50%
         },
         cash_override=15_000.0,
         difficulty="hard",
     ),
     FinanceScenario(
         id="worst_case_composite",
-        description="All 4 constraints violated: compound historical stress",
-        source_event="Composite worst-case from 2020+2022 events",
+        description="All 6 constraints violated: ceiling + floor + cash compound stress",
+        source_event="Composite worst-case from 2020+2022+2024 events",
         price_changes={
-            "NVDA": 137.25,     # +185% (2024 AI surge → concentration)
-            "AAPL": 146.98,     # -20% (COVID-like for non-NVDA)
+            "NVDA": 137.25,     # +185% (2024 AI surge → position ceiling)
+            "AAPL": 146.98,     # -20%
             "MSFT": 291.67,     # -20%
-            "JNJ":  104.76,     # -30%
-            "PFE":   17.99,     # -30%
-            "UNH":  359.98,     # -30%
-            "XOM":  66.40,      # -30%
-            "CVX":  94.94,      # -30%
+            "JNJ":   74.83,     # -50% (→ position floor)
+            "PFE":   12.85,     # -50% (→ position floor)
+            "UNH":  257.13,     # -50% (→ position floor)
+            "XOM":  47.43,      # -50% (→ energy sector floor)
+            "CVX":  67.82,      # -50%
         },
         cash_override=10_000.0,
         difficulty="hard",

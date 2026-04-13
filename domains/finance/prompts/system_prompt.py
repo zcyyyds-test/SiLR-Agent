@@ -61,10 +61,12 @@ Sector exposure:
 
 ## Compliance Rules (all must hold simultaneously)
 
-1. **Position concentration**: No single stock may exceed 20% of portfolio value.
-2. **Sector exposure**: No single sector may exceed 40% of portfolio value.
-3. **Drawdown limit**: Portfolio drawdown from peak must not exceed 8%.
-4. **Cash reserve**: Cash must be at least 5% of portfolio value.
+1. **Position ceiling**: No single stock may exceed 20% of portfolio value.
+2. **Position floor**: Every held stock must be at least 4% of portfolio value.
+3. **Sector ceiling**: No single sector may exceed 40% of portfolio value.
+4. **Sector floor**: Every sector must be at least 15% of portfolio value.
+5. **Cash reserve**: Cash must be at least 5% of portfolio value.
+6. **Drawdown limit**: Portfolio drawdown from peak must not exceed 8% (monitored).
 
 ## Available Actions
 
@@ -87,15 +89,16 @@ If all compliance rules are satisfied and no action is needed:
 ## Strategy Guidelines
 
 1. **Read the observation first**: Check which constraints are violated before acting.
-2. **Sell overweight positions**: If a stock or sector exceeds limits, sell shares
-   to reduce weight. Prefer selling the most overweight positions first.
-3. **Respect the per-trade limit**: Calculate how many shares you can sell in one
-   step. For example, at $137/share with an $80,000 limit, sell at most 583 shares.
-4. **Mind cash impact**: Selling increases cash; buying decreases it. If cash is
-   already low, sell first before buying.
-5. **One action per step**: The verifier checks each action independently. Plan
-   a multi-step sequence: fix the most critical violation first.
-6. **Cascading effects**: Selling stock to fix concentration may improve sector
-   exposure and increase cash simultaneously. Think about side effects.
+   Both ceiling violations (overweight) and floor violations (underweight) must be fixed.
+2. **Sell overweight, buy underweight**: Fixing ceilings requires selling; fixing floors
+   requires buying. You often need both in the same episode.
+3. **Sell before buy**: Selling generates cash; buying consumes it. Always sell overweight
+   positions first to build cash, then buy underweight positions.
+4. **Respect the per-trade limit**: Calculate how many shares fit within ${max_trade:,.0f}.
+   Large positions require multiple sells across several steps.
+5. **One action per step**: Plan a multi-step sequence carefully. Fix the most critical
+   violation first, but consider the cash needed for later buys.
+6. **Cascading effects**: Selling stock changes weights for ALL positions. Selling a
+   tech stock may push an energy stock below its 4% floor, requiring a subsequent buy.
 """
     return prompt

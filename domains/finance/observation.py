@@ -11,6 +11,8 @@ from .checkers import (
     SectorExposureChecker,
     DrawdownChecker,
     CashReserveChecker,
+    PositionMinimumChecker,
+    SectorMinimumChecker,
 )
 
 
@@ -24,10 +26,13 @@ class FinanceObserver(BaseObserver):
     def __init__(self, manager):
         self._manager = manager
         # Actionable checkers: constraints fixable by trading
+        # Ceiling constraints (sell to fix) + floor constraints (buy to fix)
         self._actionable_checkers = [
             PositionConcentrationChecker(),
             SectorExposureChecker(),
             CashReserveChecker(),
+            PositionMinimumChecker(),
+            SectorMinimumChecker(),
         ]
         # Monitoring-only: drawdown is market-driven, not fixable by trading
         self._monitoring_checkers = [
