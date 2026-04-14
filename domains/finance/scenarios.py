@@ -66,15 +66,15 @@ SCENARIOS = [
         difficulty="easy",
     ),
     FinanceScenario(
-        id="energy_crash_tech_flight",
-        description="COVID-era energy collapse + flight to tech; sector rotation",
-        source_event="COVID 2020: XOM -48%, CVX -51%, tech +10%",
+        id="energy_slump_tech_flight",
+        description="COVID-era energy slump + flight to tech; sector rotation",
+        source_event="COVID 2020: XOM -48%, CVX -51%, tech +10% rebound",
         price_changes={
-            "XOM":  49.32,      # -48%
-            "CVX":  66.46,      # -51%
-            "AAPL": 202.10,     # +10%
-            "MSFT": 401.05,     # +10%
-            "NVDA":  55.36,     # +15%
+            "XOM":  47.43,      # -50%
+            "CVX":  61.03,      # -55%
+            "AAPL": 193.00,     #  +5%
+            "MSFT": 390.00,     #  +7%
+            "NVDA":  52.95,     # +10%
         },
         difficulty="easy",
     ),
@@ -107,47 +107,54 @@ SCENARIOS = [
             "XOM":   90.30,     #  -4.8%
             "CVX":  120.71,     # -11.0%
         },
-        cash_override=35_000.0,
+        cash_override=20_000.0,
         difficulty="easy",
     ),
     FinanceScenario(
         id="tech_rally_sector_breach",
-        description="Tech sector rallies past 40% ceiling",
-        source_event="Tech recovery Jan 2023 + AI narrative",
+        description="Tech sector rallies through the ceiling while energy slips below floor",
+        source_event="Tech recovery + AI bid with late energy underperformance",
         price_changes={
-            "AAPL": 238.85,     # +30%
-            "MSFT": 473.97,     # +30%
-            "NVDA":  76.86,     # +60%
+            "AAPL": 220.48,     # +20%
+            "MSFT": 419.28,     # +15%
+            "NVDA":  67.40,     # +40%
+            "XOM":   56.91,     # -40%
+            "CVX":   94.94,     # -30%
         },
         difficulty="easy",
     ),
     FinanceScenario(
         id="cash_depleted",
-        description="Recent large purchases settled; cash reserve violated",
-        source_event="Simulated post-settlement cash drain",
-        cash_override=25_000.0,
+        description="Recent purchases settled into a thin cash buffer while energy slips below floor",
+        source_event="Post-settlement cash drain with a sharp energy sleeve drawdown",
+        price_changes={
+            "XOM":  47.43,      # -50%
+            "CVX":  74.60,      # -45%
+        },
+        cash_override=20_000.0,
         difficulty="easy",
     ),
     FinanceScenario(
         id="nvda_concentration",
-        description="NVDA earnings surge; single stock exceeds 20% ceiling",
-        source_event="NVDA earnings H1 2024 (+100%)",
+        description="NVDA earnings surge; single-name concentration spills into tech sleeve",
+        source_event="NVDA earnings H1 2024 (+110%)",
         price_changes={
-            "NVDA":  96.28,     # +100%
+            "NVDA": 101.09,     # +110%
         },
         difficulty="easy",
     ),
     FinanceScenario(
         id="energy_rally_tech_drop",
-        description="Oil spike + tech risk-off; energy ceiling + tech sector weakens",
-        source_event="2022 energy rally: XOM/CVX +110%, tech -20%",
+        description="Oil spike + tech selloff + low cash; energy ceiling + cash squeeze",
+        source_event="2022 oil shock: XOM/CVX +130%, tech -30%, margin call drained cash",
         price_changes={
-            "XOM":  199.19,     # +110%
-            "CVX":  284.82,     # +110%
-            "AAPL": 146.98,     # -20%
-            "MSFT": 291.67,     # -20%
-            "NVDA":  38.51,     # -20%
+            "XOM":  218.16,     # +130%
+            "CVX":  311.95,     # +130%
+            "AAPL": 128.61,     # -30%
+            "MSFT": 255.21,     # -30%
+            "NVDA":  33.70,     # -30%
         },
+        cash_override=25_000.0,
         difficulty="easy",
     ),
 
@@ -157,22 +164,22 @@ SCENARIOS = [
     # --- BIDIR medium ---
     FinanceScenario(
         id="tech_selloff_2022_rotation",
-        description="Tech dumps + energy rallies; tech floor risk + energy ceiling approach",
-        source_event="Jan 2022 selloff: tech -15~40%, energy +25~35%",
+        description="Tech washout + oil spike; NVDA floor, energy ceiling, cash squeeze",
+        source_event="2022 rotation stress: NVDA -65%, XOM/CVX +80%, cash drained",
         price_changes={
             "AAPL": 156.17,     # -15%
-            "MSFT": 309.90,     # -15%
-            "NVDA":  28.88,     # -40%
-            "XOM":  118.56,     # +25%
-            "CVX":  183.10,     # +35%
+            "MSFT": 291.67,     # -20%
+            "NVDA":  16.85,     # -65%
+            "XOM":  170.73,     # +80%
+            "CVX":  244.13,     # +80%
         },
-        cash_override=30_000.0,
+        cash_override=25_000.0,
         difficulty="medium",
     ),
     FinanceScenario(
-        id="health_crash_tech_boom",
-        description="Health crash + tech boom; health floor + tech ceiling + cash",
-        source_event="COVID 2020 health -25~40% + pandemic tech boom",
+        id="health_selloff_tech_boom",
+        description="Health selloff + tech boom; tech ceiling + cash squeeze",
+        source_event="COVID rotation: health -25~40%, tech +20~40%, cash drained",
         price_changes={
             "JNJ":  112.25,     # -25%
             "PFE":   15.42,     # -40%
@@ -186,12 +193,12 @@ SCENARIOS = [
     ),
     FinanceScenario(
         id="nvda_spike_energy_lag",
-        description="NVDA surges + energy collapses; position ceiling + energy floor",
-        source_event="NVDA H1 2024 (+120%) + energy rotation out -45%",
+        description="NVDA spike + uneven energy lag; tech ceiling + energy floor",
+        source_event="NVDA H1 2024 (+80%) + energy rotation out (XOM -30%, CVX -40%)",
         price_changes={
-            "NVDA": 105.91,     # +120%
-            "XOM":  52.17,      # -45%
-            "CVX":  74.60,      # -45%
+            "NVDA":  81.84,     # +70%
+            "XOM":   71.14,     # -25%
+            "CVX":   74.60,     # -45%
         },
         difficulty="medium",
     ),
@@ -210,14 +217,17 @@ SCENARIOS = [
     ),
     FinanceScenario(
         id="triple_sector_stress",
-        description="Tech rallies, health flat, energy crashes; multi-sector rebalance",
-        source_event="2022 H1 divergence: tech +15%, energy -35%",
+        description="Tech rallies, health softens, energy selloff; asymmetric sector rebalance",
+        source_event="Cross-sector divergence: tech +10~35%, health -5%, energy -30~-40%",
         price_changes={
-            "AAPL": 211.29,     # +15%
+            "AAPL": 202.10,     # +10%
             "MSFT": 419.28,     # +15%
-            "NVDA":  62.58,     # +30%
-            "XOM":  61.65,      # -35%
-            "CVX":  88.16,      # -35%
+            "NVDA":  64.99,     # +35%
+            "JNJ":  142.18,     #  -5%
+            "PFE":   24.42,     #  -5%
+            "UNH":  488.55,     #  -5%
+            "XOM":   61.65,     # -35%
+            "CVX":   81.38,     # -40%
         },
         difficulty="medium",
     ),
@@ -247,7 +257,7 @@ SCENARIOS = [
             "XOM":   85.37,     # -10%
             "CVX":  118.00,     # -13%
         },
-        cash_override=30_000.0,
+        cash_override=20_000.0,
         difficulty="medium",
     ),
     FinanceScenario(
@@ -267,29 +277,29 @@ SCENARIOS = [
     ),
     FinanceScenario(
         id="dual_spike_energy_drop",
-        description="NVDA + AAPL spike + energy drops; position ceilings + energy floor",
-        source_event="AI + iPhone 2024: NVDA +80%, AAPL +30%, energy -45%",
+        description="AAPL + NVDA rebound while energy fades; tech ceiling + energy floor",
+        source_event="AI + mega-cap bounce: AAPL +35%, NVDA +40%, XOM -40%, CVX -35%",
         price_changes={
-            "NVDA":  86.65,     # +80%
-            "AAPL": 238.85,     # +30%
-            "XOM":  52.17,      # -45%
-            "CVX":  74.60,      # -45%
+            "NVDA":  67.40,     # +40%
+            "AAPL": 247.95,     # +35%
+            "XOM":   56.91,     # -40%
+            "CVX":   88.16,     # -35%
         },
         difficulty="medium",
     ),
     FinanceScenario(
         id="japan_carry_unwind",
-        description="Global flash crash from carry trade unwind; broad drop + cash",
-        source_event="Aug 2024 Japan carry trade: broad -8% to -15%",
+        description="Global risk-off unwind from carry trade stress; broad drop + cash",
+        source_event="Aug 2024 carry unwind: tech hit hardest, defensives off modestly",
         price_changes={
-            "AAPL": 165.36,     # -10%
-            "MSFT": 309.90,     # -15%
-            "NVDA":  40.92,     # -15%
-            "JNJ":  137.69,     #  -8%
-            "PFE":   23.65,     #  -8%
-            "UNH":  473.12,     #  -8%
-            "XOM":   85.37,     # -10%
-            "CVX":  122.07,     # -10%
+            "AAPL": 172.71,     #  -6%
+            "MSFT": 298.96,     # -18%
+            "NVDA":  38.51,     # -20%
+            "JNJ":  145.17,     #  -3%
+            "PFE":   24.93,     #  -3%
+            "UNH":  493.69,     #  -4%
+            "XOM":   87.26,     #  -8%
+            "CVX":  125.46,     #  -7%
         },
         cash_override=25_000.0,
         difficulty="medium",
@@ -301,19 +311,19 @@ SCENARIOS = [
     # --- BIDIR hard ---
     FinanceScenario(
         id="covid_full_rotation",
-        description="COVID crash + flight to tech; energy floor + health floor + tech ceiling",
-        source_event="2020.02-03 actual returns + tech safe haven",
+        description="Pandemic rotation redux; tech ceiling + energy floor + cash squeeze",
+        source_event="2020-style rotation rebased: tech +10~30%, health -15~20%, energy -45%, cash drained",
         price_changes={
-            "AAPL": 220.48,     # +20% (pandemic tech)
-            "MSFT": 437.51,     # +20%
-            "NVDA":  72.21,     # +50%
-            "JNJ":  112.25,     # -25%
-            "PFE":   15.42,     # -40%
-            "UNH":  308.56,     # -40%
-            "XOM":  47.43,      # -50%
-            "CVX":  67.82,      # -50%
+            "AAPL": 202.10,     # +10%
+            "MSFT": 401.05,     # +10%
+            "NVDA":  62.58,     # +30%
+            "JNJ":  127.21,     # -15%
+            "PFE":   20.56,     # -20%
+            "UNH":  411.41,     # -20%
+            "XOM":   52.17,     # -45%
+            "CVX":   74.60,     # -45%
         },
-        cash_override=20_000.0,
+        cash_override=40_000.0,
         difficulty="hard",
     ),
     FinanceScenario(
@@ -334,39 +344,39 @@ SCENARIOS = [
     ),
     FinanceScenario(
         id="cascade_tech_energy",
-        description="Tech surges + energy crashes + low cash; ceiling + floor + cash cascade",
-        source_event="NVDA 2024 rally + energy rotation + margin call",
+        description="Tech melt-up + energy fade with tight cash; tech ceiling + energy floor + cash",
+        source_event="AI rebound + energy pullback + cash drain",
         price_changes={
-            "NVDA": 120.35,     # +150%
-            "AAPL": 235.00,     # +28%
-            "MSFT": 460.00,     # +26%
-            "XOM":  47.43,      # -50%
-            "CVX":  67.82,      # -50%
+            "NVDA":  72.21,     # +50%
+            "AAPL": 211.29,     # +15%
+            "MSFT": 419.28,     # +15%
+            "XOM":   56.91,     # -40%
+            "CVX":   81.38,     # -40%
         },
-        cash_override=15_000.0,
+        cash_override=40_000.0,
         difficulty="hard",
     ),
     FinanceScenario(
         id="worst_case_all_six",
-        description="All 6 constraints violated: ceiling + floor + cash compound",
-        source_event="Composite worst-case from 2020+2022+2024 events",
+        description="Composite concentration shock: NVDA/tech breach + cash squeeze",
+        source_event="Composite rebased: NVDA +70%, defensives softer, energy lower, cash drained",
         price_changes={
-            "NVDA": 120.35,     # +150% (position + sector ceiling)
-            "AAPL": 146.98,     # -20%
-            "MSFT": 291.67,     # -20%
-            "JNJ":   74.83,     # -50% (position floor)
-            "PFE":   12.85,     # -50% (position floor)
-            "UNH":  257.13,     # -50% (position floor)
-            "XOM":  47.43,      # -50% (sector floor)
-            "CVX":  67.82,      # -50%
+            "NVDA":  81.84,     # +70%
+            "AAPL": 165.36,     # -10%
+            "MSFT": 328.13,     # -10%
+            "JNJ":  104.76,     # -30%
+            "PFE":   20.56,     # -20%
+            "UNH":  411.41,     # -20%
+            "XOM":   66.40,     # -30%
+            "CVX":   94.94,     # -30%
         },
-        cash_override=10_000.0,
+        cash_override=20_000.0,
         difficulty="hard",
     ),
     FinanceScenario(
-        id="energy_spike_health_crash",
-        description="Oil crisis: energy ceiling + health floor + position floors",
-        source_event="Composite: 2022 energy rally + health selloff",
+        id="energy_spike_health_selloff",
+        description="Oil crisis: energy ceiling + cash squeeze after health selloff",
+        source_event="Composite: 2022 energy rally + health selloff + low cash",
         price_changes={
             "XOM":  189.70,     # +100%
             "CVX":  271.26,     # +100%
@@ -378,26 +388,26 @@ SCENARIOS = [
         difficulty="hard",
     ),
     FinanceScenario(
-        id="health_surge_tech_energy_crash",
-        description="Health rally + tech/energy crash; health ceiling + energy floor + tech floor risk",
-        source_event="Defensive rotation: health +40%, tech -30%, energy -50%",
+        id="health_surge_tech_energy_lag",
+        description="Health surge while energy sinks and cash stays tight; health ceiling + energy floor + cash squeeze",
+        source_event="Defensive rotation: health +20%, tech -15%, energy -45%, cash tight",
         price_changes={
-            "JNJ":  209.52,     # +40%
-            "UNH":  719.96,     # +40%
-            "PFE":   35.98,     # +40%
-            "AAPL": 128.61,     # -30%
-            "MSFT": 255.21,     # -30%
-            "NVDA":  33.70,     # -30%
-            "XOM":  47.43,      # -50%
-            "CVX":  67.82,      # -50%
+            "JNJ":  179.59,     # +20%
+            "UNH":  617.11,     # +20%
+            "PFE":   30.84,     # +20%
+            "AAPL": 156.17,     # -15%
+            "MSFT": 309.90,     # -15%
+            "NVDA":  40.92,     # -15%
+            "XOM":   52.17,     # -45%
+            "CVX":   74.60,     # -45%
         },
-        cash_override=20_000.0,
+        cash_override=35_000.0,
         difficulty="hard",
     ),
     FinanceScenario(
-        id="nvda_crash_energy_rally",
-        description="NVDA crashes from peak + energy surges; NVDA floor + energy/position ceiling",
-        source_event="NVDA -65% correction + oil spike",
+        id="nvda_reversal_energy_rally",
+        description="NVDA reversal from prior peak + energy rebound; NVDA floor + cash squeeze",
+        source_event="NVDA -65% correction + energy rebound + low cash",
         price_changes={
             "NVDA":  16.85,     # -65%
             "XOM":  161.25,     # +70%
@@ -408,19 +418,19 @@ SCENARIOS = [
     ),
     FinanceScenario(
         id="three_way_rotation",
-        description="Tech up, health down, energy down; 3-sector rebalance nightmare",
-        source_event="Composite: tech AI rally + defensive selloff + energy slump",
+        description="Tech outperforms while health and energy remain soft; tech ceiling + cash squeeze",
+        source_event="Cross-sector dispersion: tech +15~50%, health softer, energy lower, cash drained",
         price_changes={
-            "AAPL": 238.85,     # +30%
-            "MSFT": 473.97,     # +30%
-            "NVDA": 105.91,     # +120%
-            "JNJ":   89.80,     # -40%
-            "PFE":   12.85,     # -50%
-            "UNH":  257.13,     # -50%
-            "XOM":  47.43,      # -50%
-            "CVX":  67.82,      # -50%
+            "AAPL": 211.29,     # +15%
+            "MSFT": 419.28,     # +15%
+            "NVDA":  72.21,     # +50%
+            "JNJ":  119.73,     # -20%
+            "PFE":   20.56,     # -20%
+            "UNH":  411.41,     # -20%
+            "XOM":   66.40,     # -30%
+            "CVX":   94.94,     # -30%
         },
-        cash_override=12_000.0,
+        cash_override=25_000.0,
         difficulty="hard",
     ),
 
@@ -440,23 +450,23 @@ SCENARIOS = [
     ),
     FinanceScenario(
         id="triple_concentration_health_drop",
-        description="NVDA + AAPL + XOM spike + health drops; ceilings + health floor",
-        source_event="Composite: AI + oil spike + health selloff -40%",
+        description="Tech concentration and energy strength overpower health weakness; tech ceiling + cash squeeze",
+        source_event="Composite: AAPL/NVDA rebound, XOM strength, health down 20~30%",
         price_changes={
-            "NVDA": 105.91,     # +120%
-            "AAPL": 275.60,     # +50%
-            "XOM":  170.73,     # +80%
-            "JNJ":   89.80,     # -40%
-            "PFE":   15.42,     # -40%
-            "UNH":  308.56,     # -40%
+            "NVDA":  86.65,     # +80%
+            "AAPL": 247.95,     # +35%
+            "XOM":  161.25,     # +70%
+            "JNJ":  104.76,     # -30%
+            "PFE":   17.99,     # -30%
+            "UNH":  359.98,     # -30%
         },
-        cash_override=20_000.0,
+        cash_override=30_000.0,
         difficulty="hard",
     ),
     FinanceScenario(
         id="deep_bear_market",
-        description="2008-style broad crash; massive drawdown + cash crisis",
-        source_event="Composite: 2008/2020 magnitude broad decline -30~50%",
+        description="2008-style broad drawdown; cash crisis",
+        source_event="Composite: 2008/2020 magnitude broad decline -30~50% + cash drain",
         price_changes={
             "AAPL": 110.24,     # -40%
             "MSFT": 218.75,     # -40%
@@ -472,19 +482,19 @@ SCENARIOS = [
     ),
     FinanceScenario(
         id="whipsaw_aftermath",
-        description="Post-flash-crash: some stocks rebounded, others didn't; messy state",
-        source_event="Composite: partial recovery after Aug 2024 flash crash",
+        description="Partial rebound leaves tech stretched and cash thin",
+        source_event="Uneven rebound after shock: tech recovered faster than the rest",
         price_changes={
-            "NVDA":  86.65,     # +80% (V-recovery)
-            "AAPL": 238.85,     # +30% (recovered)
-            "MSFT": 291.67,     # -20% (still down)
-            "JNJ":  104.76,     # -30% (still down)
-            "PFE":   15.42,     # -40% (still down)
-            "UNH":  308.56,     # -40% (still down)
-            "XOM":  66.40,      # -30% (still down)
-            "CVX":  94.94,      # -30% (still down)
+            "NVDA":  76.86,     # +60%
+            "AAPL": 220.48,     # +20%
+            "MSFT": 328.13,     # -10%
+            "JNJ":  127.21,     # -15%
+            "PFE":   20.56,     # -20%
+            "UNH":  411.41,     # -20%
+            "XOM":   81.38,     # -14%
+            "CVX":  115.29,     # -15%
         },
-        cash_override=15_000.0,
+        cash_override=25_000.0,
         difficulty="hard",
     ),
 ]
