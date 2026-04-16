@@ -36,6 +36,7 @@ class ActionParser:
         aliases: dict[str, str] | None = None,
         numeric_fields: set[str] | None = None,
         id_field_map: dict[str, str] | None = None,
+        param_aliases: dict[str, dict[str, str]] | None = None,
     ):
         """
         Args:
@@ -46,6 +47,11 @@ class ActionParser:
             numeric_fields: Parameter names that should be coerced to float.
             id_field_map: tool_name → parameter name that holds a device ID,
                 e.g. {"adjust_gen": "gen_id"}.
+            param_aliases: tool_name → {wrong_param_name: correct_param_name}.
+                Example: {"adjust_position": {"delta_qty": "qty_delta",
+                "qty_change": "qty_delta", "qty": "qty_delta"}} redirects
+                common typos back to the canonical parameter name so the
+                teacher's first proposal doesn't fail on spelling alone.
         """
         self._allowed_actions = allowed_actions or frozenset()
         self._valid_tools = sorted(self._allowed_actions)
@@ -53,6 +59,7 @@ class ActionParser:
         self._aliases = aliases or {}
         self._numeric_fields = numeric_fields or set()
         self._id_field_map = id_field_map or {}
+        self._param_aliases = param_aliases or {}
 
     def parse(self, response: LLMResponse) -> tuple[str, dict]:
         """Parse LLM response into (thought, action_dict).
@@ -191,6 +198,15 @@ class ActionParser:
 
         result = dict(params)
 
+        # Parameter-name aliasing (e.g. Kimi's "delta_qty" → "qty_delta").
+        aliases_for_tool = self._param_aliases.get(tool_name, {})
+        for wrong, correct in aliases_for_tool.items():
+            if wrong in result and correct not in result:
+                result[correct] = result.pop(wrong)
+                logger.info(
+                    "Param alias: %s.%s → %s.%s", tool_name, wrong, tool_name, correct
+                )
+
         # Numeric coercion for configured fields
         for field_name in self._numeric_fields:
             if field_name in result:
@@ -231,24 +247,48 @@ class ActionParser:
 
     @staticmethod
     def _extract_thought(text: str) -> str:
-        """Extract reasoning/thought from LLM text before the action."""
+        """Extract reasoning/thought from LLM text before the action.
+
+        Cuts the thought at whichever of the following comes first:
+          - a blank line (``\n\n``)
+          - a line starting with ``Action:`` (common in Kimi/Claude output)
+          - a triple-backtick fence
+          - a bare JSON object opening ``\n{``
+        This prevents the action echo from leaking into the Thought record.
+        If the text starts with a bare JSON object (no reasoning), return "".
+        """
+        stripped = text.lstrip()
+        if stripped.startswith("{") and '"tool_name"' in stripped[:80]:
+            # No reasoning at all — refuse to fabricate one from the JSON.
+            return ""
+
         for marker in ["Thought:", "Reasoning:", "Analysis:"]:
             idx = text.find(marker)
             if idx >= 0:
-                end = text.find("\n\n", idx)
-                if end < 0:
-                    end = text.find("```", idx)
-                if end < 0:
-                    end = len(text)
+                body_start = idx + len(marker)
+                candidates = [
+                    text.find("\n\n", body_start),
+                    text.find("\nAction:", body_start),
+                    text.find("\n```", body_start),
+                    text.find("\n{", body_start),
+                ]
+                ends = [c for c in candidates if c >= 0]
+                end = min(ends) if ends else len(text)
                 return text[idx:end].strip()
 
-        # Return text before JSON block
+        # No explicit Thought marker — return everything before the action.
+        # Prefer a triple-backtick fence, otherwise stop at a bare JSON block
+        # (newline followed by ``{``).
         json_start = text.find("```")
-        if json_start > 0:
-            return text[:json_start].strip()
+        bare_json = text.find("\n{")
+        if json_start > 0 and (bare_json < 0 or json_start < bare_json):
+            prose = text[:json_start].strip()
+        elif bare_json > 0:
+            prose = text[:bare_json].strip()
+        else:
+            prose = text.strip()
 
-        # Return first paragraph
-        first_para = text.split("\n\n")[0]
-        if len(first_para) < 500:
-            return first_para
-        return first_para[:500]
+        if not prose or prose.startswith("{"):
+            return ""
+        # Keep multi-paragraph reasoning but cap to avoid runaway output.
+        return prose[:2000]
