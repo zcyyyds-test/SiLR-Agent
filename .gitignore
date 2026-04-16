@@ -47,5 +47,19 @@ data/
 # Server-specific launchers (personal Windows paths)
 run_*.bat
 
-# Internal decision log (not for public release)
+# Internal decision / experiment logs (contain server IPs, debug notes)
 decisions.md
+experiments/
+
+# Codex plugin workspace
+.codex
+
+# Tutorial / internal docs not for release
+docs/tutorial_*.md
+
+# Experiment / data-processing scripts (not for release)
+scripts/dedup_sft_data.py
+scripts/postprocess_to_baseline_format.py
+scripts/train_grpo_finance*.py
+scripts/compare_finance.py
+scripts/check_coverage.py

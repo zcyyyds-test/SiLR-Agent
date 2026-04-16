@@ -44,6 +44,13 @@ class DomainConfig:
     get_valid_device_ids: Optional[Callable[[BaseSystemManager], dict[str, list]]] = None
     """Factory: manager → {device_type: [id_list]} for action parser validation."""
 
+    param_aliases: Optional[dict[str, dict[str, str]]] = None
+    """Per-tool parameter-name alias map for the action parser.
+
+    Maps common typos back to the canonical param name used by the tool
+    layer, e.g. ``{"adjust_position": {"delta_qty": "qty_delta"}}``.
+    """
+
     create_observer: Optional[Callable[[BaseSystemManager], Any]] = None
     """Factory: manager → observer object with observe() method."""
 

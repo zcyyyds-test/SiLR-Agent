@@ -67,6 +67,7 @@ class ReActAgent:
         self._parser = ActionParser(
             allowed_actions=dc.allowed_actions,
             valid_device_ids=valid_ids,
+            param_aliases=dc.param_aliases,
         )
         self._observer = (
             dc.create_observer(manager)
