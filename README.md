@@ -164,6 +164,14 @@ A reference GPU cluster scheduling domain is included under `domains/cluster/`, 
 
 A trained Qwen3-14B + LoRA agent achieves **94.1% recovery** across 51 evaluation episodes (vs 88.2% for the SFT baseline and 67% for the GPT-5.4 teacher), demonstrating that verifier-gated reward signals can improve LLM agent reliability beyond imitation learning. See [`domains/cluster/README.md`](domains/cluster/README.md) for the full case study, training pipeline, and application context.
 
+### Portfolio Compliance Domain
+
+A reference portfolio compliance domain is included under `domains/finance/`, modeling mandate-gated equity rebalancing across 8 stocks and 3 sectors with 6 compliance constraints (position/sector concentration, cash reserve, drawdown, position/sector floors).
+
+This domain introduces **observer-only constraints** — unlike the cluster and grid domains where checkers gate individual actions, all compliance metrics are evaluated globally by the observer, requiring multi-step trade sequences under a $15K per-trade cap. The GRPO stage uses **violation-count dense reward shaping** (per-step progress signal) instead of sparse accept/reject rewards, addressing the "trivially legal loop" failure mode unique to observer-only constraint domains.
+
+A trained Qwen3-14B + LoRA agent achieves **92.5% recovery** across 120 evaluation episodes (40 scenarios × 3 repeats), with **100% held-out generalization** (30/30) — up from 90.0% for the SFT baseline. See [`domains/finance/README.md`](domains/finance/README.md) for the full case study.
+
 ## Add Your Own Domain
 
 A new domain plugs in by implementing four core abstractions:
@@ -211,12 +219,17 @@ domains/                 # Reference implementations
 │   ├── scenarios.py     # Cascading fault scenarios
 │   └── specialists.py   # Specialist agent configs
 ├── grid/                # Power grid domain (requires ANDES)
-└── cluster/             # GPU cluster scheduling (SFT + GRPO case study)
-    ├── README.md        # Full case study and training pipeline
-    ├── manager.py       # ClusterManager: state, transitions, shadow copy
-    ├── observation.py   # Compressed JSON observation builder
-    ├── scenarios/       # 17 failure scenarios across 6 categories
-    └── checkers.py      # ResourceCapacity, Affinity, RackSpread, Priority, Queue
+├── cluster/             # GPU cluster scheduling (SFT + GRPO case study)
+│   ├── README.md        # Full case study and training pipeline
+│   ├── manager.py       # ClusterManager: state, transitions, shadow copy
+│   ├── observation.py   # Compressed JSON observation builder
+│   ├── scenarios/       # 17 failure scenarios across 6 categories
+│   └── checkers.py      # ResourceCapacity, Affinity, RackSpread, Priority, Queue
+└── finance/             # Portfolio compliance (dense-reward GRPO case study)
+    ├── README.md        # Mandate constraints, dense reward design, results
+    ├── manager.py       # FinanceManager: portfolio state, shadow copy
+    ├── scenarios.py     # 30 training + 10 held-out stress scenarios
+    └── checkers.py      # Position, Sector, Cash, Drawdown, Floor constraints
 
 examples/                # Runnable demos
 tests/                   # pytest suite
