@@ -166,11 +166,11 @@ A trained Qwen3-14B + LoRA agent achieves **94.1% recovery** across 51 evaluatio
 
 ### Portfolio Compliance Domain
 
-A reference portfolio compliance domain is included under `domains/finance/`, modeling mandate-gated equity rebalancing across 8 stocks and 3 sectors with 6 compliance constraints (position/sector concentration, cash reserve, drawdown, position/sector floors).
+A reference portfolio compliance domain is included under `domains/finance/`, modeling mandate-gated equity rebalancing across 8 stocks and 3 sectors with 6 compliance constraints under a $15K per-trade cap.
 
-This domain introduces **observer-only constraints** — unlike the cluster and grid domains where checkers gate individual actions, all compliance metrics are evaluated globally by the observer, requiring multi-step trade sequences under a $15K per-trade cap. The GRPO stage uses **violation-count dense reward shaping** (per-step progress signal) instead of sparse accept/reject rewards, addressing the "trivially legal loop" failure mode unique to observer-only constraint domains.
+This domain introduces **observer-only constraints** with **dense reward shaping** for GRPO — violation-count progress per step replaces the sparse accept/reject signal used in the cluster domain, enabling effective policy optimization when constraints are global rather than per-action.
 
-A trained Qwen3-14B + LoRA agent achieves **92.5% recovery** across 120 evaluation episodes (40 scenarios × 3 repeats), with **100% held-out generalization** (30/30) — up from 90.0% for the SFT baseline. See [`domains/finance/README.md`](domains/finance/README.md) for the full case study.
+A trained Qwen3-14B + LoRA agent achieves **92.5% recovery** across 120 evaluation episodes (40 scenarios × 3 repeats), with **100% held-out generalization** — up from 90.0% for the SFT baseline. See [`domains/finance/README.md`](domains/finance/README.md) for details.
 
 ## Add Your Own Domain
 
