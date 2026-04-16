@@ -28,6 +28,20 @@ def build_finance_domain_config(with_observer: bool = True) -> DomainConfig:
             "adjust_position",
             "liquidate_position",
         ]),
+        # Teacher models (esp. Kimi) occasionally invert the `qty_delta` name;
+        # redirect common variants so the first proposal doesn't fail on
+        # spelling alone. Strategy consistency matters more than "punishing"
+        # the typo with rejection feedback — the verifier still rejects
+        # semantically wrong moves.
+        param_aliases={
+            "adjust_position": {
+                "delta_qty": "qty_delta",
+                "qty_change": "qty_delta",
+                "qty": "qty_delta",
+                "quantity": "qty_delta",
+                "shares": "qty_delta",
+            },
+        },
         create_toolset=create_finance_toolset,
         create_observer=(lambda mgr: FinanceObserver(mgr)) if with_observer else None,
         build_system_prompt=build_finance_system_prompt,

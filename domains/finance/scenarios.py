@@ -16,7 +16,7 @@ Compliance thresholds:
   - Cash reserve: ≥ 5% of portfolio
   - Drawdown from peak: ≤ 8% (monitoring only)
 
-Trade limit: $15K per action.  max_steps=6.
+Trade limit: $15K per action. max_steps=8 (configurable in the collector).
 """
 
 from __future__ import annotations
@@ -51,7 +51,7 @@ class FinanceScenario:
 
 SCENARIOS = [
     # ═══════════════════════ EASY (8) ════════════════════════════════
-    # Solvable in 3-5 steps with $15K limit, max_steps=6
+    # Solvable in 3-5 steps with $15K limit
 
     # --- BIDIR easy ---
     FinanceScenario(
@@ -159,7 +159,7 @@ SCENARIOS = [
     ),
 
     # ═══════════════════════ MEDIUM (10) ═════════════════════════════
-    # Requires 4-6 steps, some tight at max_steps=6
+    # Requires 4-6 steps; some tight within the usual 8-step budget
 
     # --- BIDIR medium ---
     FinanceScenario(
@@ -306,7 +306,7 @@ SCENARIOS = [
     ),
 
     # ═══════════════════════ HARD (12) ═══════════════════════════════
-    # Many require 6+ steps; some unsolvable in 6 steps with $15K limit
+    # Many require 6+ steps; some may need the full 8-step budget
 
     # --- BIDIR hard ---
     FinanceScenario(
@@ -499,7 +499,115 @@ SCENARIOS = [
     ),
 ]
 
-_SCENARIO_MAP = {s.id: s for s in SCENARIOS}
+
+# ═══════════════════════ HELD-OUT (10 scenarios) ═══════════════════════
+# Never included in SFT data collection. Used only to measure
+# generalization. Mirror the training-set shock patterns but with
+# different magnitudes so the student cannot succeed via memorization.
+
+HELD_OUT_SCENARIOS = [
+    # --- easy held-out (3) ---
+    FinanceScenario(
+        id="ood_nvda_mid_surge",
+        description="NVDA +75% (milder than training's +100/110%); tech ceiling breach",
+        source_event="NVDA mid-magnitude rally, held-out variant",
+        price_changes={"NVDA": 84.25},  # +75%
+        difficulty="easy",
+    ),
+    FinanceScenario(
+        id="ood_gas_spike_mild",
+        description="Energy +80% (between training's +70 and +130); energy ceiling",
+        source_event="Gas spike variant",
+        price_changes={"XOM": 170.73, "CVX": 244.13},  # +80%
+        difficulty="easy",
+    ),
+    FinanceScenario(
+        id="ood_cash_squeeze_tech_dip",
+        description="Moderate tech dip + cash drain; cash floor + tech near-floor",
+        source_event="Light cash squeeze held-out",
+        price_changes={"AAPL": 165.36, "MSFT": 328.13, "NVDA": 38.51},  # -10/-10/-20
+        cash_override=30_000.0,
+        difficulty="easy",
+    ),
+
+    # --- medium held-out (4) ---
+    FinanceScenario(
+        id="ood_health_rotation",
+        description="Health rotates up while energy slips; health ceiling + energy floor",
+        source_event="Defensive rotation held-out",
+        price_changes={
+            "JNJ": 164.63, "PFE": 28.27, "UNH": 565.69,  # +10% health
+            "XOM": 66.40, "CVX": 94.94,                   # -30% energy
+        },
+        difficulty="medium",
+    ),
+    FinanceScenario(
+        id="ood_mixed_tech_health",
+        description="Tech up, health down, energy flat; BIDIR with new magnitudes",
+        source_event="Cross-sector mid swing",
+        price_changes={
+            "AAPL": 211.29, "MSFT": 419.28, "NVDA": 62.58,  # +15/+15/+30
+            "JNJ": 112.25, "PFE": 19.28, "UNH": 385.70,      # -25/-25/-25
+        },
+        cash_override=32_000.0,
+        difficulty="medium",
+    ),
+    FinanceScenario(
+        id="ood_two_step_nvda",
+        description="NVDA +60% + CVX -40%; cap pressure on two names",
+        source_event="Two-name mid rotation",
+        price_changes={"NVDA": 77.02, "CVX": 81.38},  # +60%, -40%
+        cash_override=28_000.0,
+        difficulty="medium",
+    ),
+    FinanceScenario(
+        id="ood_jnj_pfe_crash",
+        description="Dual-name health crash; PFE/JNJ below 4% floor",
+        source_event="Health single-name rout",
+        price_changes={"JNJ": 89.80, "PFE": 12.85},  # -40/-50
+        difficulty="medium",
+    ),
+
+    # --- hard held-out (3) ---
+    FinanceScenario(
+        id="ood_quadruple_shock",
+        description="Tech up, health down, energy down, cash low; 4 constraints live",
+        source_event="Held-out worst-mix",
+        price_changes={
+            "AAPL": 220.48, "NVDA": 77.02,                # +20/+60
+            "JNJ": 104.76, "PFE": 17.99, "UNH": 359.98,  # -30 health
+            "XOM": 66.40, "CVX": 94.94,                   # -30 energy
+        },
+        cash_override=24_000.0,
+        difficulty="hard",
+    ),
+    FinanceScenario(
+        id="ood_energy_surge_health_tech_lag",
+        description="Energy +90%, health -25%, tech -10%, cash squeeze",
+        source_event="Energy-led held-out",
+        price_changes={
+            "XOM": 180.22, "CVX": 257.70,                # +90
+            "JNJ": 112.25, "PFE": 19.28, "UNH": 385.70,  # -25
+            "AAPL": 165.36, "MSFT": 328.13,              # -10
+        },
+        cash_override=20_000.0,
+        difficulty="hard",
+    ),
+    FinanceScenario(
+        id="ood_nvda_floor_breach",
+        description="NVDA -75% pushes below 4% floor; health stable; cash tight",
+        source_event="Single-name floor crisis",
+        price_changes={
+            "NVDA": 12.04,                                # -75%
+            "AAPL": 165.36, "MSFT": 328.13,              # -10
+        },
+        cash_override=22_000.0,
+        difficulty="hard",
+    ),
+]
+
+
+_SCENARIO_MAP = {s.id: s for s in SCENARIOS + HELD_OUT_SCENARIOS}
 
 
 class FinanceScenarioLoader:
@@ -510,8 +618,13 @@ class FinanceScenarioLoader:
             raise KeyError(f"Unknown scenario: {scenario_id}")
         return _SCENARIO_MAP[scenario_id]
 
-    def load_all(self) -> list[FinanceScenario]:
+    def load_all(self, include_held_out: bool = False) -> list[FinanceScenario]:
+        if include_held_out:
+            return list(SCENARIOS) + list(HELD_OUT_SCENARIOS)
         return list(SCENARIOS)
+
+    def load_held_out(self) -> list[FinanceScenario]:
+        return list(HELD_OUT_SCENARIOS)
 
     def setup_episode(self, manager: FinanceManager, scenario: FinanceScenario) -> None:
         """Inject stress into the portfolio.
