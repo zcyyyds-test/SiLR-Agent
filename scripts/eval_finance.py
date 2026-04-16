@@ -129,6 +129,16 @@ def main():
     parser.add_argument("--max-steps", type=int, default=8)
     parser.add_argument("--no-adapter", action="store_true",
                         help="Eval base model without adapter")
+    parser.add_argument("--max-new-tokens", type=int, default=512,
+                        help="Cap on generated tokens per turn. Lower values "
+                             "prevent verbose reasoning from burning step budget.")
+    parser.add_argument("--temperature", type=float, default=0.0,
+                        help="Sampling temperature. 0.0 = greedy deterministic. "
+                             "Set >0 with multiple repeats to get real N for CIs.")
+    parser.add_argument("--held-out", action="store_true",
+                        help="Include held-out scenarios (never seen in SFT data).")
+    parser.add_argument("--held-out-only", action="store_true",
+                        help="Run ONLY held-out scenarios.")
     args = parser.parse_args()
 
     setup_logging(args.output)
@@ -142,7 +152,9 @@ def main():
     logger.info(f"Repeats: {args.repeats}, Max steps: {args.max_steps}")
 
     adapter = None if args.no_adapter else args.adapter
-    client = LocalQwenClient(args.base_model, adapter)
+    client = LocalQwenClient(args.base_model, adapter,
+                             max_new_tokens=args.max_new_tokens)
+    logger.info(f"Max new tokens per turn: {args.max_new_tokens}")
 
     domain_config = build_finance_domain_config()
     loader = FinanceScenarioLoader()
@@ -150,7 +162,7 @@ def main():
         max_steps=args.max_steps,
         max_proposals_per_step=3,
         consecutive_fail_limit=2,
-        temperature=0.0,
+        temperature=args.temperature,
     )
 
     runner = EvalRunner(
@@ -162,7 +174,15 @@ def main():
         record_trajectories=True,
     )
 
-    scenarios = loader.load_all()
+    if args.held_out_only:
+        scenarios = loader.load_held_out()
+        logger.info(f"Held-out only: {len(scenarios)} scenarios")
+    elif args.held_out:
+        scenarios = loader.load_all(include_held_out=True)
+        logger.info(f"Full eval + held-out: {len(scenarios)} scenarios")
+    else:
+        scenarios = loader.load_all()
+        logger.info(f"Training scenarios only: {len(scenarios)} scenarios")
     all_results = []
 
     for rep in range(args.repeats):

@@ -1,6 +1,8 @@
-"""SFT training for cluster scheduling domain using QLoRA.
+"""SFT training using QLoRA.
 
 Trains Qwen3-14B on cleaned SFT data with 4-bit quantization.
+Supports optional system prompt injection for domains that export
+SFT data without a system message (e.g. finance domain).
 """
 
 import argparse
@@ -36,18 +38,27 @@ def setup_logging(output_dir: str):
     )
 
 
-def load_sft_data(path: str) -> Dataset:
-    """Load SFT data and convert to HF Dataset."""
+def load_sft_data(path: str, system_prompt: str | None = None) -> Dataset:
+    """Load SFT data and convert to HF Dataset.
+
+    If ``system_prompt`` is provided, prepend it as a ``system`` role message
+    to every conversation that does not already start with one. The Finance
+    domain exports data without a system message (the domain-specific prompt
+    is injected at training time to match inference).
+    """
     with open(path, encoding="utf-8") as f:
         raw = json.load(f)
 
-    # trl SFTTrainer expects a "messages" field with chat format
     records = []
     for item in raw:
-        records.append({"messages": item["messages"]})
+        messages = list(item["messages"])
+        if system_prompt and (not messages or messages[0].get("role") != "system"):
+            messages = [{"role": "system", "content": system_prompt}] + messages
+        records.append({"messages": messages})
 
     ds = Dataset.from_list(records)
-    logger.info(f"Loaded {len(ds)} SFT samples from {path}")
+    logger.info(f"Loaded {len(ds)} SFT samples from {path}"
+                + (" (system prompt injected)" if system_prompt else ""))
     return ds
 
 
@@ -64,6 +75,11 @@ def main():
     parser.add_argument("--lora-r", type=int, default=64)
     parser.add_argument("--lora-alpha", type=int, default=128)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--system-prompt-file", default=None,
+        help="Path to a text file holding the system prompt to prepend to "
+             "every SFT conversation (e.g. configs/finance_system_prompt.txt).",
+    )
     args = parser.parse_args()
 
     setup_logging(args.output_dir)
@@ -127,7 +143,13 @@ def main():
                 f"({trainable / total * 100:.2f}%)")
 
     # Load data
-    dataset = load_sft_data(args.data_path)
+    sys_prompt = None
+    if args.system_prompt_file:
+        with open(args.system_prompt_file, encoding="utf-8") as f:
+            sys_prompt = f.read().rstrip()
+        logger.info(f"System prompt loaded from {args.system_prompt_file} "
+                    f"({len(sys_prompt)} chars)")
+    dataset = load_sft_data(args.data_path, system_prompt=sys_prompt)
 
     # Split 90/10 for train/eval
     split = dataset.train_test_split(test_size=0.1, seed=args.seed)
@@ -151,7 +173,7 @@ def main():
         eval_strategy="steps",
         eval_steps=20,
         save_strategy="epoch",
-        save_total_limit=2,
+        save_total_limit=None,  # keep every epoch checkpoint for post-hoc best-of-k eval
         seed=args.seed,
         report_to="none",
         gradient_checkpointing=True,

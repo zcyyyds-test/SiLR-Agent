@@ -24,6 +24,24 @@ from silr.agent.llm.openai_client import OpenAIClient
 from silr.eval.runner import EvalRunner
 
 
+def _build_llm_client(provider: str, args):
+    """Pick the LLM client based on --provider."""
+    if provider == "openai":
+        return OpenAIClient(
+            model=args.model,
+            api_key=args.api_key,
+            base_url=args.base_url,
+        )
+    if provider == "kimi":
+        from silr.agent.llm.kimi_anthropic_client import KimiAnthropicClient
+        return KimiAnthropicClient(
+            model=args.model,
+            api_key=args.api_key,
+            base_url=args.base_url,
+        )
+    raise ValueError(f"Unknown provider: {provider}")
+
+
 def setup_logging(name: str, log_dir: str = "."):
     os.makedirs(log_dir, exist_ok=True)
     logging.basicConfig(
@@ -38,9 +56,11 @@ def setup_logging(name: str, log_dir: str = "."):
 
 def main():
     parser = argparse.ArgumentParser(description="Collect SFT data for finance domain")
+    parser.add_argument("--provider", default="openai", choices=["openai", "kimi"],
+                        help="LLM provider. kimi uses the Anthropic-compat endpoint.")
     parser.add_argument("--model", default="gemini-3-flash-preview")
     parser.add_argument("--base-url", default=None,
-                        help="OpenAI-compatible API base URL")
+                        help="Provider-specific base URL override")
     parser.add_argument("--api-key", required=True)
     parser.add_argument("--repeats", type=int, default=10)
     parser.add_argument("--max-steps", type=int, default=8)
@@ -55,11 +75,8 @@ def main():
     logger.info(f"Config: model={args.model}, repeats={args.repeats}, "
                 f"max_steps={args.max_steps}, output={args.output}")
 
-    llm_client = OpenAIClient(
-        model=args.model,
-        api_key=args.api_key,
-        base_url=args.base_url,
-    )
+    llm_client = _build_llm_client(args.provider, args)
+    logger.info(f"Provider: {args.provider}, bare-text mode: {not llm_client.supports_tool_use()}")
     domain_config = build_finance_domain_config()
     loader = FinanceScenarioLoader()
     agent_config = AgentConfig(
