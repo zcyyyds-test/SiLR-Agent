@@ -57,7 +57,9 @@ experiments/
 # Tutorial / internal docs not for release
 docs/tutorial_*.md
 
-# Temporary scripts (API diagnostics, one-off analysis)
-/tmp/
+# Experiment / data-processing scripts (not for release)
+scripts/dedup_sft_data.py
+scripts/postprocess_to_baseline_format.py
+scripts/train_grpo_finance*.py
 scripts/compare_finance.py
 scripts/check_coverage.py
