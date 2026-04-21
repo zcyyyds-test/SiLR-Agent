@@ -103,11 +103,37 @@ def _load_client(model_path: str, adapter_path: str | None,
                  max_new_tokens: int):
     """Lazy-import LocalQwenClient — brings in torch / peft / transformers."""
     from scripts.eval_sft import LocalQwenClient
-    return LocalQwenClient(
+
+    inner = LocalQwenClient(
         model_path=model_path,
         adapter_path=adapter_path or "",
         max_new_tokens=max_new_tokens,
     )
+
+    # Wrap with history truncation: each chat() call keeps only system +
+    # the latest user message. Training data was constructed so each
+    # (user, assistant) pair was an independent decision; multi-turn
+    # accumulation is not needed for the student to behave correctly
+    # and makes 4-bit Qwen3-14B generate at ~4 min/call on long prompts.
+    class SingleTurnClient:
+        def __init__(self, inner_client):
+            self._inner = inner_client
+
+        def chat(self, messages, tools=None, temperature=0.0, seed=None):
+            system_msgs = [m for m in messages if m["role"] == "system"]
+            # Last user message (if any)
+            last_user = None
+            for m in messages:
+                if m["role"] == "user":
+                    last_user = m
+            trimmed = system_msgs + ([last_user] if last_user else [])
+            return self._inner.chat(trimmed, tools=tools,
+                                    temperature=temperature, seed=seed)
+
+        def supports_tool_use(self):
+            return self._inner.supports_tool_use()
+
+    return SingleTurnClient(inner)
 
 
 def main(argv=None):
