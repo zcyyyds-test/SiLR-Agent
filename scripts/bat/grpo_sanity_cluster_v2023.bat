@@ -7,4 +7,4 @@ call C:\Users\Administrator\miniconda3\Scripts\activate.bat pytorch_env
 set PYTHONPATH=D:\zcy\SILR-Agent-cluster-v2023
 python -u scripts\grpo_sanity_check.py ^
     --base-model D:\zcy\models\Qwen\Qwen3-14B ^
-    --sft-adapter outputs\cluster_v2023\sft_adapter
+    --sft-adapter outputs\cluster_v2023\sft_adapter\final

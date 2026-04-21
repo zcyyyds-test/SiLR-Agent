@@ -6,7 +6,7 @@ call C:\Users\Administrator\miniconda3\Scripts\activate.bat pytorch_env
 set PYTHONPATH=D:\zcy\SILR-Agent-cluster-v2023
 python -u scripts\train_grpo_cluster_v2023.py ^
     --base-model D:\zcy\models\Qwen\Qwen3-14B ^
-    --sft-adapter outputs\cluster_v2023\grpo_iter2 ^
+    --sft-adapter outputs\cluster_v2023\grpo_iter2\final ^
     --output outputs\cluster_v2023\grpo_iter3 ^
     --iterations 1 ^
     --rollouts-per-scenario 2 ^
