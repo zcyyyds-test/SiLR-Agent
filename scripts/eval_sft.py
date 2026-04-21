@@ -109,12 +109,12 @@ class LocalQwenClient(BaseLLMClient):
         content = self._tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
         n_new_tokens = len(new_tokens)  # capture before del below
 
-        # Free KV / activations between calls. Observed without this on
-        # cluster_v2023 SFT eval: allocations escalated 21 → 152 → 237
-        # → 340 GiB across 4 consecutive generates and crashed OOM.
-        # Cheap (~10ms) and prevents the leak.
+        # Drop tensor refs. Do NOT call torch.cuda.empty_cache() — on the
+        # RTX PRO 6000 Blackwell + 14B 4-bit it added minutes of blocking
+        # between calls. Without retries (max_proposals_per_step=1 in
+        # cluster_v2023 eval), prompt growth is bounded at ~18K tokens,
+        # well within 96GB budget.
         del outputs, new_tokens, inputs
-        torch.cuda.empty_cache()
 
         # Don't parse JSON here — let ActionParser handle it uniformly
         # (its Layer 2/3 regex is more robust than manual brace counting)
