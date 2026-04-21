@@ -1,4 +1,10 @@
-from domains.cluster_v2023.checkers import ResourceCapacityChecker
+from domains.cluster_v2023.checkers import (
+    AffinityChecker,
+    FragmentationChecker,
+    PriorityChecker,
+    QueueChecker,
+    ResourceCapacityChecker,
+)
 
 
 def _state():
@@ -55,8 +61,6 @@ def test_capacity_skips_down_nodes():
 
 # --- AffinityChecker ---
 
-from domains.cluster_v2023.checkers import AffinityChecker  # noqa: E402
-
 
 def test_affinity_pass_when_no_requirement():
     s = _state()
@@ -90,8 +94,6 @@ def test_affinity_ignores_queued_jobs():
 
 
 # --- PriorityChecker ---
-
-from domains.cluster_v2023.checkers import PriorityChecker  # noqa: E402
 
 
 def test_priority_pass_when_no_ls_queued():
@@ -130,8 +132,6 @@ def test_priority_pass_when_ls_queued_but_no_be_running():
 
 # --- QueueChecker ---
 
-from domains.cluster_v2023.checkers import QueueChecker  # noqa: E402
-
 
 def test_queue_pass_when_only_be_queued():
     s = _state()
@@ -161,8 +161,6 @@ def test_queue_fail_when_burstable_queued():
 
 
 # --- FragmentationChecker (FGD ATC'23 formula) ---
-
-from domains.cluster_v2023.checkers import FragmentationChecker  # noqa: E402
 
 
 def test_fragmentation_score_zero_when_node_full_or_empty():
@@ -211,4 +209,77 @@ def test_fragmentation_skips_down_nodes():
     s["nodes"]["n0"]["gpu_used"] = 6  # would be fragmentary if Ready
     r = FragmentationChecker(f_threshold=1000.0,
                              job_size_dist={4: 1.0}).check(s, base_mva=1.0)
+    assert r.summary["F"] == 0.0
+
+
+# --- Kimi review follow-ups (non-blocking coverage additions) ---
+
+
+def test_priority_pass_on_unknown_qos():
+    """Kimi Suggest: unknown qos value (not LS/Burstable/BE) shouldn't trigger
+    Priority. Current logic ignores non-LS/non-BE → passes. Documents the
+    implicit contract — if qos schema expands, this test will force a
+    decision rather than silently accept the default."""
+    s = _state()
+    s["jobs"] = {
+        "j0": {"qos": "Premium", "status": "Queued",
+               "cpu": 0, "ram_mib": 0, "gpu": 1, "gpu_spec_required": None},
+        "j1": {"qos": "BE", "status": "Running",
+               "cpu": 0, "ram_mib": 0, "gpu": 1, "gpu_spec_required": None},
+    }
+    assert PriorityChecker().check(s, 1.0).passed
+
+
+def test_queue_treats_unknown_qos_as_non_critical():
+    """Kimi Suggest: qos not in {LS, Burstable} is allowed to queue."""
+    s = _state()
+    s["jobs"] = {"j0": {"qos": "Premium", "status": "Queued",
+                        "cpu": 0, "ram_mib": 0, "gpu": 1,
+                        "gpu_spec_required": None}}
+    assert QueueChecker().check(s, 1.0).passed
+
+
+def test_fragmentation_multi_node_additive():
+    """Kimi Suggest: F must sum across multiple Ready nodes."""
+    s = _state()
+    # n0 rem=8 (dist={4:1.0} → not fragmentary)
+    # n1 rem=2 (dist={4:1.0} → 0 < 2 < 4 → F += 1.0 * 2)
+    s["nodes"]["n1"] = {
+        "model": "V100M32", "cpu_total": 96000, "ram_total_mib": 786432,
+        "gpu_total": 8, "status": "Ready",
+        "cpu_used": 0, "ram_used_mib": 0, "gpu_used": 6,
+    }
+    r = FragmentationChecker(
+        f_threshold=1e9, job_size_dist={4: 1.0}).check(s, 1.0)
+    assert r.summary["F"] == 2.0
+
+
+def test_all_checkers_pass_on_empty_state():
+    """Kimi Suggest: empty cluster (0 nodes, 0 jobs) is trivially clean."""
+    empty = {"nodes": {}, "jobs": {}, "assignments": {}, "sim_time": 0.0}
+    assert ResourceCapacityChecker().check(empty, 1.0).passed
+    assert AffinityChecker().check(empty, 1.0).passed
+    assert PriorityChecker().check(empty, 1.0).passed
+    assert QueueChecker().check(empty, 1.0).passed
+    assert FragmentationChecker(f_threshold=0.0).check(empty, 1.0).passed
+
+
+def test_fragmentation_zero_gpu_total_node():
+    """Kimi Suggest: Ready node with gpu_total=0 contributes nothing."""
+    s = _state()
+    s["nodes"]["n0"]["gpu_total"] = 0
+    s["nodes"]["n0"]["gpu_used"] = 0
+    r = FragmentationChecker(
+        f_threshold=1e9, job_size_dist={4: 1.0}).check(s, 1.0)
+    assert r.summary["F"] == 0.0
+
+
+def test_fragmentation_rejects_corrupted_overcommit_state():
+    """Kimi Suggest: locking behavior when gpu_used > gpu_total (transient
+    mid-transition). rem becomes negative, skipped by `rem <= 0`."""
+    s = _state()
+    s["nodes"]["n0"]["gpu_total"] = 8
+    s["nodes"]["n0"]["gpu_used"] = 10  # corrupt state
+    r = FragmentationChecker(
+        f_threshold=1e9, job_size_dist={4: 1.0}).check(s, 1.0)
     assert r.summary["F"] == 0.0
