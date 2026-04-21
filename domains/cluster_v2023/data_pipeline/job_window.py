@@ -20,7 +20,15 @@ def select_window(
     out: list[dict] = []
     with open(Path(jobs_csv), newline="") as f:
         for row in csv.DictReader(f):
-            ct = float(row.get("creation_time") or 0)
+            raw_ct = row.get("creation_time")
+            if raw_ct is None or raw_ct == "":
+                continue  # malformed row — skip, don't silently treat as 0
+            try:
+                ct = float(raw_ct)
+            except ValueError:
+                continue
+            if ct != ct:  # NaN check (reject explicitly, not just via < fail)
+                continue
             if not (start <= ct < end):
                 continue
             # `is not None` (not truthiness): passing e.g. max_gpus_per_job=0

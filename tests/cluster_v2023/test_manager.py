@@ -62,3 +62,13 @@ def test_shadow_is_isolated():
     shadow.solve()
     assert shadow.system_state["nodes"]["n0"]["gpu_used"] == 1
     assert m.system_state["nodes"]["n0"]["gpu_used"] == 0
+
+
+def test_shadow_isolates_node_mutation():
+    """Regression (Kimi suggest): original was only covered for _jobs mutation."""
+    m = ClusterV2023Manager(nodes=_mk_nodes(), jobs=_mk_jobs())
+    shadow = m.create_shadow_copy()
+    shadow._nodes["n0"]["status"] = "Down"
+    shadow._nodes["n0"]["gpu_total"] = 0
+    assert m.system_state["nodes"]["n0"]["status"] == "Ready"
+    assert m.system_state["nodes"]["n0"]["gpu_total"] == 8
