@@ -98,7 +98,12 @@ class LocalQwenClient(BaseLLMClient):
                 gen_kwargs["temperature"] = temperature
                 gen_kwargs["top_p"] = 0.9
 
+            t0 = time.perf_counter()
             outputs = self._model.generate(**inputs, **gen_kwargs)
+            gen_dt = time.perf_counter() - t0
+            logger.info(
+                f"[timing] prompt={prompt_len}tok  gen={outputs.shape[1]-prompt_len}tok  {gen_dt:.1f}s"
+            )
 
         new_tokens = outputs[0][prompt_len:]
         content = self._tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
