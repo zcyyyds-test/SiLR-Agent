@@ -107,8 +107,13 @@ class ActionParser:
             if m:
                 return self._parse_json_action(m.group(1).strip())
 
-        # Try bare JSON object (supports one level of nesting)
-        m = re.search(r'\{(?:[^{}]|\{[^{}]*\})*"tool_name"(?:[^{}]|\{[^{}]*\})*\}', text, re.DOTALL)
+        # Try bare JSON object (supports one level of nesting). Match any
+        # of the tool-name key variants a model might emit: tool_name /
+        # tool / action / name. Qwen3 without enable_thinking tends to
+        # emit the flat `{"tool": "...", ...}` schema.
+        m = re.search(
+            r'\{(?:[^{}]|\{[^{}]*\})*"(?:tool_name|tool|action|name)"(?:[^{}]|\{[^{}]*\})*\}',
+            text, re.DOTALL)
         if m:
             return self._parse_json_action(m.group(0))
 
@@ -124,19 +129,22 @@ class ActionParser:
         if not isinstance(obj, dict):
             return None
 
-        tool_name = obj.get("tool_name") or obj.get("action") or obj.get("name")
+        tool_name = (obj.get("tool_name") or obj.get("tool")
+                     or obj.get("action") or obj.get("name"))
         if not tool_name:
             return None
 
         tool_name = self._normalize_tool_name(str(tool_name))
 
         # params can be nested under "params", "parameters", "arguments", or at top level
+        _TOP_LEVEL_KEYS = {"tool_name", "tool", "action", "name",
+                           "thought", "reasoning", "params",
+                           "parameters", "arguments"}
         params = (
             obj.get("params")
             or obj.get("parameters")
             or obj.get("arguments")
-            or {k: v for k, v in obj.items()
-                if k not in ("tool_name", "action", "name", "thought", "reasoning")}
+            or {k: v for k, v in obj.items() if k not in _TOP_LEVEL_KEYS}
         )
 
         params = self._coerce_params(tool_name, params)
