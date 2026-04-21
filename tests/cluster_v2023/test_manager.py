@@ -31,3 +31,24 @@ def test_manager_properties_present():
 def test_initial_assignments_empty():
     m = ClusterV2023Manager(nodes=_mk_nodes(), jobs=_mk_jobs())
     assert m.system_state["assignments"] == {}
+
+
+def test_solve_recomputes_usage():
+    nodes = _mk_nodes()
+    jobs = _mk_jobs()
+    jobs["j0"]["status"] = "Running"
+    m = ClusterV2023Manager(nodes=nodes, jobs=jobs, assignments={"j0": "n0"})
+    assert m.solve() is True
+    assert m.system_state["nodes"]["n0"]["gpu_used"] == 1
+    assert m.system_state["nodes"]["n0"]["cpu_used"] == 8000
+    assert m.system_state["nodes"]["n1"]["gpu_used"] == 0
+
+
+def test_solve_ignores_down_nodes_but_keeps_their_assignments():
+    nodes = _mk_nodes()
+    nodes["n0"]["status"] = "Down"
+    jobs = _mk_jobs()
+    jobs["j0"]["status"] = "Preempted"
+    m = ClusterV2023Manager(nodes=nodes, jobs=jobs, assignments={})
+    assert m.solve() is True
+    assert m.system_state["nodes"]["n0"]["gpu_used"] == 0

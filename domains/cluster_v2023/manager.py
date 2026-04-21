@@ -65,9 +65,30 @@ class ClusterV2023Manager(BaseSystemManager):
             "sim_time": self._sim_time,
         }
 
-    # Filled in Task 6 & 7
     def solve(self) -> bool:
-        raise NotImplementedError
+        """Recompute per-node resource usage from assignments. Always converges."""
+        self._recompute_node_usage()
+        return True
 
+    def _recompute_node_usage(self) -> None:
+        for nid, node in self._nodes.items():
+            node["cpu_used"] = 0
+            node["ram_used_mib"] = 0
+            node["gpu_used"] = 0
+
+        for jid, nid in self._assignments.items():
+            job = self._jobs.get(jid)
+            if job is None:
+                continue
+            if job["status"] != "Running":
+                continue
+            node = self._nodes.get(nid)
+            if node is None or node["status"] != "Ready":
+                continue
+            node["cpu_used"] += int(job["cpu"])
+            node["ram_used_mib"] += int(job["ram_mib"])
+            node["gpu_used"] += int(job["gpu"])
+
+    # Filled in Task 7
     def create_shadow_copy(self) -> "ClusterV2023Manager":
         raise NotImplementedError
