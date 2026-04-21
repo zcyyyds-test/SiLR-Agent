@@ -3,6 +3,10 @@
 Uses the OpenAI-compatible LemonAPI relay already configured for the
 project. See memory/reference_api_config.md for endpoint + key names.
 
+Enrichment is ASYNCHRONOUS with a bounded concurrency semaphore
+(default 10) — sequential processing took ~75s/record × 200 = 4 hours.
+Async 10-way brings this down to ~25 minutes at the same API cost.
+
 Also provides `jsonl_to_json_array(src, dst)` helper — `train_sft.py`
 uses `json.load(f)` which expects a JSON array at top level, NOT
 per-line JSONL. Run after enrichment.
@@ -11,6 +15,7 @@ per-line JSONL. Run after enrichment.
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import logging
 import os
@@ -32,60 +37,101 @@ job IDs, qos class, and the constraint(s) being addressed."""
 _DEFAULT_MODEL = "[L]gemini-3-flash-preview"
 
 
-def _enrich_one(obs: str, assistant: str, client, model: str) -> str:
-    resp = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": REASONING_PROMPT},
-            {"role": "user",
-             "content": f"OBSERVATION:\n{obs}\n\nACTION:\n{assistant}"},
-        ],
-        temperature=0.3,
-        max_tokens=220,
-    )
-    return resp.choices[0].message.content.strip()
+async def _enrich_one_async(
+    obs: str, assistant: str, client, model: str, sem: asyncio.Semaphore,
+) -> str:
+    async with sem:
+        resp = await client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": REASONING_PROMPT},
+                {"role": "user",
+                 "content": f"OBSERVATION:\n{obs}\n\nACTION:\n{assistant}"},
+            ],
+            temperature=0.3,
+            max_tokens=220,
+        )
+        return resp.choices[0].message.content.strip()
 
 
-def enrich(inp: Path, out: Path, *, max_lines: int | None = None) -> int:
+async def _enrich_record_async(
+    rec: dict, client, model: str, sem: asyncio.Semaphore,
+) -> dict:
+    """Enrich all (user, assistant) pairs inside one record concurrently."""
+    tasks = []
+    indices = []
+    msgs = rec["messages"]
+    for i in range(len(msgs) - 1):
+        if msgs[i]["role"] != "user":
+            continue
+        j = i + 1
+        if j >= len(msgs) or msgs[j]["role"] != "assistant":
+            continue
+        tasks.append(_enrich_one_async(
+            msgs[i]["content"], msgs[j]["content"], client, model, sem))
+        indices.append(j)
+
+    if not tasks:
+        return rec
+
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    for j, r in zip(indices, results):
+        if isinstance(r, Exception):
+            logger.warning("enrich failed scenario=%s turn=%d: %s",
+                           rec.get("scenario_id"), j, r)
+            continue
+        msgs[j]["content"] = f"{r}\n\n{msgs[j]['content']}"
+    return rec
+
+
+async def _enrich_async(
+    inp: Path, out: Path, *,
+    max_lines: int | None = None,
+    concurrency: int = 10,
+) -> int:
     # Import OpenAI only here — tests without API key never touch this path.
-    from openai import OpenAI
+    from openai import AsyncOpenAI
     api_key = os.environ.get("LEMON_API_KEY")
     if not api_key:
         raise RuntimeError(
             "LEMON_API_KEY env var is required to run enrichment.")
-    client = OpenAI(
+    client = AsyncOpenAI(
         api_key=api_key,
         base_url=os.environ.get("LEMON_API_BASE",
                                 "https://new.lemonapi.site/v1"),
     )
     model = os.environ.get("LEMON_API_MODEL", _DEFAULT_MODEL)
+    sem = asyncio.Semaphore(concurrency)
 
-    n = 0
-    with open(inp) as fin, open(out, "w") as fout:
+    # Load all records first (input is ~200 lines × ~20KB, fits in RAM)
+    records = []
+    with open(inp) as fin:
         for line in fin:
-            if max_lines and n >= max_lines:
+            if max_lines and len(records) >= max_lines:
                 break
-            rec = json.loads(line)
-            for i in range(len(rec["messages"]) - 1):
-                if rec["messages"][i]["role"] != "user":
-                    continue
-                j = i + 1
-                if j >= len(rec["messages"]):
-                    continue
-                if rec["messages"][j]["role"] != "assistant":
-                    continue
-                obs = rec["messages"][i]["content"]
-                asst = rec["messages"][j]["content"]
-                try:
-                    cot = _enrich_one(obs, asst, client, model)
-                except Exception as e:
-                    logger.warning("enrich failed scenario=%s: %s",
-                                   rec.get("scenario_id"), e)
-                    continue
-                rec["messages"][j]["content"] = f"{cot}\n\n{asst}"
+            records.append(json.loads(line))
+
+    # Process all records concurrently (semaphore caps in-flight API calls)
+    logger.info("enriching %d records with concurrency=%d ...",
+                len(records), concurrency)
+    enriched = await asyncio.gather(
+        *(_enrich_record_async(r, client, model, sem) for r in records)
+    )
+
+    # Write in original order
+    with open(out, "w") as fout:
+        for rec in enriched:
             fout.write(json.dumps(rec) + "\n")
-            n += 1
-    return n
+    return len(enriched)
+
+
+def enrich(inp: Path, out: Path, *,
+           max_lines: int | None = None,
+           concurrency: int = 10) -> int:
+    """Synchronous entry point — wraps the async impl for CLI / tests."""
+    return asyncio.run(_enrich_async(inp, out,
+                                     max_lines=max_lines,
+                                     concurrency=concurrency))
 
 
 def jsonl_to_json_array(src: Path, dst: Path) -> int:
@@ -112,11 +158,15 @@ def main(argv=None):
                    help="Optional: also write JSON array format at this path "
                         "(required by train_sft.py)")
     p.add_argument("--max-lines", type=int, default=None)
+    p.add_argument("--concurrency", type=int, default=10,
+                   help="Max concurrent in-flight API calls")
     args = p.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s %(levelname)s %(message)s")
-    n = enrich(Path(args.inp), Path(args.out), max_lines=args.max_lines)
+    n = enrich(Path(args.inp), Path(args.out),
+               max_lines=args.max_lines,
+               concurrency=args.concurrency)
     logger.info("enriched %d lines → %s", n, args.out)
 
     if args.final_json:

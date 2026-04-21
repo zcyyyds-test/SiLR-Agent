@@ -77,12 +77,15 @@ def _normalize_jobs(rows: list[dict]) -> dict:
 
 
 def _apply_fault(fault_type: str, mgr, seed: int) -> dict:
+    # Severity parameters tuned 2026-04-21 to keep Best-fit teacher
+    # recovery rate in the 70-85% band (full success 96%+ left no
+    # capability gap for SFT/GRPO to close, per user feedback).
     if fault_type == "node_failure":
-        return inject_node_failure(mgr, n_nodes=2, seed=seed)
+        return inject_node_failure(mgr, n_nodes=3, seed=seed)
     if fault_type == "gpu_spec_mismatch":
-        return inject_gpu_spec_mismatch(mgr, n_jobs=3, seed=seed)
+        return inject_gpu_spec_mismatch(mgr, n_jobs=5, seed=seed)
     if fault_type == "qos_pressure":
-        return inject_qos_pressure(mgr, n_ls_queued=5, seed=seed)
+        return inject_qos_pressure(mgr, n_ls_queued=10, seed=seed)
     if fault_type == "fragmentation_surge":
         return inject_fragmentation_surge(mgr, seed=seed)
     raise ValueError(fault_type)
