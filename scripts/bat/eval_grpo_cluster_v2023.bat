@@ -8,4 +8,5 @@ python -u scripts\eval_cluster_v2023.py ^
     --model D:\zcy\models\Qwen\Qwen3-14B ^
     --adapter outputs\cluster_v2023\grpo_iter3\final ^
     --repeats 3 ^
-    --out outputs\cluster_v2023\eval_grpo.json
+    --out outputs\cluster_v2023\eval_grpo.json ^
+    > outputs\cluster_v2023\eval_grpo.log 2>&1
