@@ -19,11 +19,11 @@ logger = logging.getLogger(__name__)
 EXPECTED_FILES = {
     "openb_node_list_gpu_node.csv": (
         "https://raw.githubusercontent.com/alibaba/clusterdata/master/"
-        "cluster-trace-gpu-v2023/openb_node_list_gpu_node.csv"
+        "cluster-trace-gpu-v2023/csv/openb_node_list_gpu_node.csv"
     ),
     "openb_pod_list_default.csv": (
         "https://raw.githubusercontent.com/alibaba/clusterdata/master/"
-        "cluster-trace-gpu-v2023/openb_pod_list_default.csv"
+        "cluster-trace-gpu-v2023/csv/openb_pod_list_default.csv"
     ),
 }
 
