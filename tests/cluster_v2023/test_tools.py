@@ -25,7 +25,7 @@ def _jobs():
 def test_assign_happy_path():
     m = ClusterV2023Manager(nodes=_nodes(), jobs=_jobs())
     r = AssignJobTool(m).execute(job_id="j0", node_id="n0")
-    assert r.status == "success"
+    assert r["status"] == "success"
     assert m.system_state["jobs"]["j0"]["status"] == "Running"
     assert m.system_state["assignments"]["j0"] == "n0"
     m.solve()
@@ -36,41 +36,41 @@ def test_assign_fails_on_down_node():
     n = _nodes(); n["n0"]["status"] = "Down"
     m = ClusterV2023Manager(nodes=n, jobs=_jobs())
     r = AssignJobTool(m).execute(job_id="j0", node_id="n0")
-    assert r.status == "error"
+    assert r["status"] == "error"
 
 
 def test_assign_fails_on_missing_job():
     m = ClusterV2023Manager(nodes=_nodes(), jobs=_jobs())
     r = AssignJobTool(m).execute(job_id="nonexistent", node_id="n0")
-    assert r.status == "error"
+    assert r["status"] == "error"
 
 
 def test_assign_fails_on_already_running_job():
     j = _jobs(); j["j0"]["status"] = "Running"
     m = ClusterV2023Manager(nodes=_nodes(), jobs=j, assignments={"j0": "n0"})
     r = AssignJobTool(m).execute(job_id="j0", node_id="n1")
-    assert r.status == "error"
+    assert r["status"] == "error"
 
 
 def test_migrate_moves_running_job():
     j = _jobs(); j["j0"]["status"] = "Running"
     m = ClusterV2023Manager(nodes=_nodes(), jobs=j, assignments={"j0": "n0"})
     r = MigrateJobTool(m).execute(job_id="j0", node_id="n1")
-    assert r.status == "success"
+    assert r["status"] == "success"
     assert m.system_state["assignments"]["j0"] == "n1"
 
 
 def test_migrate_fails_on_queued_job():
     m = ClusterV2023Manager(nodes=_nodes(), jobs=_jobs())
     r = MigrateJobTool(m).execute(job_id="j0", node_id="n1")
-    assert r.status == "error"
+    assert r["status"] == "error"
 
 
 def test_preempt_queues_job_and_frees_node():
     j = _jobs(); j["j0"]["status"] = "Running"
     m = ClusterV2023Manager(nodes=_nodes(), jobs=j, assignments={"j0": "n0"})
     r = PreemptJobTool(m).execute(job_id="j0")
-    assert r.status == "success"
+    assert r["status"] == "success"
     assert m.system_state["jobs"]["j0"]["status"] == "Queued"
     assert "j0" not in m.system_state["assignments"]
 
@@ -78,7 +78,7 @@ def test_preempt_queues_job_and_frees_node():
 def test_preempt_fails_on_queued_job():
     m = ClusterV2023Manager(nodes=_nodes(), jobs=_jobs())
     r = PreemptJobTool(m).execute(job_id="j0")
-    assert r.status == "error"
+    assert r["status"] == "error"
 
 
 def test_toolset_has_three_tools():
