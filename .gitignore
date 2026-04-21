@@ -39,6 +39,8 @@ Thumbs.db
 # Project-specific
 outputs/
 data/
+!domains/*/scenarios/data/
+!domains/*/data/
 *.log
 
 # Claude Code workspace
