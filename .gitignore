@@ -58,6 +58,10 @@ experiments/
 # Tutorial / internal docs not for release
 docs/tutorial_*.md
 
+# Internal specs & plans — contain server IPs, training recipes,
+# business targeting reasoning. Keep locally, do not push.
+docs/superpowers/
+
 # Experiment / data-processing scripts (not for release)
 scripts/dedup_sft_data.py
 scripts/postprocess_to_baseline_format.py
