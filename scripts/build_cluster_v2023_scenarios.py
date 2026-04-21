@@ -174,9 +174,15 @@ def main(argv=None):
     p.add_argument("--raw-dir", required=True)
     p.add_argument("--out-dir", required=True)
     p.add_argument("--target-nodes", type=int, default=40)
-    p.add_argument("--window-start", type=float, default=0)
-    p.add_argument("--window-end", type=float, default=6000)
-    p.add_argument("--max-jobs", type=int, default=400)
+    # window-start / window-end in SECONDS of creation_time.
+    # OpenB trace `creation_time` spans 0 → 12.9M seconds; pod density
+    # peaks around the median (~11.5M). Default picks a 1-hour-equivalent
+    # slice around that median where ~80 GPU jobs arrive.
+    p.add_argument("--window-start", type=float, default=11_000_000)
+    p.add_argument("--window-end", type=float, default=12_000_000)
+    p.add_argument("--max-jobs", type=int, default=80,
+                   help="Cap jobs per scenario (80 ≈ 67%% of a 40-node "
+                        "x avg ~3-GPU cluster, leaves headroom for recovery)")
     p.add_argument("--n", type=int, default=25)
     p.add_argument("--seed", type=int, default=42)
     args = p.parse_args(argv)

@@ -74,7 +74,8 @@ python -c "from pathlib import Path; from domains.cluster_v2023.data_pipeline.co
 save_dist(compute_dist(Path('domains/cluster_v2023/data_pipeline/raw/openb_pod_list_default.csv')), \
           Path('domains/cluster_v2023/data_pipeline/job_size_dist.json'))"
 
-# 3. Build 25 scenarios
+# 3. Build 25 scenarios (default window is tuned to OpenB creation_time
+#    distribution; see --help for details)
 python scripts/build_cluster_v2023_scenarios.py \
     --raw-dir domains/cluster_v2023/data_pipeline/raw \
     --out-dir domains/cluster_v2023/scenarios/data --n 25
