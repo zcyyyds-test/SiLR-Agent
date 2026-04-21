@@ -92,6 +92,7 @@ class LocalQwenClient(BaseLLMClient):
                 "do_sample": temperature > 0,
                 "pad_token_id": self._tokenizer.pad_token_id,
                 "repetition_penalty": 1.1,
+                "use_cache": True,  # within-generate KV cache (normal)
             }
             if temperature > 0:
                 gen_kwargs["temperature"] = temperature
@@ -101,6 +102,13 @@ class LocalQwenClient(BaseLLMClient):
 
         new_tokens = outputs[0][prompt_len:]
         content = self._tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
+
+        # Free KV / activations between calls. Observed without this on
+        # cluster_v2023 SFT eval: allocations escalated 21 → 152 → 237
+        # → 340 GiB across 4 consecutive generates and crashed OOM.
+        # Cheap (~10ms) and prevents the leak.
+        del outputs, new_tokens, inputs
+        torch.cuda.empty_cache()
 
         # Don't parse JSON here — let ActionParser handle it uniformly
         # (its Layer 2/3 regex is more robust than manual brace counting)
