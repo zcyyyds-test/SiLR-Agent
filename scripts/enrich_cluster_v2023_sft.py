@@ -26,9 +26,15 @@ action. Do not repeat the tool call JSON. Be specific about node IDs,
 job IDs, qos class, and the constraint(s) being addressed."""
 
 
-def _enrich_one(obs: str, assistant: str, client) -> str:
+# Model id for LemonAPI Gemini relay — the [L] prefix is REQUIRED
+# (without it returns 503 model_not_found). Can be overridden via env
+# LEMON_API_MODEL if the relay catalog changes.
+_DEFAULT_MODEL = "[L]gemini-3-flash-preview"
+
+
+def _enrich_one(obs: str, assistant: str, client, model: str) -> str:
     resp = client.chat.completions.create(
-        model="gpt-5.4",
+        model=model,
         messages=[
             {"role": "system", "content": REASONING_PROMPT},
             {"role": "user",
@@ -43,10 +49,16 @@ def _enrich_one(obs: str, assistant: str, client) -> str:
 def enrich(inp: Path, out: Path, *, max_lines: int | None = None) -> int:
     # Import OpenAI only here — tests without API key never touch this path.
     from openai import OpenAI
+    api_key = os.environ.get("LEMON_API_KEY")
+    if not api_key:
+        raise RuntimeError(
+            "LEMON_API_KEY env var is required to run enrichment.")
     client = OpenAI(
-        api_key=os.environ.get("LEMON_API_KEY"),
-        base_url=os.environ.get("LEMON_API_BASE", "https://api.lemonai.dev/v1"),
+        api_key=api_key,
+        base_url=os.environ.get("LEMON_API_BASE",
+                                "https://new.lemonapi.site/v1"),
     )
+    model = os.environ.get("LEMON_API_MODEL", _DEFAULT_MODEL)
 
     n = 0
     with open(inp) as fin, open(out, "w") as fout:
@@ -65,7 +77,7 @@ def enrich(inp: Path, out: Path, *, max_lines: int | None = None) -> int:
                 obs = rec["messages"][i]["content"]
                 asst = rec["messages"][j]["content"]
                 try:
-                    cot = _enrich_one(obs, asst, client)
+                    cot = _enrich_one(obs, asst, client, model)
                 except Exception as e:
                     logger.warning("enrich failed scenario=%s: %s",
                                    rec.get("scenario_id"), e)
