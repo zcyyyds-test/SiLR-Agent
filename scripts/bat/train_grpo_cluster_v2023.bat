@@ -10,7 +10,7 @@ rem   --base-model (NOT --model) / --sft-adapter / --output (NOT --output-dir)
 rem   --iterations (NOT --iter-count) / --clip-eps (NOT --advantage-clip)
 rem   --batch-size 2 (upstream manual per-sample backward OOMs at 16 for 14B+LoRA)
 python -u scripts\train_grpo_cluster_v2023.py ^
-    --base-model D:\zcy\models\Qwen3-14B ^
+    --base-model D:\zcy\models\Qwen\Qwen3-14B ^
     --sft-adapter outputs\cluster_v2023\sft_adapter ^
     --output outputs\cluster_v2023\grpo_iter1 ^
     --iterations 1 ^
