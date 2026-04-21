@@ -10,10 +10,15 @@ progress → 100% fail). This mirrors cluster v1 and finance designs.
 
 from __future__ import annotations
 
+import json
+import logging
+from pathlib import Path
 from typing import Any
 
 from silr.core.interfaces import BaseConstraintChecker
 from silr.verifier.types import CheckResult, Violation
+
+logger = logging.getLogger(__name__)
 
 
 class ResourceCapacityChecker(BaseConstraintChecker):
@@ -167,6 +172,93 @@ class QueueChecker(BaseConstraintChecker):
         return CheckResult(
             checker_name=self.name, passed=not violations,
             summary={"critical_queued": len(critical_queued),
+                     "n_violations": len(violations)},
+            violations=violations,
+        )
+
+
+# --- FragmentationChecker (FGD ATC'23) ---
+
+_HARDCODED_FALLBACK_DIST = {1: 0.55, 2: 0.25, 4: 0.15, 8: 0.05}
+
+
+def _load_default_dist() -> dict[int, float]:
+    """Load p(g) from trace-derived JSON; fall back to hardcoded if missing.
+
+    The trace-derived distribution lives at
+    `domains/cluster_v2023/data_pipeline/job_size_dist.json` and is
+    produced by `scripts` + `compute_job_size_dist.py`. Using the
+    hardcoded fallback makes F values NON-COMPARABLE to the FGD ATC'23
+    paper — only acceptable during smoke tests, not in published
+    benchmark numbers (see spec §5.1a).
+    """
+    p = Path(__file__).parent / "data_pipeline" / "job_size_dist.json"
+    if p.is_file():
+        try:
+            raw = json.loads(p.read_text())
+            loaded = {int(k): float(v) for k, v in raw.items()}
+            if loaded:
+                return loaded
+            logger.warning("job_size_dist.json is empty; using hardcoded fallback")
+        except Exception as e:
+            logger.warning("failed to load job_size_dist.json (%s); "
+                           "using hardcoded fallback", e)
+    else:
+        logger.info("job_size_dist.json not found at %s; using hardcoded "
+                    "fallback (NOT FGD-comparable)", p)
+    return dict(_HARDCODED_FALLBACK_DIST)
+
+
+# Exposed as module-level for back-compat with tests/imports
+DEFAULT_JOB_SIZE_DIST = _load_default_dist()
+
+
+class FragmentationChecker(BaseConstraintChecker):
+    """FGD ATC'23: F = Σ_node Σ_g p(g) · 𝟙[0 < rem(n) < g] · rem(n).
+
+    Per spec §5.1: OBSERVER-ONLY. Fragmentation is an episode-level
+    signal; it enters the reward function as a shaping term but does
+    not gate individual actions.
+    """
+
+    name = "fragmentation"
+
+    def __init__(self, *, f_threshold: float,
+                 job_size_dist: dict[int, float] | None = None):
+        self.f_threshold = float(f_threshold)
+        # Kimi #5 guard: empty dict would collapse F→0 silently. Fall back.
+        if job_size_dist is None or not job_size_dist:
+            self.job_size_dist = dict(DEFAULT_JOB_SIZE_DIST)
+        else:
+            self.job_size_dist = dict(job_size_dist)
+        # Final invariant: never operate on empty dist.
+        assert self.job_size_dist, "FragmentationChecker requires non-empty p(g)"
+
+    def check(self, system_state: Any, base_mva: float) -> CheckResult:
+        f_total = 0.0
+        for node in system_state["nodes"].values():
+            if node["status"] != "Ready":
+                continue
+            rem = node["gpu_total"] - node["gpu_used"]
+            if rem <= 0:
+                continue
+            for g, p in self.job_size_dist.items():
+                if 0 < rem < g:
+                    f_total += p * rem
+        passed = f_total <= self.f_threshold
+        violations: list[Violation] = []
+        if not passed:
+            violations.append(Violation(
+                constraint_type="fragmentation", device_type="cluster",
+                device_id="global", metric="F",
+                value=float(f_total), limit=float(self.f_threshold),
+                unit="weighted_gpus", severity="warning",
+                detail=f"F={f_total:.3f} > threshold={self.f_threshold:.3f}",
+            ))
+        return CheckResult(
+            checker_name=self.name, passed=passed,
+            summary={"F": round(f_total, 3),
+                     "f_threshold": self.f_threshold,
                      "n_violations": len(violations)},
             violations=violations,
         )

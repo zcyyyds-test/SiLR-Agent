@@ -158,3 +158,57 @@ def test_queue_fail_when_burstable_queued():
                         "gpu_spec_required": None}}
     r = QueueChecker().check(s, base_mva=1.0)
     assert not r.passed
+
+
+# --- FragmentationChecker (FGD ATC'23 formula) ---
+
+from domains.cluster_v2023.checkers import FragmentationChecker  # noqa: E402
+
+
+def test_fragmentation_score_zero_when_node_full_or_empty():
+    s = _state()
+    # gpu_used=0 → remaining=8, not fragmentary for any g ∈ {1,2,4,8}
+    r = FragmentationChecker(f_threshold=1000.0).check(s, base_mva=1.0)
+    assert r.summary["F"] == 0.0
+
+
+def test_fragmentation_score_positive_when_partially_filled():
+    s = _state()
+    s["nodes"]["n0"]["gpu_used"] = 6   # remaining=2 → fragmentary for g ∈ {4, 8}
+    r = FragmentationChecker(
+        f_threshold=100.0,
+        job_size_dist={1: 0.0, 2: 0.0, 4: 0.5, 8: 0.5},
+    ).check(s, base_mva=1.0)
+    # F = (0.5 * 2)  (g=4 matches 0 < 2 < 4)  +  (0.5 * 2)  (g=8 matches 0 < 2 < 8)
+    assert r.summary["F"] == 2.0
+
+
+def test_fragmentation_fail_above_threshold():
+    s = _state()
+    s["nodes"]["n0"]["gpu_used"] = 6
+    r = FragmentationChecker(
+        f_threshold=1.0,
+        job_size_dist={4: 1.0},  # single mass at 4
+    ).check(s, base_mva=1.0)
+    # F = 1.0 * 2 = 2.0 > 1.0 → fail
+    assert not r.passed
+
+
+def test_fragmentation_falls_back_when_empty_dist_passed():
+    """Regression (Codex Q4 / Kimi #5): empty job_size_dist must not
+    collapse F to always-zero — falls back to DEFAULT_JOB_SIZE_DIST."""
+    s = _state()
+    s["nodes"]["n0"]["gpu_used"] = 6
+    chk = FragmentationChecker(f_threshold=1e9, job_size_dist={})
+    assert chk.job_size_dist, "fallback to DEFAULT must populate dict"
+    r = chk.check(s, base_mva=1.0)
+    assert r.summary["F"] > 0
+
+
+def test_fragmentation_skips_down_nodes():
+    s = _state()
+    s["nodes"]["n0"]["status"] = "Down"
+    s["nodes"]["n0"]["gpu_used"] = 6  # would be fragmentary if Ready
+    r = FragmentationChecker(f_threshold=1000.0,
+                             job_size_dist={4: 1.0}).check(s, base_mva=1.0)
+    assert r.summary["F"] == 0.0
