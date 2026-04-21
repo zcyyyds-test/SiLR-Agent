@@ -64,11 +64,19 @@ def _run_one(scenario_path: Path, *, llm_client, max_steps: int = 6) -> dict:
     cfg = build_cluster_v2023_domain_config(
         f_threshold=scenario.get("f_threshold", 10.0))
     verifier = SiLRVerifier(mgr, domain_config=cfg)
+    # max_proposals_per_step=1 disables in-step retries. Default 3 would
+    # triple each step's message-list growth via parse-error/reject
+    # feedback, blowing the prompt past the attention alloc budget on
+    # cluster_v2023's ~1500-token observations.
     agent = ReActAgent(
         manager=mgr, verifier=verifier,
         llm_client=llm_client,
         domain_config=cfg,
-        config=AgentConfig(max_steps=max_steps, temperature=0.0),
+        config=AgentConfig(
+            max_steps=max_steps,
+            max_proposals_per_step=1,
+            temperature=0.0,
+        ),
     )
     result = agent.run_episode(scenario_id=scenario["scenario_id"])
 
