@@ -27,6 +27,8 @@ def _next_jid(manager: Any) -> int:
 
 
 def inject_node_failure(manager: Any, *, n_nodes: int, seed: int) -> dict:
+    """Fail `n_nodes` Ready nodes. Running jobs on those nodes go back to
+    Queued so the recovery expert can re-assign them."""
     rng = random.Random(seed)
     ready_nodes = [nid for nid, n in manager._nodes.items()
                    if n["status"] == "Ready"]
@@ -36,7 +38,10 @@ def inject_node_failure(manager: Any, *, n_nodes: int, seed: int) -> dict:
         manager._nodes[nid]["status"] = "Down"
         for jid, target in list(manager._assignments.items()):
             if target == nid:
-                manager._jobs[jid]["status"] = "Preempted"
+                # Status → Queued (not Preempted) so Best-fit expert's
+                # qos-ordered assign loop picks them up naturally.
+                # "Preempted" status had no code path back to Running.
+                manager._jobs[jid]["status"] = "Queued"
                 affected_jobs.append(jid)
                 manager._assignments.pop(jid, None)
     manager._recompute_node_usage()
@@ -47,12 +52,16 @@ def inject_node_failure(manager: Any, *, n_nodes: int, seed: int) -> dict:
 
 def inject_gpu_spec_mismatch(manager: Any, *, n_jobs: int, seed: int) -> dict:
     """Inject `gpu_spec_required` into running jobs, pointing to a
-    DIFFERENT model than their current node.
-
-    Guaranteed to produce real mismatches (not tautologies).
-    """
+    DIFFERENT model than their current node, but only targeting models
+    where at least one Ready node has free GPU capacity (so the
+    recovery expert can actually migrate them)."""
     rng = random.Random(seed)
-    models = sorted({n["model"] for n in manager._nodes.values()})
+    # Models with at least one Ready node that has free GPU capacity
+    feasible_models = {
+        n["model"] for n in manager._nodes.values()
+        if n["status"] == "Ready"
+        and (n["gpu_total"] - n["gpu_used"]) > 0
+    }
     running = [jid for jid, v in manager._jobs.items() if v["status"] == "Running"]
     rng.shuffle(running)
     affected: list[str] = []
@@ -63,7 +72,7 @@ def inject_gpu_spec_mismatch(manager: Any, *, n_jobs: int, seed: int) -> dict:
         if nid is None:
             continue
         current = manager._nodes[nid]["model"]
-        alt = [m for m in models if m != current]
+        alt = [m for m in feasible_models if m != current]
         if not alt:
             continue
         manager._jobs[jid]["gpu_spec_required"] = rng.choice(alt)

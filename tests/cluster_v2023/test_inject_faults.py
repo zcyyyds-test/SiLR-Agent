@@ -33,12 +33,14 @@ def test_inject_node_failure_marks_node_down():
     assert set(downs) == set(meta["fault_nodes"])
 
 
-def test_inject_node_failure_preempts_affected_jobs():
+def test_inject_node_failure_requeues_affected_jobs():
+    """Affected jobs go back to Queued (not Preempted) so the Best-fit
+    expert's qos-ordered assign loop picks them up for recovery."""
     m = _cluster()
     meta = inject_node_failure(m, n_nodes=2, seed=0)
-    preempted = [j for j, v in m.system_state["jobs"].items()
-                 if v["status"] == "Preempted"]
-    assert set(preempted) == set(meta["affected_jobs"])
+    requeued = [j for j, v in m.system_state["jobs"].items()
+                if v["status"] == "Queued"]
+    assert set(meta["affected_jobs"]).issubset(set(requeued))
     for jid in meta["affected_jobs"]:
         assert jid not in m.system_state["assignments"]
 
