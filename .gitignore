@@ -63,3 +63,6 @@ scripts/postprocess_to_baseline_format.py
 scripts/train_grpo_finance*.py
 scripts/compare_finance.py
 scripts/check_coverage.py
+
+# Alibaba v2023 raw traces (fetched by download.py, too large to commit)
+domains/cluster_v2023/data_pipeline/raw/*.csv
