@@ -48,7 +48,11 @@ def _aggregate(episodes: list[dict]) -> dict:
     }
 
 
-def _run_one(scenario_path: Path, *, llm_client, max_steps: int = 15) -> dict:
+def _run_one(scenario_path: Path, *, llm_client, max_steps: int = 6) -> dict:
+    # max_steps default 6 (down from 15): Qwen3-14B prompt accumulates
+    # ~1.5-2K tokens of observation per turn; 15-step runs hit 30K+
+    # prompt and trigger OOM on attention alloc. 6 is enough for most
+    # recovery scenarios (Best-fit expert avg 5 steps).
     # Lazy imports — only needed when actually running (GPU server).
     from silr.agent import ReActAgent
     from silr.agent.config import AgentConfig
@@ -105,7 +109,10 @@ def main(argv=None):
                    help="Path to base Qwen model, e.g. D:/zcy/models/Qwen3-14B")
     p.add_argument("--adapter", default=None,
                    help="Path to LoRA adapter directory. Omit for zero-shot.")
-    p.add_argument("--max-new-tokens", type=int, default=512)
+    p.add_argument("--max-new-tokens", type=int, default=128,
+                   help="Tool-call JSON is ~30-50 tokens, 128 is plenty. "
+                        "512 default was for Qwen3 <think>...</think> blocks "
+                        "which we now disable in LocalQwenClient.")
     p.add_argument("--repeats", type=int, default=1)
     p.add_argument("--out", required=True)
     args = p.parse_args(argv)
