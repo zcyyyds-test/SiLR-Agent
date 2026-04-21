@@ -14,6 +14,12 @@ from pathlib import Path
 
 
 def compute_dist(jobs_csv: Path) -> dict[int, float]:
+    """Return p(g) = P(num_gpu == g) for all jobs with num_gpu > 0.
+
+    Raises ValueError if the CSV has no valid rows — silently returning
+    {} would let downstream FragmentationChecker report F=0 always
+    (Codex review Q4).
+    """
     counts: dict[int, int] = {}
     total = 0
     with open(Path(jobs_csv), newline="") as f:
@@ -24,11 +30,18 @@ def compute_dist(jobs_csv: Path) -> dict[int, float]:
             counts[g] = counts.get(g, 0) + 1
             total += 1
     if total == 0:
-        return {}
+        raise ValueError(
+            f"No rows with num_gpu > 0 in {jobs_csv}; cannot compute p(g). "
+            f"Downstream fragmentation metric would collapse to zero silently."
+        )
     return {g: c / total for g, c in sorted(counts.items())}
 
 
 def save_dist(dist: dict[int, float], path: Path) -> None:
+    if not dist:
+        raise ValueError(
+            "Refusing to save empty p(g); would silently break "
+            "FragmentationChecker downstream.")
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     # JSON requires str keys

@@ -58,6 +58,14 @@ class ClusterV2023Manager(BaseSystemManager):
 
     @property
     def system_state(self) -> Any:
+        """Return live references to internal state dicts.
+
+        NOTE: callers MUST NOT mutate the returned dicts — that would
+        corrupt manager state. Tools mutate via `mgr._nodes` / `_jobs`
+        / `_assignments` directly (internal API); checkers and
+        observers are read-only. This matches the cluster v1 house
+        convention and is validated by shadow-copy isolation tests.
+        """
         return {
             "nodes": self._nodes,
             "jobs": self._jobs,

@@ -40,7 +40,10 @@ def stratified_nodes(
     for i, model in enumerate(models_sorted):
         group = by_model[model]
         if i == len(models_sorted) - 1:
-            take = remaining
+            # Clamp to len(group): if earlier rounding left too much remaining
+            # (e.g. target=8 over sizes [3,3,3,1]), do NOT try to sample more
+            # than the group holds — rng.sample raises ValueError otherwise.
+            take = min(remaining, len(group))
         else:
             take = max(1, round(target * len(group) / total))
             take = min(take, len(group), remaining)

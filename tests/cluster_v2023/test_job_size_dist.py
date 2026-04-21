@@ -21,3 +21,18 @@ def test_save_load_roundtrip(tmp_path):
     p = tmp_path / "d.json"
     save_dist(d, p)
     assert load_dist(p) == d
+
+
+def test_compute_dist_raises_on_empty_csv(tmp_path):
+    """Regression (Codex review Q4): empty CSV must not silently return {}."""
+    import pytest
+    empty = tmp_path / "empty.csv"
+    empty.write_text("name,num_gpu\n")
+    with pytest.raises(ValueError, match="cannot compute"):
+        compute_dist(empty)
+
+
+def test_save_dist_refuses_empty(tmp_path):
+    import pytest
+    with pytest.raises(ValueError, match="empty"):
+        save_dist({}, tmp_path / "x.json")
