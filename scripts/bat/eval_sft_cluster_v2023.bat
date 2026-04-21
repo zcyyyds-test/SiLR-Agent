@@ -7,6 +7,6 @@ python -u scripts\eval_cluster_v2023.py ^
     --scenario-dir domains\cluster_v2023\scenarios\data ^
     --model D:\zcy\models\Qwen\Qwen3-14B ^
     --adapter outputs\cluster_v2023\sft_adapter\final ^
-    --repeats 3 ^
+    --repeats 1 ^
     --out outputs\cluster_v2023\eval_sft.json ^
     > outputs\cluster_v2023\eval_sft.log 2>&1

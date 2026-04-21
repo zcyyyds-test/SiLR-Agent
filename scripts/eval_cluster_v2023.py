@@ -48,11 +48,13 @@ def _aggregate(episodes: list[dict]) -> dict:
     }
 
 
-def _run_one(scenario_path: Path, *, llm_client, max_steps: int = 6) -> dict:
-    # max_steps default 6 (down from 15): Qwen3-14B prompt accumulates
-    # ~1.5-2K tokens of observation per turn; 15-step runs hit 30K+
-    # prompt and trigger OOM on attention alloc. 6 is enough for most
-    # recovery scenarios (Best-fit expert avg 5 steps).
+def _run_one(scenario_path: Path, *, llm_client, max_steps: int = 15) -> dict:
+    # max_steps=15: matches Best-fit trajectory upper bound
+    # (qos_pressure/fragmentation_surge need 13-15, node_failure avg 10.7
+    # max 15). SingleTurnClient below drops per-turn history so each prompt
+    # stays ~5K tok regardless of step — attention alloc stays bounded,
+    # prior OOM concern is moot. (max_steps=6 was a misdiagnosis that
+    # produced 0% recovery because 78% of scenarios need >6 steps.)
     # Lazy imports — only needed when actually running (GPU server).
     from silr.agent import ReActAgent
     from silr.agent.config import AgentConfig
