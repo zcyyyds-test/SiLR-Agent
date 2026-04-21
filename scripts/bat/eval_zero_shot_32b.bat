@@ -7,4 +7,5 @@ python -u scripts\eval_cluster_v2023.py ^
     --scenario-dir domains\cluster_v2023\scenarios\data ^
     --model D:\zcy\models\Qwen\Qwen3-32B ^
     --repeats 1 ^
-    --out outputs\cluster_v2023\zero_shot_32b.json
+    --out outputs\cluster_v2023\zero_shot_32b.json ^
+    > outputs\cluster_v2023\zero_shot_32b.log 2>&1

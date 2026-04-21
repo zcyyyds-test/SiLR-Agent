@@ -8,4 +8,5 @@ python -u scripts\eval_cluster_v2023.py ^
     --model D:\zcy\models\Qwen\Qwen3-14B ^
     --adapter outputs\cluster_v2023\sft_adapter\final ^
     --repeats 3 ^
-    --out outputs\cluster_v2023\eval_sft.json
+    --out outputs\cluster_v2023\eval_sft.json ^
+    > outputs\cluster_v2023\eval_sft.log 2>&1
