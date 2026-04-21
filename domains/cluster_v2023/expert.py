@@ -49,13 +49,27 @@ class BestFitExpert:
 
     def _next_action(self, mgr: Any) -> dict | None:
         st = mgr.system_state
-        # Step 1: evict Running jobs from Down nodes
+        # Step 1a: evict Running jobs from Down nodes
         for jid, nid in list(st["assignments"].items()):
             if st["nodes"][nid]["status"] == "Down":
                 target = self._most_free(mgr, st["jobs"][jid], exclude=[nid])
                 if target:
                     return {"tool_name": "migrate_job",
                             "params": {"job_id": jid, "node_id": target}}
+        # Step 1b: migrate Running jobs whose gpu_spec_required no longer
+        # matches their current node's model (post inject_gpu_spec_mismatch).
+        for jid, nid in list(st["assignments"].items()):
+            job = st["jobs"][jid]
+            req = job.get("gpu_spec_required")
+            if not req:
+                continue
+            current_model = st["nodes"][nid]["model"]
+            if current_model == req:
+                continue
+            target = self._best_fit(mgr, job, exclude=[nid])
+            if target:
+                return {"tool_name": "migrate_job",
+                        "params": {"job_id": jid, "node_id": target}}
         # Step 2: assign queued by qos priority
         for qos in self.QOS_ORDER:
             for jid, j in st["jobs"].items():
