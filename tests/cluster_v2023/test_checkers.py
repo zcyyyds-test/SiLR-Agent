@@ -87,3 +87,42 @@ def test_affinity_ignores_queued_jobs():
                         "status": "Queued"}}
     r = AffinityChecker().check(s, base_mva=1.0)
     assert r.passed
+
+
+# --- PriorityChecker ---
+
+from domains.cluster_v2023.checkers import PriorityChecker  # noqa: E402
+
+
+def test_priority_pass_when_no_ls_queued():
+    s = _state()
+    s["jobs"] = {"j0": {"qos": "BE", "status": "Running",
+                        "cpu": 0, "ram_mib": 0, "gpu": 1,
+                        "gpu_spec_required": None}}
+    r = PriorityChecker().check(s, base_mva=1.0)
+    assert r.passed
+
+
+def test_priority_fail_when_ls_queued_with_be_running():
+    s = _state()
+    s["jobs"] = {
+        "j0": {"qos": "LS", "status": "Queued",
+               "cpu": 0, "ram_mib": 0, "gpu": 1, "gpu_spec_required": None},
+        "j1": {"qos": "BE", "status": "Running",
+               "cpu": 0, "ram_mib": 0, "gpu": 1, "gpu_spec_required": None},
+    }
+    r = PriorityChecker().check(s, base_mva=1.0)
+    assert not r.passed
+
+
+def test_priority_pass_when_ls_queued_but_no_be_running():
+    """LS queued + only Burstable running → acceptable (can't preempt equals)."""
+    s = _state()
+    s["jobs"] = {
+        "j0": {"qos": "LS", "status": "Queued",
+               "cpu": 0, "ram_mib": 0, "gpu": 1, "gpu_spec_required": None},
+        "j1": {"qos": "Burstable", "status": "Running",
+               "cpu": 0, "ram_mib": 0, "gpu": 1, "gpu_spec_required": None},
+    }
+    r = PriorityChecker().check(s, base_mva=1.0)
+    assert r.passed

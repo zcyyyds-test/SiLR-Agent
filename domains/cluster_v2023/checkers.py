@@ -103,3 +103,37 @@ class AffinityChecker(BaseConstraintChecker):
             summary={"n_violations": len(violations)},
             violations=violations,
         )
+
+
+class PriorityChecker(BaseConstraintChecker):
+    """No LS job queued while BE job running (higher-priority preemption).
+
+    Per spec §5.1: OBSERVER-ONLY (not in SiLRVerifier.checkers). Used
+    by observer for reward shaping and recovery-target signalling.
+    """
+
+    name = "priority"
+
+    def check(self, system_state: Any, base_mva: float) -> CheckResult:
+        jobs = system_state["jobs"]
+        ls_queued = [j for j, v in jobs.items()
+                     if v["qos"] == "LS" and v["status"] == "Queued"]
+        be_running = [j for j, v in jobs.items()
+                      if v["qos"] == "BE" and v["status"] == "Running"]
+        violations: list[Violation] = []
+        if ls_queued and be_running:
+            for jid in ls_queued:
+                violations.append(Violation(
+                    constraint_type="priority", device_type="job",
+                    device_id=jid, metric="ls_queued_while_be_running",
+                    value=1.0, limit=0.0, unit="bool", severity="critical",
+                    detail=(f"LS {jid} queued while {len(be_running)} "
+                            f"BE running"),
+                ))
+        return CheckResult(
+            checker_name=self.name, passed=not violations,
+            summary={"ls_queued": len(ls_queued),
+                     "be_running": len(be_running),
+                     "n_violations": len(violations)},
+            violations=violations,
+        )
