@@ -126,3 +126,35 @@ def test_priority_pass_when_ls_queued_but_no_be_running():
     }
     r = PriorityChecker().check(s, base_mva=1.0)
     assert r.passed
+
+
+# --- QueueChecker ---
+
+from domains.cluster_v2023.checkers import QueueChecker  # noqa: E402
+
+
+def test_queue_pass_when_only_be_queued():
+    s = _state()
+    s["jobs"] = {"j0": {"qos": "BE", "status": "Queued",
+                        "cpu": 0, "ram_mib": 0, "gpu": 1,
+                        "gpu_spec_required": None}}
+    r = QueueChecker().check(s, base_mva=1.0)
+    assert r.passed
+
+
+def test_queue_fail_when_ls_queued():
+    s = _state()
+    s["jobs"] = {"j0": {"qos": "LS", "status": "Queued",
+                        "cpu": 0, "ram_mib": 0, "gpu": 1,
+                        "gpu_spec_required": None}}
+    r = QueueChecker().check(s, base_mva=1.0)
+    assert not r.passed
+
+
+def test_queue_fail_when_burstable_queued():
+    s = _state()
+    s["jobs"] = {"j0": {"qos": "Burstable", "status": "Queued",
+                        "cpu": 0, "ram_mib": 0, "gpu": 1,
+                        "gpu_spec_required": None}}
+    r = QueueChecker().check(s, base_mva=1.0)
+    assert not r.passed

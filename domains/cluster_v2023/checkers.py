@@ -137,3 +137,36 @@ class PriorityChecker(BaseConstraintChecker):
                      "n_violations": len(violations)},
             violations=violations,
         )
+
+
+class QueueChecker(BaseConstraintChecker):
+    """LS and Burstable jobs must not be in Queued status. BE may be.
+
+    Per spec §5.1: OBSERVER-ONLY. Per-action gating would make every
+    intermediate step violate (queue drains gradually) — see cluster v1
+    坑点记录 "QueueChecker 在 per-action 级别必定失败 (1.2% recovery)".
+    """
+
+    name = "queue"
+
+    def check(self, system_state: Any, base_mva: float) -> CheckResult:
+        jobs = system_state["jobs"]
+        critical_queued = [j for j, v in jobs.items()
+                           if v["status"] == "Queued"
+                           and v["qos"] in ("LS", "Burstable")]
+        violations: list[Violation] = []
+        for jid in critical_queued:
+            job = jobs[jid]
+            sev = "critical" if job["qos"] == "LS" else "violation"
+            violations.append(Violation(
+                constraint_type="queue", device_type="job",
+                device_id=jid, metric="queued",
+                value=1.0, limit=0.0, unit="bool", severity=sev,
+                detail=f"{jid} ({job['qos']}) queued, needs {job['gpu']} gpu",
+            ))
+        return CheckResult(
+            checker_name=self.name, passed=not violations,
+            summary={"critical_queued": len(critical_queued),
+                     "n_violations": len(violations)},
+            violations=violations,
+        )
