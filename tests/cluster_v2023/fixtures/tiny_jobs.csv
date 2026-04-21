@@ -1,0 +1,7 @@
+name,cpu_milli,memory_mib,gpu_milli,num_gpu,gpu_spec,qos,creation_time,scheduled_time,deletion_time,pod_phase
+j0,8000,16384,1000,1,V100M32,LS,1000,1001,9000,Running
+j1,8000,16384,1000,1,V100M32,Burstable,1050,1052,9050,Running
+j2,4000,8192,1000,1,G1,BE,1100,1101,9100,Running
+j3,16000,32768,1000,2,T4,LS,1200,1201,9200,Running
+j4,8000,16384,1000,1,V100M32,LS,5000,5001,14000,Running
+j5,8000,16384,1000,1,V100M32,LS,500,501,8500,Running
