@@ -18,7 +18,13 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from domains.cluster_v2023.checkers import FragmentationChecker
+from domains.cluster_v2023.checkers import (
+    AffinityChecker,
+    FragmentationChecker,
+    PriorityChecker,
+    QueueChecker,
+    ResourceCapacityChecker,
+)
 from domains.cluster_v2023.data_pipeline.inject_faults import (
     inject_fragmentation_surge,
     inject_gpu_spec_mismatch,
@@ -150,6 +156,31 @@ def build_scenarios(*, out_dir: Path, nodes_csv: Path, jobs_csv: Path,
         if not expert_actions:
             logger.warning("unsolvable attempt (%s seed=%d); retrying",
                            fault_type, ft_seed)
+            continue
+
+        # Full-solvability check: replay actions on a fresh copy and
+        # verify terminal state passes all 4 non-frag checkers.
+        # Without this, scenarios where expert makes progress but can't
+        # fully resolve (e.g., job needs a model with 0 feasible nodes)
+        # slip through — they produce SFT trajectories that teach the
+        # agent to stop half-way. Caught by 2026-04-21 data-quality review.
+        verify_mgr = mgr.create_shadow_copy()
+        for a in expert_actions:
+            BestFitExpert.apply(verify_mgr, a)
+            verify_mgr.solve()
+        _solvability_checkers = [
+            ResourceCapacityChecker(), AffinityChecker(),
+            PriorityChecker(), QueueChecker(),
+        ]
+        terminal_ok = all(
+            c.check(verify_mgr.system_state, 1.0).passed
+            for c in _solvability_checkers
+        )
+        if not terminal_ok:
+            logger.warning(
+                "partially-solvable attempt (%s seed=%d); expert made %d "
+                "actions but terminal state still violating; retrying",
+                fault_type, ft_seed, len(expert_actions))
             continue
 
         sid = f"v2023_{fault_type}_{built:02d}"
