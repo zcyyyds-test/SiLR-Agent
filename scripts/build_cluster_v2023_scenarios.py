@@ -89,7 +89,9 @@ def _apply_fault(fault_type: str, mgr, seed: int) -> dict:
     if fault_type == "node_failure":
         return inject_node_failure(mgr, n_nodes=5, seed=seed)
     if fault_type == "gpu_spec_mismatch":
-        n_jobs = rng.choice([3, 4])
+        # n=2 usually succeeds, n=3 sometimes, n=4 usually fails.
+        # Sampling {2, 2, 3, 4} biases toward "solvable with some hard"
+        n_jobs = rng.choice([2, 2, 3, 4])
         return inject_gpu_spec_mismatch(mgr, n_jobs=n_jobs, seed=seed)
     if fault_type == "qos_pressure":
         return inject_qos_pressure(mgr, n_ls_queued=15, seed=seed)
