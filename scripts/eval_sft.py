@@ -102,6 +102,7 @@ class LocalQwenClient(BaseLLMClient):
 
         new_tokens = outputs[0][prompt_len:]
         content = self._tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
+        n_new_tokens = len(new_tokens)  # capture before del below
 
         # Free KV / activations between calls. Observed without this on
         # cluster_v2023 SFT eval: allocations escalated 21 → 152 → 237
@@ -116,7 +117,7 @@ class LocalQwenClient(BaseLLMClient):
             content=content,
             tool_calls=[],
             finish_reason="stop",
-            usage={"prompt_tokens": prompt_len, "completion_tokens": len(new_tokens)},
+            usage={"prompt_tokens": prompt_len, "completion_tokens": n_new_tokens},
         )
 
     def supports_tool_use(self) -> bool:
