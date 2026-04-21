@@ -77,17 +77,20 @@ def _normalize_jobs(rows: list[dict]) -> dict:
 
 
 def _apply_fault(fault_type: str, mgr, seed: int) -> dict:
-    # Severity parameters tuned 2026-04-21 to keep Best-fit teacher
-    # recovery rate in the 70-85% band. The hard-failure channel is
-    # gpu_spec_mismatch: Best-fit never preempts to make room for
-    # affinity, so any scenario where the required model's nodes are
-    # occupied → capability failure. n_jobs=3 gives ~80% pass (20%
-    # are natural capability fails). Other types tuned to be solvable
-    # but verbose (avg >= 5 steps).
+    # Severity tuned 2026-04-21 to keep Best-fit teacher recovery in
+    # the 80-90% band (per-user feedback rejecting the 96% ceiling).
+    #
+    # Hard-failure channel is gpu_spec_mismatch: Best-fit has no
+    # preempt-for-affinity capability, so any scenario where the
+    # required model's nodes are occupied → capability failure.
+    # n_jobs=3 → 80% pass; n_jobs=4 → 0% pass. We sample uniformly
+    # from {3, 4} per scenario seed to get a mix.
+    rng = random.Random(seed)
     if fault_type == "node_failure":
         return inject_node_failure(mgr, n_nodes=5, seed=seed)
     if fault_type == "gpu_spec_mismatch":
-        return inject_gpu_spec_mismatch(mgr, n_jobs=3, seed=seed)
+        n_jobs = rng.choice([3, 4])
+        return inject_gpu_spec_mismatch(mgr, n_jobs=n_jobs, seed=seed)
     if fault_type == "qos_pressure":
         return inject_qos_pressure(mgr, n_ls_queued=15, seed=seed)
     if fault_type == "fragmentation_surge":
