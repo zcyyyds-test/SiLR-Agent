@@ -49,6 +49,7 @@ run_*.bat
 
 # Internal decision / experiment logs (contain server IPs, debug notes)
 decisions.md
+decisions-*.md
 experiments/
 
 # Codex plugin workspace
