@@ -51,3 +51,39 @@ def test_capacity_skips_down_nodes():
     s["nodes"]["n0"]["gpu_used"] = 999  # normally a violation
     r = ResourceCapacityChecker().check(s, base_mva=1.0)
     assert r.passed  # Down nodes don't count
+
+
+# --- AffinityChecker ---
+
+from domains.cluster_v2023.checkers import AffinityChecker  # noqa: E402
+
+
+def test_affinity_pass_when_no_requirement():
+    s = _state()
+    s["jobs"] = {"j0": {"cpu": 0, "ram_mib": 0, "gpu": 1,
+                        "gpu_spec_required": None, "qos": "LS",
+                        "status": "Running"}}
+    s["assignments"] = {"j0": "n0"}
+    r = AffinityChecker().check(s, base_mva=1.0)
+    assert r.passed
+
+
+def test_affinity_fail_on_mismatch():
+    s = _state()
+    s["jobs"] = {"j0": {"cpu": 0, "ram_mib": 0, "gpu": 1,
+                        "gpu_spec_required": "T4", "qos": "LS",
+                        "status": "Running"}}
+    s["assignments"] = {"j0": "n0"}  # n0 is V100M32
+    r = AffinityChecker().check(s, base_mva=1.0)
+    assert not r.passed
+
+
+def test_affinity_ignores_queued_jobs():
+    """A Queued job with affinity requirement is not yet violating —
+    the verifier only checks placement correctness for Running jobs."""
+    s = _state()
+    s["jobs"] = {"j0": {"cpu": 0, "ram_mib": 0, "gpu": 1,
+                        "gpu_spec_required": "T4", "qos": "LS",
+                        "status": "Queued"}}
+    r = AffinityChecker().check(s, base_mva=1.0)
+    assert r.passed

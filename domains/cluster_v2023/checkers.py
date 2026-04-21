@@ -67,3 +67,39 @@ class ResourceCapacityChecker(BaseConstraintChecker):
             },
             violations=violations,
         )
+
+
+class AffinityChecker(BaseConstraintChecker):
+    """Running jobs with gpu_spec_required must be placed on matching node.model."""
+
+    name = "affinity"
+
+    def check(self, system_state: Any, base_mva: float) -> CheckResult:
+        jobs = system_state["jobs"]
+        nodes = system_state["nodes"]
+        assignments = system_state["assignments"]
+        violations: list[Violation] = []
+
+        for jid, job in jobs.items():
+            if job["status"] != "Running":
+                continue
+            req = job.get("gpu_spec_required")
+            if not req:
+                continue
+            nid = assignments.get(jid)
+            if nid is None:
+                continue
+            node_model = nodes[nid]["model"]
+            if node_model != req:
+                violations.append(Violation(
+                    constraint_type="affinity", device_type="job",
+                    device_id=jid, metric="gpu_spec_match",
+                    value=0.0, limit=1.0, unit="bool", severity="warning",
+                    detail=f"{jid} needs {req} but on {nid} ({node_model})",
+                ))
+
+        return CheckResult(
+            checker_name=self.name, passed=not violations,
+            summary={"n_violations": len(violations)},
+            violations=violations,
+        )
