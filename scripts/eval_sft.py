@@ -65,10 +65,21 @@ class LocalQwenClient(BaseLLMClient):
         temperature: float = 0.0,
         seed: int | None = None,
     ) -> LLMResponse:
-        # Apply chat template
-        text = self._tokenizer.apply_chat_template(
-            messages, tokenize=False, add_generation_prompt=True,
-        )
+        # Apply chat template. Qwen3 defaults enable_thinking=True which
+        # makes the model emit a <think>...</think> block before the
+        # JSON tool call — often truncated at max_new_tokens, leaving
+        # no parseable action. Disable for SFT-trained models that output
+        # tool JSON directly. Unknown kwarg silently ignored by older
+        # tokenizers (Qwen2.5, Llama, etc.) so this is safe across bases.
+        try:
+            text = self._tokenizer.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=True,
+                enable_thinking=False,
+            )
+        except TypeError:
+            text = self._tokenizer.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=True,
+            )
         inputs = self._tokenizer(text, return_tensors="pt").to(self._model.device)
         prompt_len = inputs["input_ids"].shape[1]
 
