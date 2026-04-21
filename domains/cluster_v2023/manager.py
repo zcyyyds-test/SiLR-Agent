@@ -89,6 +89,10 @@ class ClusterV2023Manager(BaseSystemManager):
             node["ram_used_mib"] += int(job["ram_mib"])
             node["gpu_used"] += int(job["gpu"])
 
-    # Filled in Task 7
     def create_shadow_copy(self) -> "ClusterV2023Manager":
-        raise NotImplementedError
+        return ClusterV2023Manager(
+            nodes=self._nodes,       # constructor deepcopies
+            jobs=self._jobs,
+            assignments=self._assignments,
+            sim_time=self._sim_time,
+        )

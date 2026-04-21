@@ -52,3 +52,13 @@ def test_solve_ignores_down_nodes_but_keeps_their_assignments():
     m = ClusterV2023Manager(nodes=nodes, jobs=jobs, assignments={})
     assert m.solve() is True
     assert m.system_state["nodes"]["n0"]["gpu_used"] == 0
+
+
+def test_shadow_is_isolated():
+    m = ClusterV2023Manager(nodes=_mk_nodes(), jobs=_mk_jobs())
+    shadow = m.create_shadow_copy()
+    shadow._jobs["j0"]["status"] = "Running"
+    shadow._assignments["j0"] = "n0"
+    shadow.solve()
+    assert shadow.system_state["nodes"]["n0"]["gpu_used"] == 1
+    assert m.system_state["nodes"]["n0"]["gpu_used"] == 0
