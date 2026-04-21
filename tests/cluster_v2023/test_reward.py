@@ -39,16 +39,33 @@ def test_reward_penalty_when_rejected():
     assert r == -0.5
 
 
-def test_reward_neutral_when_no_change():
-    """Same state pre and post → no violation_count drop and no F drop →
-    reward is 0 (unless all checkers pass, in which case +1.0 bonus)."""
+def test_reward_zero_when_per_action_gate_fails_and_no_delta():
+    """Same pre/post state, Capacity violation present → gate fails →
+    no +1.00 bonus. No delta on violations or F → r = 0."""
+    overcommit = {
+        "nodes": {"n0": {"model": "V100M32", "cpu_total": 96000,
+                         "ram_total_mib": 786432, "gpu_total": 8,
+                         "status": "Ready", "cpu_used": 0,
+                         "ram_used_mib": 0, "gpu_used": 99}},
+        "jobs": {}, "assignments": {}, "sim_time": 0.0,
+    }
+    r = dense_reward(pre_state=overcommit,
+                     post_state=overcommit,
+                     verdict="PASS", f_baseline=1.0)
+    assert r == 0.0
+
+
+def test_reward_terminal_bonus_only_when_gate_passes():
+    """Idempotent state where only Queue (observer-only) is violated.
+
+    Per-action gate (Capacity + Affinity) still passes → +1.00 bonus
+    fires. This documents the intentional asymmetry between the gate
+    bonus and the full violation-count signal."""
     mgr = _mgr_with_one_queued()
     snapshot = copy.deepcopy(mgr.system_state)
-    r = dense_reward(pre_state=snapshot,
-                     post_state=snapshot,
+    r = dense_reward(pre_state=snapshot, post_state=snapshot,
                      verdict="PASS", f_baseline=1.0)
-    # LS queued → violations present → not all pass → reward = 0
-    assert r == 0.0
+    assert r == 1.0
 
 
 def test_reward_fragmentation_bonus():
