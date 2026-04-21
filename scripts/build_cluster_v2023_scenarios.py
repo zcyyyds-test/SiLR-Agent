@@ -83,7 +83,9 @@ def _apply_fault(fault_type: str, mgr, seed: int) -> dict:
     if fault_type == "node_failure":
         return inject_node_failure(mgr, n_nodes=3, seed=seed)
     if fault_type == "gpu_spec_mismatch":
-        return inject_gpu_spec_mismatch(mgr, n_jobs=5, seed=seed)
+        # n_jobs=5 made Best-fit fail 100% (can't preempt for affinity).
+        # n_jobs=3 made it pass 100%. n_jobs=4 is the middle.
+        return inject_gpu_spec_mismatch(mgr, n_jobs=4, seed=seed)
     if fault_type == "qos_pressure":
         return inject_qos_pressure(mgr, n_ls_queued=10, seed=seed)
     if fault_type == "fragmentation_surge":
