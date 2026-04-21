@@ -6,7 +6,8 @@
     "affected_jobs": [
       "openb-pod-2716",
       "openb-pod-2693",
-      "openb-pod-2736"
+      "openb-pod-2736",
+      "openb-pod-2747"
     ]
   },
   "nodes": {
@@ -760,7 +761,7 @@
       "cpu": 11400,
       "ram_mib": 48128,
       "gpu": 1,
-      "gpu_spec_required": "G2",
+      "gpu_spec_required": "V100M16",
       "qos": "LS",
       "status": "Running"
     },
@@ -848,7 +849,7 @@
       "cpu": 11900,
       "ram_mib": 77824,
       "gpu": 1,
-      "gpu_spec_required": null,
+      "gpu_spec_required": "G3",
       "qos": "LS",
       "status": "Running"
     },
@@ -1045,8 +1046,8 @@
     {
       "tool_name": "migrate_job",
       "params": {
-        "job_id": "openb-pod-2736",
-        "node_id": "openb-node-0301"
+        "job_id": "openb-pod-2747",
+        "node_id": "openb-node-0835"
       }
     }
   ],

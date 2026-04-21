@@ -1,24 +1,26 @@
 {
-  "scenario_id": "v2023_node_failure_21",
+  "scenario_id": "v2023_node_failure_18",
   "fault_type": "node_failure",
   "fault_meta": {
     "fault_type": "node_failure",
     "fault_nodes": [
-      "openb-node-0615",
-      "openb-node-0209",
-      "openb-node-0001",
-      "openb-node-0648",
-      "openb-node-0569"
+      "openb-node-0185",
+      "openb-node-0428",
+      "openb-node-0917",
+      "openb-node-0512",
+      "openb-node-0229"
     ],
     "affected_jobs": [
-      "openb-pod-2715",
-      "openb-pod-2716",
-      "openb-pod-2696",
-      "openb-pod-2698",
-      "openb-pod-2704",
-      "openb-pod-2706",
-      "openb-pod-2694",
-      "openb-pod-2695"
+      "openb-pod-2743",
+      "openb-pod-2747",
+      "openb-pod-2748",
+      "openb-pod-2749",
+      "openb-pod-2751",
+      "openb-pod-2753",
+      "openb-pod-2755",
+      "openb-pod-2697",
+      "openb-pod-2729",
+      "openb-pod-2731"
     ]
   },
   "nodes": {
@@ -47,7 +49,7 @@
       "cpu_total": 96000,
       "ram_total_mib": 393216,
       "gpu_total": 8,
-      "status": "Down",
+      "status": "Ready",
       "cpu_used": 0,
       "ram_used_mib": 0,
       "gpu_used": 0
@@ -57,10 +59,10 @@
       "cpu_total": 96000,
       "ram_total_mib": 393216,
       "gpu_total": 8,
-      "status": "Ready",
-      "cpu_used": 88408,
-      "ram_used_mib": 350106,
-      "gpu_used": 8
+      "status": "Down",
+      "cpu_used": 0,
+      "ram_used_mib": 0,
+      "gpu_used": 0
     },
     "openb-node-0472": {
       "model": "G2",
@@ -97,7 +99,7 @@
       "cpu_total": 96000,
       "ram_total_mib": 393216,
       "gpu_total": 8,
-      "status": "Ready",
+      "status": "Down",
       "cpu_used": 0,
       "ram_used_mib": 0,
       "gpu_used": 0
@@ -107,7 +109,7 @@
       "cpu_total": 96000,
       "ram_total_mib": 393216,
       "gpu_total": 8,
-      "status": "Ready",
+      "status": "Down",
       "cpu_used": 0,
       "ram_used_mib": 0,
       "gpu_used": 0
@@ -187,7 +189,7 @@
       "cpu_total": 96000,
       "ram_total_mib": 393216,
       "gpu_total": 8,
-      "status": "Ready",
+      "status": "Down",
       "cpu_used": 0,
       "ram_used_mib": 0,
       "gpu_used": 0
@@ -237,10 +239,10 @@
       "cpu_total": 64000,
       "ram_total_mib": 262144,
       "gpu_total": 2,
-      "status": "Down",
-      "cpu_used": 0,
-      "ram_used_mib": 0,
-      "gpu_used": 0
+      "status": "Ready",
+      "cpu_used": 22800,
+      "ram_used_mib": 96256,
+      "gpu_used": 2
     },
     "openb-node-0218": {
       "model": "P100",
@@ -327,30 +329,30 @@
       "cpu_total": 104000,
       "ram_total_mib": 524288,
       "gpu_total": 2,
-      "status": "Ready",
-      "cpu_used": 31400,
-      "ram_used_mib": 116736,
-      "gpu_used": 2
+      "status": "Down",
+      "cpu_used": 0,
+      "ram_used_mib": 0,
+      "gpu_used": 0
     },
     "openb-node-0209": {
       "model": "T4",
       "cpu_total": 104000,
       "ram_total_mib": 524288,
       "gpu_total": 2,
-      "status": "Down",
-      "cpu_used": 0,
-      "ram_used_mib": 0,
-      "gpu_used": 0
+      "status": "Ready",
+      "cpu_used": 27100,
+      "ram_used_mib": 106496,
+      "gpu_used": 2
     },
     "openb-node-0648": {
       "model": "T4",
       "cpu_total": 104000,
       "ram_total_mib": 524288,
       "gpu_total": 2,
-      "status": "Down",
-      "cpu_used": 0,
-      "ram_used_mib": 0,
-      "gpu_used": 0
+      "status": "Ready",
+      "cpu_used": 22800,
+      "ram_used_mib": 96256,
+      "gpu_used": 2
     },
     "openb-node-0211": {
       "model": "T4",
@@ -377,10 +379,10 @@
       "cpu_total": 104000,
       "ram_total_mib": 524288,
       "gpu_total": 2,
-      "status": "Down",
-      "cpu_used": 0,
-      "ram_used_mib": 0,
-      "gpu_used": 0
+      "status": "Ready",
+      "cpu_used": 23900,
+      "ram_used_mib": 90112,
+      "gpu_used": 2
     },
     "openb-node-0953": {
       "model": "T4",
@@ -502,7 +504,7 @@
       "gpu": 1,
       "gpu_spec_required": null,
       "qos": "LS",
-      "status": "Queued"
+      "status": "Running"
     },
     "openb-pod-2695": {
       "cpu": 11400,
@@ -510,7 +512,7 @@
       "gpu": 1,
       "gpu_spec_required": null,
       "qos": "LS",
-      "status": "Queued"
+      "status": "Running"
     },
     "openb-pod-2696": {
       "cpu": 11400,
@@ -518,7 +520,7 @@
       "gpu": 1,
       "gpu_spec_required": null,
       "qos": "LS",
-      "status": "Queued"
+      "status": "Running"
     },
     "openb-pod-2697": {
       "cpu": 4000,
@@ -526,7 +528,7 @@
       "gpu": 1,
       "gpu_spec_required": null,
       "qos": "BE",
-      "status": "Running"
+      "status": "Queued"
     },
     "openb-pod-2698": {
       "cpu": 15700,
@@ -534,7 +536,7 @@
       "gpu": 1,
       "gpu_spec_required": null,
       "qos": "LS",
-      "status": "Queued"
+      "status": "Running"
     },
     "openb-pod-2699": {
       "cpu": 11400,
@@ -558,7 +560,7 @@
       "gpu": 1,
       "gpu_spec_required": null,
       "qos": "LS",
-      "status": "Queued"
+      "status": "Running"
     },
     "openb-pod-2705": {
       "cpu": 4152,
@@ -574,7 +576,7 @@
       "gpu": 1,
       "gpu_spec_required": null,
       "qos": "LS",
-      "status": "Queued"
+      "status": "Running"
     },
     "openb-pod-2707": {
       "cpu": 4152,
@@ -638,7 +640,7 @@
       "gpu": 1,
       "gpu_spec_required": null,
       "qos": "LS",
-      "status": "Queued"
+      "status": "Running"
     },
     "openb-pod-2716": {
       "cpu": 12000,
@@ -646,7 +648,7 @@
       "gpu": 1,
       "gpu_spec_required": null,
       "qos": "LS",
-      "status": "Queued"
+      "status": "Running"
     },
     "openb-pod-2717": {
       "cpu": 8000,
@@ -734,7 +736,7 @@
       "gpu": 1,
       "gpu_spec_required": null,
       "qos": "LS",
-      "status": "Running"
+      "status": "Queued"
     },
     "openb-pod-2730": {
       "cpu": 4152,
@@ -750,7 +752,7 @@
       "gpu": 1,
       "gpu_spec_required": null,
       "qos": "LS",
-      "status": "Running"
+      "status": "Queued"
     },
     "openb-pod-2732": {
       "cpu": 6000,
@@ -830,7 +832,7 @@
       "gpu": 1,
       "gpu_spec_required": null,
       "qos": "LS",
-      "status": "Running"
+      "status": "Queued"
     },
     "openb-pod-2744": {
       "cpu": 8000,
@@ -862,7 +864,7 @@
       "gpu": 1,
       "gpu_spec_required": null,
       "qos": "LS",
-      "status": "Running"
+      "status": "Queued"
     },
     "openb-pod-2748": {
       "cpu": 8200,
@@ -870,7 +872,7 @@
       "gpu": 1,
       "gpu_spec_required": null,
       "qos": "LS",
-      "status": "Running"
+      "status": "Queued"
     },
     "openb-pod-2749": {
       "cpu": 12000,
@@ -878,7 +880,7 @@
       "gpu": 1,
       "gpu_spec_required": null,
       "qos": "LS",
-      "status": "Running"
+      "status": "Queued"
     },
     "openb-pod-2750": {
       "cpu": 4000,
@@ -894,7 +896,7 @@
       "gpu": 1,
       "gpu_spec_required": null,
       "qos": "LS",
-      "status": "Running"
+      "status": "Queued"
     },
     "openb-pod-2752": {
       "cpu": 4000,
@@ -910,7 +912,7 @@
       "gpu": 1,
       "gpu_spec_required": null,
       "qos": "LS",
-      "status": "Running"
+      "status": "Queued"
     },
     "openb-pod-2754": {
       "cpu": 12000,
@@ -926,7 +928,7 @@
       "gpu": 1,
       "gpu_spec_required": null,
       "qos": "LS",
-      "status": "Running"
+      "status": "Queued"
     },
     "openb-pod-2756": {
       "cpu": 15700,
@@ -979,38 +981,36 @@
     "openb-pod-2691": "openb-node-0319",
     "openb-pod-2692": "openb-node-0611",
     "openb-pod-2693": "openb-node-0611",
+    "openb-pod-2694": "openb-node-0648",
+    "openb-pod-2695": "openb-node-0648",
+    "openb-pod-2696": "openb-node-0209",
+    "openb-pod-2698": "openb-node-0209",
     "openb-pod-2699": "openb-node-0613",
     "openb-pod-2703": "openb-node-0613",
+    "openb-pod-2704": "openb-node-0001",
+    "openb-pod-2706": "openb-node-0001",
     "openb-pod-2709": "openb-node-0953",
     "openb-pod-2710": "openb-node-0953",
     "openb-pod-2712": "openb-node-0271",
     "openb-pod-2713": "openb-node-0218",
     "openb-pod-2714": "openb-node-0218",
+    "openb-pod-2715": "openb-node-0615",
+    "openb-pod-2716": "openb-node-0615",
     "openb-pod-2717": "openb-node-0422",
     "openb-pod-2720": "openb-node-0422",
     "openb-pod-2723": "openb-node-0539",
     "openb-pod-2728": "openb-node-0539",
-    "openb-pod-2729": "openb-node-0229",
-    "openb-pod-2731": "openb-node-0229",
     "openb-pod-2733": "openb-node-0637",
     "openb-pod-2736": "openb-node-0637",
     "openb-pod-2737": "openb-node-1052",
     "openb-pod-2739": "openb-node-0542",
     "openb-pod-2741": "openb-node-1137",
     "openb-pod-2742": "openb-node-1137",
-    "openb-pod-2743": "openb-node-0512",
-    "openb-pod-2747": "openb-node-0512",
-    "openb-pod-2748": "openb-node-0512",
-    "openb-pod-2749": "openb-node-0512",
-    "openb-pod-2751": "openb-node-0512",
-    "openb-pod-2753": "openb-node-0512",
-    "openb-pod-2755": "openb-node-0512",
     "openb-pod-2756": "openb-node-0472",
     "openb-pod-2757": "openb-node-0472",
     "openb-pod-2759": "openb-node-1052",
     "openb-pod-2760": "openb-node-0472",
     "openb-pod-2754": "openb-node-0472",
-    "openb-pod-2697": "openb-node-0512",
     "openb-pod-2705": "openb-node-0542",
     "openb-pod-2707": "openb-node-0472",
     "openb-pod-2708": "openb-node-0472",
@@ -1035,57 +1035,71 @@
     {
       "tool_name": "assign_job",
       "params": {
-        "job_id": "openb-pod-2694",
+        "job_id": "openb-pod-2729",
         "node_id": "openb-node-0301"
       }
     },
     {
       "tool_name": "assign_job",
       "params": {
-        "job_id": "openb-pod-2695",
+        "job_id": "openb-pod-2731",
         "node_id": "openb-node-0301"
       }
     },
     {
       "tool_name": "assign_job",
       "params": {
-        "job_id": "openb-pod-2696",
-        "node_id": "openb-node-0469"
+        "job_id": "openb-pod-2743",
+        "node_id": "openb-node-0075"
       }
     },
     {
       "tool_name": "assign_job",
       "params": {
-        "job_id": "openb-pod-2698",
-        "node_id": "openb-node-0469"
+        "job_id": "openb-pod-2747",
+        "node_id": "openb-node-0075"
       }
     },
     {
       "tool_name": "assign_job",
       "params": {
-        "job_id": "openb-pod-2704",
-        "node_id": "openb-node-0469"
+        "job_id": "openb-pod-2748",
+        "node_id": "openb-node-0075"
       }
     },
     {
       "tool_name": "assign_job",
       "params": {
-        "job_id": "openb-pod-2706",
-        "node_id": "openb-node-0469"
+        "job_id": "openb-pod-2749",
+        "node_id": "openb-node-0075"
       }
     },
     {
       "tool_name": "assign_job",
       "params": {
-        "job_id": "openb-pod-2715",
-        "node_id": "openb-node-0469"
+        "job_id": "openb-pod-2751",
+        "node_id": "openb-node-0075"
       }
     },
     {
       "tool_name": "assign_job",
       "params": {
-        "job_id": "openb-pod-2716",
-        "node_id": "openb-node-0469"
+        "job_id": "openb-pod-2753",
+        "node_id": "openb-node-0075"
+      }
+    },
+    {
+      "tool_name": "assign_job",
+      "params": {
+        "job_id": "openb-pod-2755",
+        "node_id": "openb-node-0075"
+      }
+    },
+    {
+      "tool_name": "assign_job",
+      "params": {
+        "job_id": "openb-pod-2697",
+        "node_id": "openb-node-0075"
       }
     }
   ],

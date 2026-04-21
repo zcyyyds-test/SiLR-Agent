@@ -8,7 +8,17 @@
       "j1",
       "j2",
       "j3",
-      "j4"
+      "j4",
+      "j5",
+      "j6",
+      "j7",
+      "j8",
+      "j9",
+      "j10",
+      "j11",
+      "j12",
+      "j13",
+      "j14"
     ]
   },
   "nodes": {
@@ -997,6 +1007,86 @@
       "gpu_spec_required": null,
       "qos": "LS",
       "status": "Queued"
+    },
+    "j5": {
+      "cpu": 8000,
+      "ram_mib": 16384,
+      "gpu": 1,
+      "gpu_spec_required": null,
+      "qos": "LS",
+      "status": "Queued"
+    },
+    "j6": {
+      "cpu": 8000,
+      "ram_mib": 16384,
+      "gpu": 1,
+      "gpu_spec_required": null,
+      "qos": "LS",
+      "status": "Queued"
+    },
+    "j7": {
+      "cpu": 8000,
+      "ram_mib": 16384,
+      "gpu": 1,
+      "gpu_spec_required": null,
+      "qos": "LS",
+      "status": "Queued"
+    },
+    "j8": {
+      "cpu": 8000,
+      "ram_mib": 16384,
+      "gpu": 1,
+      "gpu_spec_required": null,
+      "qos": "LS",
+      "status": "Queued"
+    },
+    "j9": {
+      "cpu": 8000,
+      "ram_mib": 16384,
+      "gpu": 1,
+      "gpu_spec_required": null,
+      "qos": "LS",
+      "status": "Queued"
+    },
+    "j10": {
+      "cpu": 8000,
+      "ram_mib": 16384,
+      "gpu": 1,
+      "gpu_spec_required": null,
+      "qos": "LS",
+      "status": "Queued"
+    },
+    "j11": {
+      "cpu": 8000,
+      "ram_mib": 16384,
+      "gpu": 1,
+      "gpu_spec_required": null,
+      "qos": "LS",
+      "status": "Queued"
+    },
+    "j12": {
+      "cpu": 8000,
+      "ram_mib": 16384,
+      "gpu": 1,
+      "gpu_spec_required": null,
+      "qos": "LS",
+      "status": "Queued"
+    },
+    "j13": {
+      "cpu": 8000,
+      "ram_mib": 16384,
+      "gpu": 1,
+      "gpu_spec_required": null,
+      "qos": "LS",
+      "status": "Queued"
+    },
+    "j14": {
+      "cpu": 8000,
+      "ram_mib": 16384,
+      "gpu": 1,
+      "gpu_spec_required": null,
+      "qos": "LS",
+      "status": "Queued"
     }
   },
   "assignments": {
@@ -1103,6 +1193,76 @@
       "params": {
         "job_id": "j4",
         "node_id": "openb-node-0428"
+      }
+    },
+    {
+      "tool_name": "assign_job",
+      "params": {
+        "job_id": "j5",
+        "node_id": "openb-node-0428"
+      }
+    },
+    {
+      "tool_name": "assign_job",
+      "params": {
+        "job_id": "j6",
+        "node_id": "openb-node-0428"
+      }
+    },
+    {
+      "tool_name": "assign_job",
+      "params": {
+        "job_id": "j7",
+        "node_id": "openb-node-0428"
+      }
+    },
+    {
+      "tool_name": "assign_job",
+      "params": {
+        "job_id": "j8",
+        "node_id": "openb-node-0428"
+      }
+    },
+    {
+      "tool_name": "assign_job",
+      "params": {
+        "job_id": "j9",
+        "node_id": "openb-node-0428"
+      }
+    },
+    {
+      "tool_name": "assign_job",
+      "params": {
+        "job_id": "j10",
+        "node_id": "openb-node-0569"
+      }
+    },
+    {
+      "tool_name": "assign_job",
+      "params": {
+        "job_id": "j11",
+        "node_id": "openb-node-0569"
+      }
+    },
+    {
+      "tool_name": "assign_job",
+      "params": {
+        "job_id": "j12",
+        "node_id": "openb-node-0569"
+      }
+    },
+    {
+      "tool_name": "assign_job",
+      "params": {
+        "job_id": "j13",
+        "node_id": "openb-node-0569"
+      }
+    },
+    {
+      "tool_name": "assign_job",
+      "params": {
+        "job_id": "j14",
+        "node_id": "openb-node-0569"
       }
     }
   ],

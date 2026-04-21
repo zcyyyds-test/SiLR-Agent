@@ -5,8 +5,7 @@
     "fault_type": "gpu_spec_mismatch",
     "affected_jobs": [
       "openb-pod-2709",
-      "openb-pod-2715",
-      "openb-pod-2753"
+      "openb-pod-2715"
     ]
   },
   "nodes": {
@@ -624,7 +623,7 @@
       "cpu": 11900,
       "ram_mib": 77824,
       "gpu": 1,
-      "gpu_spec_required": "G2",
+      "gpu_spec_required": "V100M16",
       "qos": "LS",
       "status": "Running"
     },
@@ -896,7 +895,7 @@
       "cpu": 15700,
       "ram_mib": 58368,
       "gpu": 1,
-      "gpu_spec_required": "V100M32",
+      "gpu_spec_required": null,
       "qos": "LS",
       "status": "Running"
     },
@@ -1033,20 +1032,6 @@
       "params": {
         "job_id": "openb-pod-2709",
         "node_id": "openb-node-0835"
-      }
-    },
-    {
-      "tool_name": "migrate_job",
-      "params": {
-        "job_id": "openb-pod-2715",
-        "node_id": "openb-node-0301"
-      }
-    },
-    {
-      "tool_name": "migrate_job",
-      "params": {
-        "job_id": "openb-pod-2753",
-        "node_id": "openb-node-0024"
       }
     }
   ],

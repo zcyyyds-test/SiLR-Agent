@@ -952,7 +952,7 @@
       "cpu": 18708,
       "ram_mib": 64512,
       "gpu": 1,
-      "gpu_spec_required": "G3",
+      "gpu_spec_required": "V100M16",
       "qos": "LS",
       "status": "Running"
     }
@@ -1040,13 +1040,6 @@
       "params": {
         "job_id": "openb-pod-2755",
         "node_id": "openb-node-0024"
-      }
-    },
-    {
-      "tool_name": "migrate_job",
-      "params": {
-        "job_id": "openb-pod-2760",
-        "node_id": "openb-node-0835"
       }
     }
   ],
