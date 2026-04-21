@@ -144,21 +144,32 @@ F(cluster) = Σ_node Σ_g∈G  p(g) · 𝟙[0 < remaining_gpu(node) < g] · rema
 - **违规阈值**：`F(cluster) > 1.2 × F_bestfit_baseline`
   - `F_bestfit_baseline` 在 scenario 生成时由 Best-fit expert 确定并写入 scenario 元数据
 
-**Verifier 策略**：
-- **Per-action gate**：只检查 checker 1-4（Capacity/Affinity/Priority/Queue）—— 快速 PASS/FAIL
-- **Observer-only**：FragmentationChecker —— 进 observation，不作为 per-action verdict
-- 这个设计**直接复用 finance domain 的 observer-only + dense-reward 经验**
+**Verifier 策略（沿用 cluster v1 + finance 血泪教训）**：
+- **Per-action gate（进入 `DomainConfig.checkers`，SiLRVerifier 每 action 检查）**：只检查 **Capacity + Affinity** 两个
+- **Observer-only（不进 `SiLRVerifier.checkers`，仅进 `create_observer` 和 reward 函数）**：Priority / Queue / Fragmentation
+- **理由**：Priority 和 Queue 是 episode 级目标，作为 per-action 门控必然每步都违规（LS 只要还没全部调度完就 QueueChecker 报警 → 100% FAIL）。cluster v1 的 QueueChecker 最初就因此导致 recovery 1.2%
+- 这个设计**严格对齐 `domains/cluster/config.py` 的现有实现**，不是新发明
+
+### 5.1a 预计算 `p(g)`（FragmentationChecker 参数化）
+
+`p(g)` 必须**从 v2023 trace 实测**，不能硬编码，否则 F 值无法与 FGD ATC'23 对比。
+
+- `data_pipeline/compute_job_size_dist.py`：从 `openb_pod_list_default.csv` 读取 `num_gpu` 列，做直方图 → 归一化 → 写入 `domains/cluster_v2023/data_pipeline/job_size_dist.json`
+- `FragmentationChecker` 构造时读这个 JSON（找不到文件则 fallback 到 `DEFAULT_JOB_SIZE_DIST` 并打 warning）
+- `DEFAULT_JOB_SIZE_DIST` 作为**安全回退**，不作为正式实验用的分布
 
 ### 5.2 Dense Reward（继承 finance）
 
 ```
 r_step = +0.10  if total_violation_count_decreased    # 对 checker 1-4 的 Violation 总数求和
        + 0.30  if fragmentation_decreased_by_ε         # ε = 0.05 × F_bestfit_baseline
-       + 1.00  if all per-action checkers (1-4) pass   # episode 终局 bonus，只发 1 次
+       + 1.00  if all per-action checkers (1-2) pass   # episode 终局 bonus，只发 1 次
        - 0.50  if action rejected (verdict=FAIL) by verifier
 ```
 
 上述 4 项**相加**作为 step reward（不互斥）。Episode reward = Σ step rewards。
+
+**注意**：`all per-action checkers pass` 只关注 Capacity + Affinity。Priority / Queue 的满足性通过 `violation_count_decreased` 项（第一项）间接反映 —— reward 计算时把 5 个 checker 的 Violation 都算进 `total_violation_count`，但 per-action PASS/FAIL 只看前 2 个。
 
 ## 6. 故障注入（`inject_faults.py`）
 
