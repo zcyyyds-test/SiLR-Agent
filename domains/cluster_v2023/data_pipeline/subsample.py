@@ -33,13 +33,22 @@ def stratified_nodes(
 
     total = len(rows)
     rng = random.Random(seed)
+    models_sorted = sorted(by_model)  # deterministic order
+    n_models = len(models_sorted)
+
+    # Kimi review Q1: when target < n_models, the proportional-with-min-1
+    # allocator starves tail buckets (the last few get take=0 once
+    # `remaining` is exhausted). Diversity beats proportional fidelity at
+    # this scale: randomly pick `target` models, one row from each.
+    if target < n_models:
+        chosen_models = rng.sample(models_sorted, target)
+        return [rng.choice(by_model[m]) for m in chosen_models]
+
     out: list[dict] = []
     remaining = target
-    models_sorted = sorted(by_model)  # deterministic order
-
     for i, model in enumerate(models_sorted):
         group = by_model[model]
-        if i == len(models_sorted) - 1:
+        if i == n_models - 1:
             # Clamp to len(group): if earlier rounding left too much remaining
             # (e.g. target=8 over sizes [3,3,3,1]), do NOT try to sample more
             # than the group holds — rng.sample raises ValueError otherwise.

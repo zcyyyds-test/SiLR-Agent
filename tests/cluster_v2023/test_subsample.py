@@ -34,3 +34,20 @@ def test_stratified_does_not_oversample_small_last_group(tmp_path):
     assert len(out) <= 8
     models_out = [n["model"] for n in out]
     assert models_out.count("D") <= 1  # never more than exists
+
+
+def test_stratified_when_target_smaller_than_n_models(tmp_path):
+    """Regression (Kimi review Q1): target=2 with 4 equal-size models
+    must yield 2 DISTINCT models, not drop tail buckets to starvation."""
+    csv_path = tmp_path / "four_models.csv"
+    csv_path.write_text(
+        "sn,cpu_milli,memory_mib,gpu,model\n"
+        + "\n".join(f"a{i},96000,786432,8,A" for i in range(5)) + "\n"
+        + "\n".join(f"b{i},96000,786432,8,B" for i in range(5)) + "\n"
+        + "\n".join(f"c{i},96000,786432,8,C" for i in range(5)) + "\n"
+        + "\n".join(f"d{i},96000,786432,8,D" for i in range(5)) + "\n"
+    )
+    out = stratified_nodes(csv_path, target=2, seed=0)
+    assert len(out) == 2
+    models_out = {n["model"] for n in out}
+    assert len(models_out) == 2  # 2 distinct models, no tail bucket starvation

@@ -23,11 +23,16 @@ def select_window(
             ct = float(row.get("creation_time") or 0)
             if not (start <= ct < end):
                 continue
-            if max_cpu_milli_per_job and int(row.get("cpu_milli") or 0) > max_cpu_milli_per_job:
+            # `is not None` (not truthiness): passing e.g. max_gpus_per_job=0
+            # must still filter; Kimi review Q2 regression.
+            if (max_cpu_milli_per_job is not None
+                    and int(row.get("cpu_milli") or 0) > max_cpu_milli_per_job):
                 continue
-            if max_mem_mib_per_job and int(row.get("memory_mib") or 0) > max_mem_mib_per_job:
+            if (max_mem_mib_per_job is not None
+                    and int(row.get("memory_mib") or 0) > max_mem_mib_per_job):
                 continue
-            if max_gpus_per_job and int(row.get("num_gpu") or 0) > max_gpus_per_job:
+            if (max_gpus_per_job is not None
+                    and int(row.get("num_gpu") or 0) > max_gpus_per_job):
                 continue
             out.append(row)
 

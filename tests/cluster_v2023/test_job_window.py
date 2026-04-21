@@ -21,3 +21,12 @@ def test_window_respects_node_capacity_filter():
         max_gpus_per_job=1,
     )
     assert all(int(r["num_gpu"]) <= 1 for r in rows)
+
+
+def test_window_max_gpus_per_job_zero_filters_all_gpu_jobs():
+    """Regression (Kimi review Q2): passing max_gpus_per_job=0 must exclude
+    all jobs with num_gpu >= 1, not silently bypass the filter due to
+    `if max_gpus_per_job and ...` truthiness."""
+    rows = select_window(FIX, start=0, end=10000, max_jobs=99, max_gpus_per_job=0)
+    # All fixture jobs have num_gpu >= 1, so the filter should yield empty.
+    assert rows == []
