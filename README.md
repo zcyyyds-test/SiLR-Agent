@@ -172,6 +172,12 @@ This domain introduces **observer-only constraints** with **dense reward shaping
 
 A trained Qwen3-14B + LoRA agent achieves **92.5% recovery** across 120 evaluation episodes (40 scenarios × 3 repeats), with **100% held-out generalization** — up from 85.0% for the SFT baseline, demonstrating that dense reward shaping enables GRPO to work in observer-only constraint domains. See [`domains/finance/README.md`](domains/finance/README.md) for details.
 
+### Alibaba v2023 GPU Cluster Domain
+
+A reference GPU cluster domain built on the [Alibaba cluster-trace-GPU-v2023](https://github.com/alibaba/clusterdata/tree/master/cluster-trace-gpu-v2023) production trace (OpenB, FGD ATC'23). 40 stratified-sampled nodes and ~400 pending jobs from the OpenB trace, 25 recovery scenarios across four fault categories (node failure, gpu_spec mismatch, qos pressure, fragmentation surge), and **five constraint checkers** including the FGD ATC'23 native `Fragmentation` metric as an observer-only signal with `p(g)` precomputed from the trace.
+
+Sister to the synthetic `cluster/` domain — same SiLR framework, now driven by real workload and the paper's native fragmentation metric. See [`domains/cluster_v2023/README.md`](domains/cluster_v2023/README.md) for the full pipeline (data subsampling → scenario generation → SFT → GRPO → comparison table).
+
 ## Add Your Own Domain
 
 A new domain plugs in by implementing four core abstractions:
