@@ -20,7 +20,21 @@ import sys
 from pathlib import Path
 
 
-def split_trajectory(record: dict) -> list[dict]:
+def _compress_json_string(s: str) -> str:
+    """If s parses as JSON, re-serialize without whitespace.
+
+    Observer exports pretty-printed JSON with 2-space indent — ~30% of
+    those characters are whitespace. Round-tripping drops them at zero
+    semantic cost and trims ~1-2k tokens per user turn.
+    """
+    try:
+        obj = json.loads(s)
+    except (json.JSONDecodeError, TypeError):
+        return s
+    return json.dumps(obj, separators=(",", ":"), ensure_ascii=False)
+
+
+def split_trajectory(record: dict, *, compress_user: bool = False) -> list[dict]:
     """Return one sample per assistant message in the trajectory.
 
     Each sample preserves the scenario_id / seed so downstream tools
@@ -34,7 +48,10 @@ def split_trajectory(record: dict) -> list[dict]:
     step_idx = 0
     for m in msgs:
         if m["role"] == "user":
-            last_user = m
+            content = m["content"]
+            if compress_user:
+                content = _compress_json_string(content)
+            last_user = {"role": "user", "content": content}
         elif m["role"] == "assistant":
             if last_user is None:
                 continue  # assistant without preceding user (shouldn't happen)
@@ -54,6 +71,9 @@ def main():
                    help="Input JSONL (one trajectory per line) or JSON array.")
     p.add_argument("--output", required=True,
                    help="Output JSON array (what train_sft.py expects).")
+    p.add_argument("--compress-user", action="store_true",
+                   help="Round-trip user JSON without whitespace to trim "
+                        "~25%% of tokens per observation.")
     args = p.parse_args()
 
     src = Path(args.input)
@@ -67,7 +87,7 @@ def main():
     all_samples: list[dict] = []
     per_scenario: dict[str, int] = {}
     for rec in records:
-        samples = split_trajectory(rec)
+        samples = split_trajectory(rec, compress_user=args.compress_user)
         all_samples.extend(samples)
         sid = rec.get("scenario_id", "?")
         per_scenario[sid] = per_scenario.get(sid, 0) + len(samples)

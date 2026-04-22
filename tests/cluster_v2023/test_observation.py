@@ -26,10 +26,12 @@ def test_observation_is_dataclass_with_required_fields():
 
 def test_observation_raw_contains_key_fields():
     obs = ClusterV2023Observer(_mgr()).observe()
-    assert "nodes" in obs.raw
-    assert "queued_jobs" in obs.raw
-    assert "fragmentation_F" in obs.raw
-    assert obs.raw["queued_jobs"][0]["id"] == "j0"
+    # Compact schema: summary counts, entities the agent can target
+    assert "sum" in obs.raw and obs.raw["sum"]["total_nodes"] == 1
+    assert "q" in obs.raw and obs.raw["q"][0][0] == "j0"  # [id, qos, gpu, spec]
+    assert "F" in obs.raw
+    assert "free" in obs.raw
+    assert "down" in obs.raw
 
 
 def test_observation_is_stable_false_when_ls_queued():
@@ -62,4 +64,4 @@ def test_observation_fragmentation_is_observer_only():
     # f_threshold=0 means any fragmentation is flagged, but it's observer-only
     obs = ClusterV2023Observer(mgr, f_threshold=0.0).observe()
     assert obs.is_stable is True
-    assert obs.raw["fragmentation_F"] > 0
+    assert obs.raw["F"] > 0
