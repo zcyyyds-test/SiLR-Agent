@@ -30,7 +30,7 @@ from silr.training.grpo_trainer import GRPOConfig, StepSample, compute_advantage
 from silr.training.reward import RewardConfig, compute_grpo_reward
 from silr.agent.llm.base import BaseLLMClient, LLMResponse
 from silr.agent.config import AgentConfig
-from silr.eval.runner import EvalRunner
+from silr.agent import ReActAgent
 from silr.verifier import SiLRVerifier
 # --- cluster_v2023 domain imports (forked from domains.cluster) ---
 from domains.cluster_v2023 import (
@@ -146,17 +146,24 @@ def collect_rollouts(
     per_scenario_total = defaultdict(int)
 
     for scenario in scenarios:
+        scenario_dict = scenario.payload
         for rollout_idx in range(rollouts_per_scenario):
-            runner = EvalRunner(
+            # cluster_v2023 Manager requires nodes+jobs at init — use
+            # ScenarioLoader.build_manager (same path eval_cluster_v2023
+            # uses) instead of EvalRunner's manager_factory() no-arg call.
+            mgr = _SL.build_manager(scenario_dict)
+            mgr.solve()
+            cfg = build_cluster_domain_config(
+                f_threshold=scenario_dict.get("f_threshold", 10.0))
+            verifier = SiLRVerifier(mgr, domain_config=cfg)
+            agent = ReActAgent(
+                manager=mgr,
+                verifier=verifier,
                 llm_client=client,
-                domain_config=domain_config,
-                manager_factory=ClusterManager,
-                scenario_loader=loader,
+                domain_config=cfg,
                 config=agent_config,
-                record_trajectories=True,
             )
-
-            result = runner.run_scenario(scenario)
+            result = agent.run_episode(scenario_id=scenario.id)
             stats["total_episodes"] += 1
             per_scenario_total[scenario.id] += 1
             if result.recovered:

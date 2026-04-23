@@ -16,4 +16,5 @@ python -u scripts\train_grpo_cluster_v2023.py ^
     --lr 1e-6 ^
     --batch-size 2 ^
     --max-steps 15 ^
-    --step-cost 0.00
+    --step-cost 0.00 ^
+    > outputs\cluster_v2023\train_grpo_iter2.log 2>&1

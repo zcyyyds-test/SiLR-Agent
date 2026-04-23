@@ -26,4 +26,4 @@ python -u scripts\train_sft_cluster_v2023.py ^
     --lr 2e-4 ^
     --batch-size 2 ^
     --grad-accum 4 ^
-    > outputs\cluster_v2023\train_sft_v9_noeval.log 2>&1
+    > outputs\cluster_v2023\train_sft_v10_gpuspec_upsample.log 2>&1

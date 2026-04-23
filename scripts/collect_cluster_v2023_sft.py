@@ -60,8 +60,15 @@ def _trajectory(scenario: dict, seed: int) -> dict:
         BestFitExpert.apply(mgr, action)
         mgr.solve()
 
+    # Record teacher recovery after replay. is_stable True iff all 4
+    # checkers (Capacity/Affinity/Priority/Queue) pass — matches the
+    # EpisodeResult.recovered definition used in eval.
+    final_obs = observer.observe()
+    recovered = final_obs.is_stable
+
     return {"scenario_id": scenario["scenario_id"],
             "seed": seed,
+            "recovered": recovered,
             "messages": messages}
 
 

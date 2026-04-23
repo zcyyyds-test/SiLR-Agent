@@ -74,6 +74,14 @@ def main():
     p.add_argument("--compress-user", action="store_true",
                    help="Round-trip user JSON without whitespace to trim "
                         "~25%% of tokens per observation.")
+    p.add_argument("--only-success", action="store_true",
+                   help="Drop trajectories where teacher failed to recover "
+                        "(record['recovered'] != True). Prevents the model "
+                        "from learning failure patterns.")
+    p.add_argument("--upsample-fault", action="append", default=[],
+                   help="Duplicate trajectories matching a substring in their "
+                        "scenario_id. Format: 'substring:N' (e.g. "
+                        "'gpu_spec:10'). May be specified multiple times.")
     args = p.parse_args()
 
     src = Path(args.input)
@@ -84,13 +92,30 @@ def main():
     except (json.JSONDecodeError, AssertionError):
         records = [json.loads(line) for line in raw.splitlines() if line.strip()]
 
+    # Parse upsample rules: [("gpu_spec", 10), ...]
+    upsample_rules: list[tuple[str, int]] = []
+    for spec in args.upsample_fault:
+        if ":" not in spec:
+            raise SystemExit(f"--upsample-fault expects 'substring:N', got {spec!r}")
+        substring, n = spec.rsplit(":", 1)
+        upsample_rules.append((substring, int(n)))
+
+    n_filtered_out = 0
     all_samples: list[dict] = []
     per_scenario: dict[str, int] = {}
     for rec in records:
-        samples = split_trajectory(rec, compress_user=args.compress_user)
-        all_samples.extend(samples)
+        if args.only_success and not rec.get("recovered", False):
+            n_filtered_out += 1
+            continue
         sid = rec.get("scenario_id", "?")
-        per_scenario[sid] = per_scenario.get(sid, 0) + len(samples)
+        multiplier = 1
+        for sub, n in upsample_rules:
+            if sub in sid:
+                multiplier = max(multiplier, n)
+        samples = split_trajectory(rec, compress_user=args.compress_user)
+        for _ in range(multiplier):
+            all_samples.extend(samples)
+        per_scenario[sid] = per_scenario.get(sid, 0) + len(samples) * multiplier
 
     Path(args.output).parent.mkdir(parents=True, exist_ok=True)
     with open(args.output, "w", encoding="utf-8") as f:
@@ -98,13 +123,26 @@ def main():
 
     total_trajectories = len(records)
     total_samples = len(all_samples)
-    print(f"Trajectories: {total_trajectories}")
-    print(f"Per-step samples: {total_samples}")
-    print(f"Expansion: {total_samples / max(total_trajectories, 1):.2f}x")
+    print(f"Input trajectories: {total_trajectories}")
+    if args.only_success:
+        print(f"Dropped (teacher failed): {n_filtered_out}")
+        print(f"Kept (teacher success): {total_trajectories - n_filtered_out}")
+    if upsample_rules:
+        print(f"Upsample rules: {upsample_rules}")
+    print(f"Per-step samples (after upsample): {total_samples}")
     print(f"Scenarios covered: {len(per_scenario)}")
-    print(f"Samples per scenario (first 5):")
-    for sid, n in list(sorted(per_scenario.items()))[:5]:
-        print(f"  {sid}: {n}")
+    # Coarse distribution by fault type substring
+    from collections import Counter
+    ft_count = Counter()
+    for sid, n in per_scenario.items():
+        if "gpu_spec" in sid: ft_count["gpu_spec"] += n
+        elif "fragmentation" in sid: ft_count["frag"] += n
+        elif "node_failure" in sid: ft_count["node"] += n
+        elif "qos" in sid: ft_count["qos"] += n
+    print("Per fault_type sample distribution:")
+    for k, v in sorted(ft_count.items()):
+        pct = v / max(total_samples, 1) * 100
+        print(f"  {k}: {v} ({pct:.1f}%)")
 
     return 0
 
