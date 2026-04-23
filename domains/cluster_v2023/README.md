@@ -34,19 +34,20 @@ F(cluster) = Σ_node Σ_g∈G  p(g) · 𝟙[0 < remaining(node) < g] · remainin
 
 ## Scenarios
 
-25 recovery scenarios on 40 stratified-sampled nodes, ~400 pending jobs
-drawn from a 60-minute window of the OpenB trace. Distribution per
-Philly ATC'19 fault ratios:
+28 recovery scenarios on 40 stratified-sampled nodes, ~400 pending jobs
+drawn from a 60-minute window of the OpenB trace. Fault distribution
+approximates Philly ATC'19 empirical ratios:
 
-| Fault type | Ratio | Trigger |
+| Fault type | Count | Trigger |
 |---|---|---|
-| `node_failure` | 50 % | 1–3 nodes set to Down; their running jobs preempted |
-| `gpu_spec_mismatch` | 20 % | Inject `gpu_spec_required` mismatching the node's model |
-| `qos_pressure` | 20 % | Force LS jobs into Queued while BE is Running |
-| `fragmentation_surge` | 10 % | Scatter small BE jobs + queue a large LS job |
+| `node_failure` | 14 | 1–3 nodes set to Down; their running jobs preempted |
+| `qos_pressure` | 6 | Force LS jobs into Queued while BE is Running |
+| `gpu_spec_mismatch` | 5 | Inject `gpu_spec_required` mismatching the node's model |
+| `fragmentation_surge` | 3 | Scatter small BE jobs + queue a large LS job |
 
-15 training / 10 held-out. All scenarios solvability-checked by the
-Best-fit expert (rerolled if unsolvable ≤15 steps).
+Scenarios are checked by the Best-fit expert and kept only if the
+expert can recover within 15 steps (teacher baseline ~84 % overall —
+see Results).
 
 ## Results
 
@@ -74,38 +75,34 @@ Headline: zero-shot → SFT = **+75 pp recovery** and reject rate
 (F_normalized 0.055 means we actually fragment less than the expert
 does on average, because the verifier gate rejects high-F proposals).
 
-GRPO (2 iterations × rollouts_per_scenario=2) produced byte-identical
-greedy evaluation to SFT despite `adapter_model.safetensors` hash
-diverging. Small `lr=1e-6 × clip_eps=0.2 × kl_coeff=0.02` keeps the
-policy distribution within ε of SFT, and there are no positive reward
-signals for `gpu_spec_mismatch` to bootstrap the bad-coverage fault
-type. Consistent with GridAgent's decisions log note _"任务的正确操作近乎
-确定性，动作空间不可随机探索，binary reward 无梯度"_.
+GRPO (2 iterations × rollouts_per_scenario=2, `lr=1e-6` / `clip_eps=0.2`
+/ `kl_coeff=0.02`) did not improve over SFT on this benchmark: greedy
+evaluation is byte-identical to SFT. `gpu_spec_mismatch` rollouts
+produce no positive reward signal (all actions rejected → no gradient
+to bootstrap the fault type), and the chosen hyperparameters keep the
+policy within ε of the SFT distribution on the other three fault types
+where SFT is already at ceiling. Expected behavior given the training
+data coverage described below.
 
 ## Limitations
 
-### gpu_spec_mismatch 0% — training-time spec coverage gap
+### `gpu_spec_mismatch` 0 % — training-time spec coverage gap
 
-Diagnostic (Codex + Kimi review plus data-driven analysis):
+The 8 teacher-success trajectories for this fault type (out of 40
+seeds) route through only two unique target nodes (`0835` / G3 and
+`0024` / V100M32). Test scenarios demand `V100M16` in 4 out of 5
+cases, and no V100M16 migration appears in training because the
+Best-fit expert fails on those seeds, which an `--only-success` filter
+then drops. The trained model therefore learns "migrate to 0835 or
+0024" rather than "match queued spec with a free node of the same
+model", and fails whenever the test scenario's spec demand falls
+outside the trained two-node set.
 
-- 8 teacher-success trajectories (out of 40 gpu_spec_mismatch seeds)
-  used only **2 unique target node_ids**: `openb-node-0835` (G3 spec)
-  and `openb-node-0024` (V100M32 spec).
-- 15× upsample of these trajectories made the model emit `migrate_job`
-  with correct format (reject reason shifted from "missing node_id"
-  to "affinity violation") but picking a wrong target node.
-- Test scenarios demand `V100M16` in 4/5 cases. Training never showed
-  the model a successful migration to V100M16 nodes (`0271`, `1137`),
-  because Best-fit expert fails those cases at 0% → filtered out by
-  `--only-success`. Hence the model learned "migrate to 0835 or 0024"
-  as a policy, not "match queued spec with free node model".
-- Fix would require regenerating 15–30 gpu_spec_mismatch scenarios
-  with enforced spec diversity (A10 / T4 / P100 / V100M16 / V100M32 /
-  G3), plus making Best-fit solvable on V100M16 demand (currently 2
-  nodes of V100M16 are occupied in all 5 scenarios). Estimated cost:
-  10–12 h re-collect + retrain. Deferred.
-
-See `decisions-cluster-v2023.md` Part 10–11 for full diagnostic trail.
+Fixing this requires regenerating scenarios with enforced spec
+diversity (A10 / T4 / P100 / V100M16 in addition to the two covered
+specs) and raising the Best-fit success rate on V100M16 demand (the 2
+V100M16 nodes are saturated in every existing scenario). Deferred to
+future work.
 
 ## Reproduce
 
