@@ -127,6 +127,33 @@ class LocalModelClient(BaseLLMClient):
         return False
 
 
+class SingleTurnClient(BaseLLMClient):
+    """Wrap a client so each chat() sees only [system, latest_user].
+
+    Mirrors the eval-side wrapper in scripts/eval_cluster_v2023.py. The
+    SFT data was constructed per-step (each (user, assistant) is an
+    independent decision); keeping training rollouts on the same
+    single-turn distribution as eval avoids train/eval distribution
+    mismatch and keeps prompt length bounded.
+    """
+
+    def __init__(self, inner):
+        self._inner = inner
+
+    def chat(self, messages, tools=None, temperature=0.7, seed=None):
+        system_msgs = [m for m in messages if m["role"] == "system"]
+        last_user = None
+        for m in messages:
+            if m["role"] == "user":
+                last_user = m
+        trimmed = system_msgs + ([last_user] if last_user else [])
+        return self._inner.chat(trimmed, tools=tools,
+                                temperature=temperature, seed=seed)
+
+    def supports_tool_use(self):
+        return self._inner.supports_tool_use()
+
+
 def collect_rollouts(
     model,
     tokenizer,
@@ -139,7 +166,10 @@ def collect_rollouts(
     step_cost,
 ):
     """Run online rollouts and collect step-level samples with rewards."""
-    client = LocalModelClient(model, tokenizer)
+    # SingleTurnClient wrapper mirrors eval-side behavior (scripts/eval_cluster_v2023.py):
+    # each chat() call sees only [system, latest_user] so the policy experiences
+    # the same single-turn prompt distribution during RL rollouts as at eval time.
+    client = SingleTurnClient(LocalModelClient(model, tokenizer))
     all_samples = []
     stats = {"total_episodes": 0, "recovered": 0, "failed_scenario_ids": set()}
     per_scenario_recovered = defaultdict(int)
@@ -170,14 +200,17 @@ def collect_rollouts(
                 stats["recovered"] += 1
                 per_scenario_recovered[scenario.id] += 1
 
-            # Extract step-level rewards from EpisodeResult
-            # Dense reward per spec §5.2 (cluster_v2023):
-            #   -0.5 on verdict=FAIL
+            # Extract step-level rewards from EpisodeResult.
+            # Dense reward per spec §5.2 (cluster_v2023), matching
+            # scripts/cluster_v2023_reward.py::dense_reward():
+            #   -0.5  on verdict=FAIL (rejected action)
             #   +0.10 if total violation count decreased
             #   +0.30 if fragmentation decreased by ε (= 0.05 × F_baseline)
-            #   +1.00 if episode recovered (final step)
-            # Signals extracted from step.observation.raw — no re-running
-            # checkers needed (Observation already carries them).
+            #   +1.00 if gate passes on post-state (no resource_capacity + affinity viol)
+            #   +1.00 terminal bonus if episode fully recovered
+            # All signals read from step.observation.raw (schema in
+            # domains/cluster_v2023/observation.py): 'viol' is the list
+            # of violated constraint_types; 'F' is fragmentation.
             f_baseline = getattr(scenario, "f_bestfit_baseline", 1.0)
             eps_frag = 0.05 * max(f_baseline, 1e-6)
             n_steps = len(result.steps)
@@ -191,17 +224,26 @@ def collect_rollouts(
                         post = result.steps[step_idx + 1].observation.raw
                     else:
                         post = pre  # terminal step — no next obs
-                    pre_v = len(pre.get("violations", []))
-                    post_v = len(post.get("violations", []))
-                    pre_f = pre.get("fragmentation_F", 0.0)
-                    post_f = post.get("fragmentation_F", 0.0)
+                    pre_viol = pre.get("viol", []) or []
+                    post_viol = post.get("viol", []) or []
+                    pre_v = len(pre_viol)
+                    post_v = len(post_viol)
+                    pre_f = pre.get("F", 0.0)
+                    post_f = post.get("F", 0.0)
                     reward = 0.0
                     if post_v < pre_v:
                         reward += 0.10
                     if (pre_f - post_f) >= eps_frag:
                         reward += 0.30
-                    # step_cost preserved as an optional scaler; default=0 in
-                    # the cluster_v2023 config so dense reward dominates.
+                    # Gate bonus: AffinityChecker + ResourceCapacityChecker
+                    # both pass on post-state => per-action "legal" reward.
+                    # This is the piece that was missing in prior GRPO
+                    # iterations — with only 0.1/0.3 shaping the group-
+                    # normalized advantages had too-low variance to drive
+                    # policy updates on non-reject samples.
+                    if ("resource_capacity" not in post_viol
+                            and "affinity" not in post_viol):
+                        reward += 1.00
                     reward -= step_cost
 
                 if step_idx == n_steps - 1 and result.recovered:
