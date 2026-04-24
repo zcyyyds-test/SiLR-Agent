@@ -289,11 +289,14 @@ def _find_action_start(tokenizer, full_ids, messages):
 
 
 def _action_log_prob(model, tokenizer, messages, max_length=4096):
-    """Compute sum of log probs over action tokens only.
+    """Compute PER-TOKEN MEAN log prob over action tokens only.
 
-    Returns (log_prob_sum, n_action_tokens) so callers can inspect both.
-    For the GRPO ratio we use the SUM (not mean) — this is the correct
-    sequence-level log probability: log p(action | prompt) = sum_t log p(a_t | a_{<t}, prompt).
+    Returns (log_prob_mean, n_action_tokens). Using per-token mean (not
+    sum) keeps the PPO ratio in a physically sensible range: per-token
+    drifts of 0.1-0.2 stay visible but don't get multiplied by the 100+
+    action tokens into 20+ sum-drifts that saturate the clamp. Prior
+    iter1/iter2/iter3 used SUM log-prob and produced log-ratio mean≈21,
+    max≈35, 87% clamp ratio (see decisions-cluster-v2023.md Part 13).
     """
     text = tokenizer.apply_chat_template(messages, tokenize=False)
     encoding = tokenizer(text, return_tensors="pt", truncation=True,
@@ -309,32 +312,44 @@ def _action_log_prob(model, tokenizer, messages, max_length=4096):
     labels[0, :action_start] = -100
 
     outputs = model(**encoding, labels=labels)
-    # outputs.loss is mean over non-ignored tokens.
-    # Recover sum: loss * n_action_tokens
+    # outputs.loss is already mean over non-ignored tokens (negative log prob).
     n_action_tokens = max((labels[0] != -100).sum().item(), 1)
-    log_prob_sum = -outputs.loss * n_action_tokens
+    log_prob_mean = -outputs.loss
 
-    return log_prob_sum, n_action_tokens
+    return log_prob_mean, n_action_tokens
 
 
-def compute_log_probs(model, tokenizer, samples, max_length=4096):
+def _messages_for_sample(sample, system_prompt: str) -> list:
+    """Build [system, user, assistant] messages for log-prob computation.
+
+    Prior iterations omitted the system role, so policy was scored on
+    {user, assistant} but rollouts generated with {system, user}. Adding
+    system here aligns the scoring context with rollout-time context.
+    """
+    msgs = []
+    if system_prompt:
+        msgs.append({"role": "system", "content": system_prompt})
+    msgs.extend([
+        {"role": "user", "content": sample.obs_text},
+        {"role": "assistant", "content": sample.action_text},
+    ])
+    return msgs
+
+
+def compute_log_probs(model, tokenizer, samples, system_prompt, max_length=4096):
     """Compute log probabilities for each sample's action given observation."""
     model.eval()
     for sample in samples:
-        messages = [
-            {"role": "user", "content": sample.obs_text},
-            {"role": "assistant", "content": sample.action_text},
-        ]
-
+        messages = _messages_for_sample(sample, system_prompt)
         with torch.no_grad():
-            log_prob_sum, n_tokens = _action_log_prob(
+            log_prob_mean, n_tokens = _action_log_prob(
                 model, tokenizer, messages, max_length,
             )
-            sample.log_prob = log_prob_sum.item()
+            sample.log_prob = log_prob_mean.item()
 
 
 def grpo_policy_update(model, tokenizer, optimizer, samples, clip_eps, kl_coeff,
-                       batch_size, max_length=4096):
+                       batch_size, system_prompt, max_length=4096):
     """One epoch of PPO-style policy gradient update using GRPO advantages."""
     model.train()
     total_loss = 0.0
@@ -355,10 +370,7 @@ def grpo_policy_update(model, tokenizer, optimizer, samples, clip_eps, kl_coeff,
         n_in_batch = 0
 
         for sample in batch:
-            messages = [
-                {"role": "user", "content": sample.obs_text},
-                {"role": "assistant", "content": sample.action_text},
-            ]
+            messages = _messages_for_sample(sample, system_prompt)
 
             new_log_prob, _ = _action_log_prob(
                 model, tokenizer, messages, max_length,
@@ -478,6 +490,24 @@ def main():
     domain_config = build_cluster_domain_config()
     loader = ClusterScenarioLoader()
     scenarios = loader.load_all()
+
+    # Reference system prompt — identical across cluster_v2023 scenarios
+    # (depends only on tool schemas, not on per-scenario state). Used to
+    # align policy log-prob scoring context with the [system, user] prompt
+    # that the SingleTurnClient rollout actually feeds to the model.
+    _ref_scenario = scenarios[0]
+    _ref_mgr = _SL.build_manager(_ref_scenario.payload)
+    _ref_mgr.solve()
+    if domain_config.build_system_prompt:
+        reference_system_prompt = domain_config.build_system_prompt(
+            _ref_mgr,
+            domain_config.build_tool_schemas(_ref_mgr)
+            if domain_config.build_tool_schemas else [],
+        )
+    else:
+        reference_system_prompt = ""
+    logger.info(f"Reference system prompt: {len(reference_system_prompt)} chars")
+
     agent_config = AgentConfig(
         max_steps=args.max_steps,
         max_proposals_per_step=3,
@@ -533,7 +563,7 @@ def main():
 
         # Phase 2: Compute advantages
         logger.info("Phase 2: Computing advantages...")
-        compute_log_probs(model, tokenizer, samples)
+        compute_log_probs(model, tokenizer, samples, reference_system_prompt)
         compute_advantages(samples)
 
         # Diagnostic: group sizes and reward distribution
@@ -563,6 +593,7 @@ def main():
             clip_eps=args.clip_eps,
             kl_coeff=args.kl_coeff,
             batch_size=args.batch_size,
+            system_prompt=reference_system_prompt,
         )
         iter_elapsed = time.perf_counter() - iter_t0
         logger.info(f"  Loss: {avg_loss:.4f}, Time: {iter_elapsed:.1f}s")
