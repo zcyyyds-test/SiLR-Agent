@@ -22,6 +22,8 @@ Episode-level signals (observer, not per-action gate):
 
 Rules:
   - Use migrate_job to move Running jobs off Down nodes.
+  - Use migrate_job to move every job in `aff_run` to a node in `free`
+    where the node's model equals the job's required_model.
   - Use preempt_job on BE jobs to make room for LS.
   - Only call tools listed below. Output JSON one tool at a time.
 

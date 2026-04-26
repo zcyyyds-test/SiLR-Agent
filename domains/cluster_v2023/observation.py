@@ -18,6 +18,12 @@ Shape:
     "q":    [[<job>, <qos>, <gpu>, <spec>], ...], # Queued jobs
     "strand": [[<job>, <from_node>, <qos>, <gpu>], ...],  # running on Down
     "be_run": [[<job>, <node>, <gpu>], ...],      # preemptable BE jobs, capped
+    "aff_run": [[<job>, <from_node>, <gpu>, <required_model>], ...],
+                                                   # Running jobs whose
+                                                   # gpu_spec_required != their
+                                                   # current node.model. Drives
+                                                   # the migrate_job target choice
+                                                   # for affinity violations.
     "F": <fragmentation_F>,
     "F_th": <threshold>,
     "viol": [<constraint_type>, ...]              # names only, agent need not act
@@ -96,6 +102,7 @@ class ClusterV2023Observer:
         running = []
         stranded = []
         be_run = []
+        aff_run = []
         for jid, j in jobs.items():
             if j["status"] == "Queued":
                 queued.append([
@@ -115,6 +122,17 @@ class ClusterV2023Observer:
                 elif j["qos"] == "BE" and len(be_run) < _BE_RUN_CAP:
                     be_run.append([
                         _short_job(jid), node_short, j["gpu"],
+                    ])
+                # Affinity-violation surfacing: a running job whose
+                # required gpu model differs from its current node's
+                # model is the canonical migrate_job target. Without this
+                # field SFT/GRPO had no way to select which job to migrate
+                # for gpu_spec_mismatch faults — leading to 100% reject
+                # in eval (see decisions Part 14/15).
+                req = j.get("gpu_spec_required")
+                if req and node_id and req != nodes[node_id]["model"]:
+                    aff_run.append([
+                        _short_job(jid), node_short, j["gpu"], req,
                     ])
 
         # Stability + violations (constraint types only, not full detail).
@@ -156,6 +174,7 @@ class ClusterV2023Observer:
             "q": queued,
             "strand": stranded,
             "be_run": be_run,
+            "aff_run": aff_run,
             "F": round(frag.summary["F"], 3),
             "F_th": self._frag.f_threshold,
             "viol": violation_types,
