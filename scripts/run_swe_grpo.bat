@@ -1,16 +1,28 @@
 @echo off
+REM Launcher for SWE-bench Lite GRPO post-training.
+REM
+REM Required env vars:
+REM   REPO_ROOT     absolute path to this SILR-Agent checkout
+REM   PY            absolute path to a python interpreter with torch+peft+trl
+REM   MODEL_PATH    base model directory
+REM   SFT_ADAPTER   SFT LoRA adapter directory (starting point for GRPO)
+REM   SWE_CACHE     directory holding swe-bench-lite.jsonl + repos/
+REM   GRPO_OUT      output directory for the GRPO-trained adapter
+REM Optional:
+REM   CUDA_DEVICE   defaults to 1
+
 setlocal
-set CUDA_VISIBLE_DEVICES=1
-set PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+if "%CUDA_DEVICE%"=="" set CUDA_DEVICE=1
+set CUDA_VISIBLE_DEVICES=%CUDA_DEVICE%
 
-cd /d D:\zcy\SILR-Agent
+cd /d %REPO_ROOT%
 
-C:\Users\Administrator\miniconda3\envs\pytorch_env\python.exe -u scripts\train_swe_grpo.py ^
-    --model-path D:\zcy\models\Qwen3-14B ^
-    --sft-adapter D:\zcy\SILR-Agent\outputs\swe_sft_model ^
-    --manifest D:\zcy\silr-swe-cache\swe-bench-lite.jsonl ^
-    --repo-cache D:\zcy\silr-swe-cache\repos ^
-    --output-dir D:\zcy\SILR-Agent\outputs\swe_grpo_model ^
+%PY% -u scripts\train_swe_grpo.py ^
+    --model-path %MODEL_PATH% ^
+    --sft-adapter %SFT_ADAPTER% ^
+    --manifest %SWE_CACHE%\swe-bench-lite.jsonl ^
+    --repo-cache %SWE_CACHE%\repos ^
+    --output-dir %GRPO_OUT% ^
     --iters 3 ^
     --rollouts-per-instance 4 ^
     --lr 1e-6 ^

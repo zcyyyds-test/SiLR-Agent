@@ -174,9 +174,9 @@ A trained Qwen3-14B + LoRA agent achieves **92.5% recovery** across 120 evaluati
 
 ### SWE-bench Lite Code Repair Domain
 
-A reference code-repair domain is included under `domains/swe/`, ported to the public **SWE-bench Lite** benchmark — 300 real GitHub issues across 12 mature Python projects (django, sympy, scikit-learn, matplotlib, sphinx, ...). The agent runs a 2-stage Agentless flow (`localize` → `patch`) with a 4-tier dense reward (AST → imports → `PASS_TO_PASS` regression → `FAIL_TO_PASS` target).
+A reference code-repair domain is included under `domains/swe/`, ported to the public **SWE-bench Lite** benchmark — 300 real GitHub issues across 12 mature Python projects. The agent runs a 2-stage Agentless flow (`localize` → `patch`) with a 4-tier dense reward (AST → imports → `PASS_TO_PASS` regression → `FAIL_TO_PASS` target).
 
-This domain is shipped as a **diagnosis-grade case study** rather than a leaderboard run: across three 14B configurations (zero-shot, QLoRA SFT, few-shot+3 ICL), resolve rate stays at 0 across the sample, while 32B-zero-shot is the only configuration that produces non-zero results (2 / 300, 0.67%). 14B-fewshot reaches 100% patch-apply rate but 0% bug-fix rate, demonstrating a capacity floor between 14B and 32B for this benchmark. GRPO bootstrap fails because all rollouts return identical zero-reward (advantages collapse to 0). The pipeline, four-tier reward, and silent-corruption forensics transfer; the published numbers are presented as evidence for where small-model SFT + GRPO breaks down on SWE-bench Lite. See [`domains/swe/README.md`](domains/swe/README.md) for the full forensics writeup.
+Shipped as a **diagnosis-grade case study**: 14B configurations (zero-shot, QLoRA SFT, few-shot ICL) resolve 0 instances across the sample; 32B-zero-shot is the only configuration with non-zero results (2 / 300, 0.67%). The pipeline, four-tier reward, and silent-corruption forensics transfer cleanly; the numbers are honest evidence for where the verifier-gated SFT → GRPO pattern hits a capacity ceiling on SWE-bench Lite at the 14B scale. See [`domains/swe/README.md`](domains/swe/README.md) for the full forensics writeup.
 
 ## Add Your Own Domain
 

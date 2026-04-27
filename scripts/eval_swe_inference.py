@@ -2,10 +2,10 @@
 
 Usage (via WMI/bat):
     python eval_swe_inference.py \
-        --model-path D:/zcy/models/Qwen3-14B-Instruct \
+        --model-path <Qwen3-14B-Instruct> \
         --adapter-path outputs/swe_sft_model \
-        --manifest D:/zcy/silr-swe-cache/swe-bench-lite.jsonl \
-        --repo-cache D:/zcy/silr-swe-cache/repos \
+        --manifest <swe-bench-lite.jsonl> \
+        --repo-cache <swe-bench-lite-repo-cache> \
         --output outputs/swe_eval/predictions-14B-sft.jsonl \
         --track 14B-sft
 

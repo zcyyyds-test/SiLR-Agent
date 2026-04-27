@@ -1,14 +1,25 @@
 @echo off
+REM Launcher for SWE-bench Lite SFT (QLoRA on Qwen3-14B base).
+REM
+REM Required env vars:
+REM   REPO_ROOT     absolute path to this SILR-Agent checkout
+REM   PY            absolute path to a python interpreter with torch+peft+trl
+REM   MODEL_PATH    base model directory (e.g. ...\Qwen3-14B)
+REM   SFT_DATA      JSONL or JSON of {"messages":[...]} records
+REM   SFT_OUT       output adapter directory
+REM Optional:
+REM   CUDA_DEVICE   defaults to 1
+
 setlocal
-set CUDA_VISIBLE_DEVICES=1
-set PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+if "%CUDA_DEVICE%"=="" set CUDA_DEVICE=1
+set CUDA_VISIBLE_DEVICES=%CUDA_DEVICE%
 
-cd /d D:\zcy\SILR-Agent
+cd /d %REPO_ROOT%
 
-C:\Users\Administrator\miniconda3\envs\pytorch_env\python.exe -u scripts\train_swe_sft.py ^
-    --model-path D:\zcy\models\Qwen3-14B ^
-    --data-path D:\zcy\silr-swe-cache\swe_sft.jsonl ^
-    --output-dir D:\zcy\SILR-Agent\outputs\swe_sft_model ^
+%PY% -u scripts\train_swe_sft.py ^
+    --model-path %MODEL_PATH% ^
+    --data-path %SFT_DATA% ^
+    --output-dir %SFT_OUT% ^
     --epochs 3 ^
     --batch-size 1 ^
     --grad-accum 8 ^

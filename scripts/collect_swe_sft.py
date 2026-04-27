@@ -7,8 +7,8 @@ Output: SFT-ready JSONL of {"messages": [...]} records, matching the shape
 
 Usage:
     python scripts/collect_swe_sft.py \\
-        --input D:/zcy/silr-swe-cache/swegym.jsonl \\
-        --output D:/zcy/silr-swe-cache/swe_sft.jsonl
+        --input <swegym.jsonl> \\
+        --output <swe_sft.jsonl>
 """
 from __future__ import annotations
 
