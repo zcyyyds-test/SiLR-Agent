@@ -19,6 +19,7 @@ coverage.xml
 # Environments
 .env
 .venv
+.venv-*/
 venv/
 
 # IDE
@@ -40,16 +41,26 @@ Thumbs.db
 outputs/
 data/
 *.log
+projects/
+tools/
 
 # Claude Code workspace
 .claude/
 
-# Server-specific launchers (personal Windows paths)
-run_*.bat
+# Server-specific launchers (personal Windows paths, repo-root only).
+# Tracked launchers like scripts/run_swe_inference.bat are portable infra
+# and must be committed for the remote-train WMI pipeline.
+/run_*.bat
 
 # Internal decision / experiment logs (contain server IPs, debug notes)
 decisions.md
+decisions-swe.md
 experiments/
+
+# Internal design specs and implementation plans (NOT for public release).
+# Spec/plan contain implementation details, server IPs, file paths, PAT
+# mentions, and are for private interview/resume use only.
+docs/superpowers/
 
 # Codex plugin workspace
 .codex
@@ -63,3 +74,14 @@ scripts/postprocess_to_baseline_format.py
 scripts/train_grpo_finance*.py
 scripts/compare_finance.py
 scripts/check_coverage.py
+
+# swebench-harness eval artifacts (run-id summary jsons + Docker run logs)
+14B-zs.*.json
+32B-zs.*.json
+14B-sft.*.json
+14B-sft-grpo.*.json
+14B-fewshot.*.json
+logs/run_evaluation/
+
+# Predictions broken-backups produced by fix_patch_escapes.py
+*.jsonl.broken-*
