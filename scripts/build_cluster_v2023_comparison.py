@@ -14,11 +14,10 @@ from pathlib import Path
 
 TABLE_TEMPLATE = """| Method | Recovery | F_normalized | Reject Rate |
 |---|---|---|---|
-| Best-fit expert | 100.0% (construction) | 1.000 | 0.0% |
+| Best-fit expert (teacher) | 84.0% (construction) | 1.000 | 0.0% |
 | Qwen3-14B zero-shot | {zs14_rec} | {zs14_f} | {zs14_rej} |
 | Qwen3-32B zero-shot | {zs32_rec} | {zs32_f} | {zs32_rej} |
-| SiLR-SFT (14B) | {sft_rec} | {sft_f} | {sft_rej} |
-| **SiLR-SFT+GRPO (14B)** | **{grpo_rec}** | **{grpo_f}** | **{grpo_rej}** |
+| **SiLR-SFT (14B)** | **{sft_rec}** | **{sft_f}** | **{sft_rej}** |
 """
 
 
@@ -41,8 +40,13 @@ def _fmt_f(x):
 def build_table(out_dir: Path) -> str:
     zs14 = _agg(out_dir / "zero_shot_14b.json")
     zs32 = _agg(out_dir / "zero_shot_32b.json")
-    sft = _agg(out_dir / "eval_sft.json")
-    grpo = _agg(out_dir / "eval_grpo.json")
+    # Final SFT: v15 on data_v3 (60 scenarios, n_jobs=[2,2,3] gpu_spec).
+    # Falls back to eval_sft.json when running in environments that
+    # haven't reproduced the v15 pipeline yet.
+    sft_path = out_dir / "eval_sft_v15.json"
+    if not sft_path.is_file():
+        sft_path = out_dir / "eval_sft.json"
+    sft = _agg(sft_path)
     return TABLE_TEMPLATE.format(
         zs14_rec=_fmt_pct(zs14["recovery_rate"]),
         zs14_f=_fmt_f(zs14["mean_F_normalized"]),
@@ -53,9 +57,6 @@ def build_table(out_dir: Path) -> str:
         sft_rec=_fmt_pct(sft["recovery_rate"]),
         sft_f=_fmt_f(sft["mean_F_normalized"]),
         sft_rej=_fmt_pct(sft["reject_rate"]),
-        grpo_rec=_fmt_pct(grpo["recovery_rate"]),
-        grpo_f=_fmt_f(grpo["mean_F_normalized"]),
-        grpo_rej=_fmt_pct(grpo["reject_rate"]),
     )
 
 

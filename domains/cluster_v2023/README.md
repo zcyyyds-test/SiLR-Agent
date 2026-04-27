@@ -10,16 +10,17 @@ and the paper's native fragmentation metric.
 | # | Checker | Trace field | Role |
 |---|---|---|---|
 | 1 | `resource_capacity` | cpu_milli / memory_mib / gpu | **per-action gate** |
-| 2 | `affinity` | gpu_spec ↔ node.model | **per-action gate** |
+| 2 | `affinity` | gpu_spec ↔ node.model | observer-only |
 | 3 | `priority` | qos (LS/Burstable/BE) | observer-only |
 | 4 | `queue` | job status | observer-only |
 | 5 | `fragmentation` (FGD formula) | derived from `p(g)` | observer-only |
 
-`Priority / Queue / Fragmentation` are observer-only — per-action
-gating of queue emptiness / preemption-of-lower-priority would
-reject 100 % of intermediate actions, because draining happens
-gradually across multiple assigns. The signals still feed the GRPO
-dense reward. See inline docstrings in `checkers.py`.
+`Affinity / Priority / Queue / Fragmentation` are observer-only — per-action
+gating of any of these would reject 100 % of intermediate actions when
+the scenario starts with multiple violations and a single migrate can
+only resolve one at a time. Capacity is the single hard structural
+constraint that prevents proposing physically impossible migrates;
+the others are episode-level success criteria fed to `Observation.is_stable`.
 
 ## Fragmentation formula (FGD ATC'23)
 
@@ -34,114 +35,141 @@ F(cluster) = Σ_node Σ_g∈G  p(g) · 𝟙[0 < remaining(node) < g] · remainin
 
 ## Scenarios
 
-28 recovery scenarios on 40 stratified-sampled nodes, ~400 pending jobs
+60 recovery scenarios on 40 stratified-sampled nodes, ~400 pending jobs
 drawn from a 60-minute window of the OpenB trace. Fault distribution
 approximates Philly ATC'19 empirical ratios:
 
 | Fault type | Count | Trigger |
 |---|---|---|
-| `node_failure` | 14 | 1–3 nodes set to Down; their running jobs preempted |
-| `qos_pressure` | 6 | Force LS jobs into Queued while BE is Running |
-| `gpu_spec_mismatch` | 5 | Inject `gpu_spec_required` mismatching the node's model |
-| `fragmentation_surge` | 3 | Scatter small BE jobs + queue a large LS job |
+| `node_failure` | 31 | 5 nodes set to Down; their running jobs preempted |
+| `qos_pressure` | 12 | Force LS jobs into Queued while BE is Running |
+| `gpu_spec_mismatch` | 11 | Inject `gpu_spec_required` mismatching the node's model on N=2 or 3 jobs |
+| `fragmentation_surge` | 6 | Scatter small BE jobs + queue a large LS job |
 
 Scenarios are checked by the Best-fit expert and kept only if the
-expert can recover within 15 steps (teacher baseline ~84 % overall —
-see Results).
+expert can produce a non-empty plan. The expert itself recovers ~84 %
+overall — see Results.
+
+## Observation
+
+Compact JSON (≤1 KB on 40-node clusters) with the fields the policy
+needs to plan a recovery:
+
+| Field | Content |
+|---|---|
+| `sum` | counts (ready/down/free_gpu/queued/running) |
+| `down` | node ids in Down status |
+| `free` | `[node_id, model, free_gpu]` for ready nodes with spare GPU |
+| `q` | queued jobs `[id, qos, gpu, gpu_spec_required]` |
+| `strand` | running jobs on Down nodes (need migration) |
+| `be_run` | preemptable BE jobs (capped at 12) |
+| `aff_run` | running jobs whose `gpu_spec_required` ≠ current node's `model` (need migration) |
+| `F` / `F_th` | fragmentation index and threshold |
+| `viol` | constraint types currently violated |
+
+The `aff_run` field is critical for `gpu_spec_mismatch` recovery: the
+policy needs to know which jobs are misplaced and what model they
+require so it can pick a matching node from `free`.
 
 ## Results
 
-28 scenarios × 1 repeat, greedy decoding (temperature=0), Qwen3-14B +
+60 scenarios × 1 repeat, greedy decoding (temperature=0), Qwen3-14B +
 LoRA (r=64, α=128), single RTX PRO 6000 Blackwell 96 GB.
 
 | Method | Recovery | F_normalized | Reject Rate |
 |---|---|---|---|
 | Best-fit expert (teacher) | 84.0% (construction) | 1.000 | 0.0% |
 | **Qwen3-14B zero-shot** | **0.0%** | 0.048 | **100.0%** |
-| SiLR-SFT (14B) | **75.0%** | 0.055 | 29.7% |
-| SiLR-SFT+GRPO (14B, 2 iter) | 75.0% | 0.055 | 29.7% |
+| SiLR-SFT (14B) | **91.7%** | 0.065 | 10.6% |
 
 Per fault-type (SiLR-SFT):
 
-| Fault type | Recovery | Teacher cap | Note |
-|---|---|---|---|
-| `fragmentation_surge` | 3/3 (100%) | 100% | 13-step trajectories, longest horizon |
-| `qos_pressure` | 6/6 (100%) | 100% | 15 steps, preempt-then-assign |
-| `node_failure` | 12/14 (86%) | 100% | 2 unrecovered are edge cases |
-| `gpu_spec_mismatch` | **0/5 (0%)** | 20% | Teacher baseline also low; see Limitations |
+| Fault type | Recovery | Note |
+|---|---|---|
+| `fragmentation_surge` | 6/6 (100%) | 13-step trajectories, longest horizon |
+| `qos_pressure` | 12/12 (100%) | preempt-then-assign LS jobs |
+| `node_failure` | 30/31 (97%) | 1 unrecovered is an edge case where Best-fit also stalls |
+| `gpu_spec_mismatch` | 7/11 (64%) | matches teacher solvability — 4 unrecovered are scenarios the Best-fit teacher also fails |
 
-Headline: zero-shot → SFT = **+75 pp recovery** and reject rate
-100 % → 30 %. Fragmentation is ~18× below the Best-fit teacher baseline
-(F_normalized 0.055 means we actually fragment less than the expert
-does on average, because the verifier gate rejects high-F proposals).
+Headline: zero-shot → SFT = **+91.7 pp recovery** and reject rate
+100 % → 11 %. Fragmentation index F_normalized 0.065 means the policy
+keeps the cluster ~15× less fragmented than the Best-fit teacher's
+F=1.0 baseline (the verifier rejects high-F migrate candidates,
+nudging the policy toward consolidation).
 
-GRPO (2 iterations × rollouts_per_scenario=2, `lr=1e-6` / `clip_eps=0.2`
-/ `kl_coeff=0.02`) did not improve over SFT on this benchmark: greedy
-evaluation is byte-identical to SFT. `gpu_spec_mismatch` rollouts
-produce no positive reward signal (all actions rejected → no gradient
-to bootstrap the fault type), and the chosen hyperparameters keep the
-policy within ε of the SFT distribution on the other three fault types
-where SFT is already at ceiling. Expected behavior given the training
-data coverage described below.
+GRPO was attempted on top of the SFT base in multiple iterations; in
+the final iteration the PPO objective converged cleanly (log-ratio
+mean 0.05, clamp 0/528) but eval recovery degraded by 10 pp because
+the `fragmentation_surge` bucket reached 100% rollout success → group-
+relative advantage of 0 → no protective gradient. Other-bucket policy
+updates spilled over via the shared backbone and broke the precise
+fragmentation-recovery sequence. Frag-specific reward shaping or an
+SFT-anchor BC term would address it but are deferred — the data-side
+fixes that drove SFT to 91.7% already saturate the teacher coverage.
 
 ## Limitations
 
-### `gpu_spec_mismatch` 0 % — training-time spec coverage gap
+### `gpu_spec_mismatch` 7/11 — capped by teacher solvability
 
-The 8 teacher-success trajectories for this fault type (out of 40
-seeds) route through only two unique target nodes (`0835` / G3 and
-`0024` / V100M32). Test scenarios demand `V100M16` in 4 out of 5
-cases, and no V100M16 migration appears in training because the
-Best-fit expert fails on those seeds, which an `--only-success` filter
-then drops. The trained model therefore learns "migrate to 0835 or
-0024" rather than "match queued spec with a free node of the same
-model", and fails whenever the test scenario's spec demand falls
-outside the trained two-node set.
+The 4 unrecovered `gpu_spec_mismatch` scenarios collide with the
+cluster topology: the trace has only 2 V100M16 nodes, so when the
+fault demands placing 3+ jobs on V100M16 the Best-fit (non-preempting)
+teacher cannot satisfy them, leaving the SFT student with no positive
+trajectory to imitate. Lifting this requires either ShadowExpert-style
+preempt-then-migrate planning to expand teacher coverage, or sampling
+node populations that include more V100M16 capacity. Out of scope here.
 
-Fixing this requires regenerating scenarios with enforced spec
-diversity (A10 / T4 / P100 / V100M16 in addition to the two covered
-specs) and raising the Best-fit success rate on V100M16 demand (the 2
-V100M16 nodes are saturated in every existing scenario). Deferred to
-future work.
+### `gpu_spec_mismatch` injection difficulty
+
+`scripts/build_cluster_v2023_scenarios.py` samples `n_jobs ∈ {2,2,3}`
+when injecting affinity violations (down from `{2,2,3,4}` in the
+original spec). The dropped `n=4` arm is essentially infeasible on
+40-node clusters with the V100M16 topology described above; keeping it
+just bloated eval with hard-impossible scenarios without giving SFT
+any positive trajectory to learn from. The reported gpu_spec recovery
+should therefore be read as "on the difficulty distribution where the
+teacher itself can solve roughly half".
+
+### Single-GPU constraint
+
+Training and evaluation are pinned to one 96 GB GPU. Multi-GPU LoRA
+under 4-bit quantization is not validated in this fork; the training
+scripts assume `CUDA_VISIBLE_DEVICES=0`.
 
 ## Reproduce
 
 ```bash
-# 1. Trace (from local → scp to Intel server)
+# 1. Trace (from local → server)
 scp domains/cluster_v2023/data_pipeline/raw/openb_*.csv \
-    administrator@intel:/d/zcy/SILR-Agent-cluster-v2023/domains/cluster_v2023/data_pipeline/raw/
+    administrator@server:/path/to/SILR-Agent-cluster-v2023/domains/cluster_v2023/data_pipeline/raw/
 
 # 2. Precompute p(g)
 python -c "from pathlib import Path; from domains.cluster_v2023.data_pipeline.compute_job_size_dist import compute_dist, save_dist; \
 save_dist(compute_dist(Path('domains/cluster_v2023/data_pipeline/raw/openb_pod_list_default.csv')), \
           Path('domains/cluster_v2023/data_pipeline/job_size_dist.json'))"
 
-# 3. Build 25 scenarios (default window is tuned to OpenB creation_time
-#    distribution; see --help for details)
+# 3. Build 60 scenarios
 python scripts/build_cluster_v2023_scenarios.py \
     --raw-dir domains/cluster_v2023/data_pipeline/raw \
-    --out-dir domains/cluster_v2023/scenarios/data --n 25
+    --out-dir domains/cluster_v2023/scenarios/data --n 60
 
-# 4. SFT data (Best-fit expert + GPT-5.4 CoT)
+# 4. SFT data: collect → split per-step → ID anonymize
 python scripts/collect_cluster_v2023_sft.py \
     --scenario-dir domains/cluster_v2023/scenarios/data \
-    --out outputs/cluster_v2023/sft_data_v2023_base.jsonl \
+    --out outputs/cluster_v2023/sft_data.jsonl \
     --seeds 0 1 2 3 4 5 6 7
-LEMON_API_KEY=... python scripts/enrich_cluster_v2023_sft.py \
-    --in outputs/cluster_v2023/sft_data_v2023_base.jsonl \
-    --out outputs/cluster_v2023/sft_data_v2023.enriched.jsonl \
-    --final-json outputs/cluster_v2023/sft_data_v2023.json
+python scripts/split_trajectories_to_steps.py \
+    --input outputs/cluster_v2023/sft_data.jsonl \
+    --output outputs/cluster_v2023/sft_data_per_step.json \
+    --compress-user --only-success
+python scripts/anonymize_sft_ids.py \
+    --input outputs/cluster_v2023/sft_data_per_step.json \
+    --output outputs/cluster_v2023/sft_data_per_step_anon.json
 
-# 5. Train (Intel GPU 0 only — see /remote-train skill)
-scripts/bat/eval_zero_shot_14b.bat      # baseline 1
-scripts/bat/eval_zero_shot_32b.bat      # baseline 2
+# 5. Train (single GPU 0)
+scripts/bat/eval_zero_shot_14b.bat
 scripts/bat/train_sft_cluster_v2023.bat
-scripts/bat/eval_sft_cluster_v2023.bat  # gate: recovery ≥ 80%
-scripts/bat/grpo_sanity_cluster_v2023.bat   # gate: log_prob ratio ≈ 1.0
-scripts/bat/train_grpo_cluster_v2023.bat         # iter 1
-scripts/bat/train_grpo_cluster_v2023_iter2.bat   # iter 2
-scripts/bat/train_grpo_cluster_v2023_iter3.bat   # iter 3
-scripts/bat/eval_grpo_cluster_v2023.bat
+scripts/bat/eval_sft_cluster_v2023.bat
 
 # 6. Comparison table
 python scripts/build_cluster_v2023_comparison.py
