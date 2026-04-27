@@ -89,9 +89,16 @@ def _apply_fault(fault_type: str, mgr, seed: int) -> dict:
     if fault_type == "node_failure":
         return inject_node_failure(mgr, n_nodes=5, seed=seed)
     if fault_type == "gpu_spec_mismatch":
-        # n=2 usually succeeds, n=3 sometimes, n=4 usually fails.
-        # Sampling {2, 2, 3, 4} biases toward "solvable with some hard"
-        n_jobs = rng.choice([2, 2, 3, 4])
+        # n=2 usually succeeds, n=3 sometimes solvable. Drop n=4 because
+        # the comment "n=4 usually fails" was correct: in data/ and data_v2/
+        # 8 of 11 gpu_spec scenarios were teacher-unsolvable due to the
+        # combination of n=4 affected jobs + V100M16-only-2-nodes topology.
+        # SFT v13/v14 plateaued at 3/11 (ceiling = 3 teacher-solvable scenarios)
+        # because the model literally has no positive trajectory to learn
+        # from for the other 8. Restrict to [2,2,3] to give teacher a fair
+        # shot — disclosed in Limitations as a difficulty-distribution
+        # change, not a fundamental easier problem.
+        n_jobs = rng.choice([2, 2, 3])
         return inject_gpu_spec_mismatch(mgr, n_jobs=n_jobs, seed=seed)
     if fault_type == "qos_pressure":
         return inject_qos_pressure(mgr, n_ls_queued=15, seed=seed)
