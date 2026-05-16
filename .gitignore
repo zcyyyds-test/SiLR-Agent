@@ -74,6 +74,15 @@ scripts/postprocess_to_baseline_format.py
 scripts/train_grpo_finance*.py
 scripts/compare_finance.py
 scripts/check_coverage.py
+scripts/merge_sft_data.py
+scripts/analyze_*.py
+scripts/oracle_*.py
+
+# Variant mined-scenario modules (kept private; the curated/mined_default
+# pool is enough public surface). Re-generate with mine_finance_scenarios.py
+# if needed.
+domains/finance/scenarios_mined_multi.py
+domains/finance/scenarios_mined_bidir.py
 
 # swebench-harness eval artifacts (run-id summary jsons + Docker run logs)
 14B-zs.*.json

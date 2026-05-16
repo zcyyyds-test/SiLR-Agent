@@ -607,7 +607,18 @@ HELD_OUT_SCENARIOS = [
 ]
 
 
-_SCENARIO_MAP = {s.id: s for s in SCENARIOS + HELD_OUT_SCENARIOS}
+# Mined scenarios are auto-generated from data/close_prices.csv via
+# scripts/mine_finance_scenarios.py. Imported lazily so the curated
+# training/holdout pipeline keeps working when the mined module is absent
+# or being regenerated.
+try:
+    from .scenarios_mined import MINED_SCENARIOS  # type: ignore[attr-defined]
+except ImportError:
+    MINED_SCENARIOS: list[FinanceScenario] = []
+
+
+_SCENARIO_MAP = {s.id: s for s in SCENARIOS + HELD_OUT_SCENARIOS
+                 + MINED_SCENARIOS}
 
 
 class FinanceScenarioLoader:
@@ -625,6 +636,15 @@ class FinanceScenarioLoader:
 
     def load_held_out(self) -> list[FinanceScenario]:
         return list(HELD_OUT_SCENARIOS)
+
+    def load_mined(self, difficulty: str | None = None) -> list[FinanceScenario]:
+        """Load auto-mined scenarios from historical CSV windows.
+
+        Filter by `difficulty` ('easy' / 'medium' / 'hard') if specified.
+        """
+        if difficulty is None:
+            return list(MINED_SCENARIOS)
+        return [s for s in MINED_SCENARIOS if s.difficulty == difficulty]
 
     def setup_episode(self, manager: FinanceManager, scenario: FinanceScenario) -> None:
         """Inject stress into the portfolio.
