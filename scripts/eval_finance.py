@@ -139,6 +139,14 @@ def main():
                         help="Include held-out scenarios (never seen in SFT data).")
     parser.add_argument("--held-out-only", action="store_true",
                         help="Run ONLY held-out scenarios.")
+    parser.add_argument("--mined-only", action="store_true",
+                        help="Run ONLY auto-mined scenarios from historical CSV.")
+    parser.add_argument("--mined-difficulty", default=None,
+                        choices=["easy", "medium", "hard"],
+                        help="Restrict mined scenarios to one difficulty tier.")
+    parser.add_argument("--include-all", action="store_true",
+                        help="Run curated training + held-out + mined in one "
+                             "pass (model loaded once). Overrides other set flags.")
     args = parser.parse_args()
 
     setup_logging(args.output)
@@ -174,7 +182,16 @@ def main():
         record_trajectories=True,
     )
 
-    if args.held_out_only:
+    if args.include_all:
+        scenarios = (loader.load_all(include_held_out=True)
+                     + loader.load_mined())
+        logger.info(f"Include-all: {len(scenarios)} scenarios "
+                    f"(curated + held-out + mined)")
+    elif args.mined_only:
+        scenarios = loader.load_mined(difficulty=args.mined_difficulty)
+        diff_tag = args.mined_difficulty or "all"
+        logger.info(f"Mined only ({diff_tag}): {len(scenarios)} scenarios")
+    elif args.held_out_only:
         scenarios = loader.load_held_out()
         logger.info(f"Held-out only: {len(scenarios)} scenarios")
     elif args.held_out:

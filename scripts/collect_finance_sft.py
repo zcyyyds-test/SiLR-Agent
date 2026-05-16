@@ -39,6 +39,20 @@ def _build_llm_client(provider: str, args):
             api_key=args.api_key,
             base_url=args.base_url,
         )
+    if provider == "local":
+        # scripts/ isn't a package, so we add it to sys.path then import the
+        # LocalQwenClient defined in eval_finance.py. Same 4-bit + LoRA loader
+        # the student is evaluated with — keeps collection and eval policies
+        # bit-identical.
+        scripts_dir = os.path.dirname(os.path.abspath(__file__))
+        if scripts_dir not in sys.path:
+            sys.path.insert(0, scripts_dir)
+        from eval_finance import LocalQwenClient  # type: ignore[import-not-found]
+        return LocalQwenClient(
+            model_path=args.local_base,
+            adapter_path=args.local_adapter,
+            max_new_tokens=args.local_max_new_tokens,
+        )
     raise ValueError(f"Unknown provider: {provider}")
 
 
@@ -56,17 +70,31 @@ def setup_logging(name: str, log_dir: str = "."):
 
 def main():
     parser = argparse.ArgumentParser(description="Collect SFT data for finance domain")
-    parser.add_argument("--provider", default="openai", choices=["openai", "kimi"],
-                        help="LLM provider. kimi uses the Anthropic-compat endpoint.")
+    parser.add_argument("--provider", default="openai",
+                        choices=["openai", "kimi", "local"],
+                        help="LLM provider. 'local' loads a local Qwen base + "
+                             "optional LoRA adapter (no API key needed).")
     parser.add_argument("--model", default="gemini-3-flash-preview")
     parser.add_argument("--base-url", default=None,
                         help="Provider-specific base URL override")
-    parser.add_argument("--api-key", required=True)
+    parser.add_argument("--api-key", default=None,
+                        help="API key (required for openai/kimi providers)")
+    parser.add_argument("--local-base", default=None,
+                        help="(local) Path or HF id of base model (e.g. Qwen/Qwen3-14B)")
+    parser.add_argument("--local-adapter", default=None,
+                        help="(local) Path to LoRA adapter (omit for base model only)")
+    parser.add_argument("--local-max-new-tokens", type=int, default=512,
+                        help="(local) Max tokens generated per turn")
     parser.add_argument("--repeats", type=int, default=10)
     parser.add_argument("--max-steps", type=int, default=8)
     parser.add_argument("--output", default="outputs/finance_sft_collection")
     parser.add_argument("--scenarios", nargs="*", default=None,
                         help="Specific scenario IDs (default: all)")
+    parser.add_argument("--scenario-set", default="curated",
+                        choices=["curated", "mined", "holdout", "all"],
+                        help="Pool to collect from when --scenarios is omitted. "
+                             "'curated'=30 hand-picked, 'mined'=126 auto-mined "
+                             "from CSV, 'holdout'=10 OOD, 'all'=curated+mined.")
     args = parser.parse_args()
 
     setup_logging("collect_finance_sft", args.output)
@@ -86,10 +114,18 @@ def main():
         temperature=0.7,
     )
 
-    scenarios = loader.load_all() if args.scenarios is None else [
-        loader.load(sid) for sid in args.scenarios
-    ]
-    logger.info(f"Scenarios: {len(scenarios)}, repeats: {args.repeats}, "
+    if args.scenarios is not None:
+        scenarios = [loader.load(sid) for sid in args.scenarios]
+    elif args.scenario_set == "mined":
+        scenarios = loader.load_mined()
+    elif args.scenario_set == "holdout":
+        scenarios = loader.load_held_out()
+    elif args.scenario_set == "all":
+        scenarios = loader.load_all() + loader.load_mined()
+    else:  # curated
+        scenarios = loader.load_all()
+    logger.info(f"Scenario set: {args.scenario_set if args.scenarios is None else 'explicit-list'}, "
+                f"count: {len(scenarios)}, repeats: {args.repeats}, "
                 f"total episodes: {len(scenarios) * args.repeats}")
 
     runner = EvalRunner(

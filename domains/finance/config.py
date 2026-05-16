@@ -17,7 +17,7 @@ def build_finance_domain_config(with_observer: bool = True) -> DomainConfig:
         domain_name="portfolio_compliance",
         # No verifier checkers — all compliance constraints are global state
         # metrics (position concentration, sector exposure, cash reserve,
-        # drawdown) that require multiple trades to resolve under the $30K
+        # drawdown) that require multiple trades to resolve under the $15K
         # per-trade limit.  Tool-level validation already prevents invalid
         # actions (insufficient shares/cash, trade size limit).
         # All constraints are checked by the observer for is_stable.

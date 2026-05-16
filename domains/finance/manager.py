@@ -23,7 +23,12 @@ from silr.core.interfaces import BaseSystemManager
 
 # ── Universe definition ──────────────────────────────────────────
 
-# Baseline: 2024-01-02 Yahoo Finance closing prices & avg daily volumes
+# Baseline: 2024-01-02 Yahoo Finance closing prices & avg daily volumes.
+# `daily_volume` is surfaced to the agent in the system prompt as universe
+# context but is not enforced as a hard liquidity constraint — under the
+# $15K per-trade cap below, even the thinnest name (UNH) takes ~30 shares
+# per trade, far below any plausible participation threshold. Reserved for
+# extensions that relax MAX_TRADE_VALUE.
 STOCKS = {
     "AAPL": {"price": 183.73, "sector": "tech",   "daily_volume": 55_000_000},
     "MSFT": {"price": 364.59, "sector": "tech",   "daily_volume": 22_000_000},
@@ -192,41 +197,6 @@ class FinanceManager(BaseSystemManager):
         proceeds = qty * self._prices[symbol]
         self._positions[symbol] = 0
         self._cash += proceeds
-        return True
-
-    def rebalance_sector(self, sector: str, target_weight: float) -> bool:
-        """Adjust all positions in a sector to achieve target total weight.
-
-        Distributes the target weight equally among stocks in the sector.
-        Returns False if target_weight is out of range or sector unknown.
-        """
-        if target_weight < 0 or target_weight > 1.0:
-            return False
-
-        sector_symbols = [s for s in STOCKS if STOCKS[s]["sector"] == sector]
-        if not sector_symbols:
-            return False
-
-        # Target notional per stock
-        target_per_stock = (target_weight * self._portfolio_value) / len(sector_symbols)
-
-        total_delta_cash = 0.0
-        new_positions = {}
-        for symbol in sector_symbols:
-            price = self._prices[symbol]
-            target_qty = math.floor(target_per_stock / price) if price > 0 else 0
-            new_positions[symbol] = max(target_qty, 0)
-            delta = new_positions[symbol] - self._positions[symbol]
-            total_delta_cash -= delta * price
-
-        # Check cash feasibility (total_delta_cash > 0 means selling, < 0 buying)
-        if self._cash + total_delta_cash < 0:
-            return False
-
-        for symbol, qty in new_positions.items():
-            delta = qty - self._positions[symbol]
-            self._cash -= delta * self._prices[symbol]
-            self._positions[symbol] = qty
         return True
 
     def set_price(self, symbol: str, price: float) -> None:
