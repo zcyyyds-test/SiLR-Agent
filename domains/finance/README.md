@@ -4,9 +4,9 @@ A reference SiLR domain for mandate-gated portfolio rebalancing, with a complete
 
 ## Overview
 
-This domain models an 8-stock equity portfolio across 3 sectors where an LLM agent must restore compliance after market stress events. Every proposed trade is verified on a shadow copy of the portfolio state before execution — trades that would exceed per-trade notional limits, deplete cash below reserve requirements, or violate position/sector constraints are rejected before reaching the real system.
+This domain models an 8-stock equity portfolio across 3 sectors where an LLM agent must restore compliance after market stress events. Every proposed trade is verified on a shadow copy of the portfolio state before execution. The verifier enforces per-trade invariants (non-negative shares, sufficient cash, per-trade notional ≤ $15K); the six aggregate compliance metrics (position / sector ceilings and floors, cash reserve, drawdown) are evaluated globally by the observer, and the agent resolves violations through a sequence of trades.
 
-The finance domain uses **observer-only constraints**: all compliance metrics are evaluated globally by the observer rather than per-action by verifier checkers. A $15K per-trade cap forces multi-step resolution — the agent must plan a sequence of smaller adjustments to fix violations.
+The finance domain uses **observer-only constraints** with a **$15K per-trade cap**, forcing multi-step resolution — the agent must plan a sequence of smaller adjustments to fix violations.
 
 ## Portfolio Universe
 
@@ -30,7 +30,20 @@ The finance domain uses **observer-only constraints**: all compliance metrics ar
 
 ## Failure Scenarios
 
-30 training + 10 held-out scenarios across 4 difficulty tiers (easy/medium/hard/extreme), derived from real historical events (COVID crash, 2022 tech selloff, Japan carry trade unwind, etc.). Max 8 steps per episode. Scenario specs live in [`scenarios.py`](scenarios.py).
+30 training + 10 held-out scenarios across 3 difficulty tiers (easy/medium/hard), derived from real historical events (COVID crash, 2022 tech selloff, Japan carry trade unwind, etc.). Max 8 steps per episode. Scenario specs live in [`scenarios.py`](scenarios.py).
+
+### Extended scenario pool (auto-mined historical magnitude variants)
+
+In addition to the curated set, [`scripts/mine_finance_scenarios.py`](../../scripts/mine_finance_scenarios.py) sweeps the 6-year historical CSV (`data/close_prices.csv`, 2019–2024) with multiple window lengths (5–180 trading days) and emits every window whose returns, applied to the baseline portfolio, would trigger ≥1 compliance violation. Each mined scenario carries provenance (start/end date, window length, source-event tag) and is import-compatible with the eval pipeline:
+
+```python
+from domains.finance import FinanceScenarioLoader
+
+loader = FinanceScenarioLoader()
+mined = loader.load_mined(difficulty="hard")  # or "easy" / "medium"
+```
+
+A default run (`--windows 5,10,15,20,30,45,60,90,120,180 --min-shock 0.06`) produces 126 deduplicated scenarios spanning the 2019–2024 window (COVID crash & recovery, 2022 bear market, NVDA AI surge, etc.). Pass `--require-multi-constraint` or `--require-bidir` to filter for higher-difficulty windows that exercise multi-step planning more thoroughly.
 
 ## Training Pipeline
 
@@ -40,16 +53,23 @@ The finance domain uses **observer-only constraints**: all compliance metrics ar
 
 ## Results
 
-| Model | Recovery Rate (120 episodes) |
-|-------|----------------------------|
-| Qwen3-14B + SFT | 85.0% (102/120) |
-| **Qwen3-14B + SFT + GRPO** | **92.5% (111/120)** |
+Qwen3-14B + LoRA agent evaluated on four scenario pools, three repeats each (temperature=0.3):
 
-Eval protocol: 3 repeats × 40 scenarios (30 train + 10 held-out), temperature=0.3, max 8 steps.
+| Pool | N (episodes) | baseline SFT | DEDUP-ep3 SFT | **SFT + GRPO** |
+|------|-------------:|-------------:|--------------:|---------------:|
+| Curated + held-out (40 scenarios, 8-step)         | 120 | 85.0% | – | **92.5%** |
+| ↳ Held-out subset (10 scenarios)                  | 30  | 90.0% | – | **100%** (30/30) |
+| Mined historical magnitude variants (126 scenarios, 8-step) | 126 | 92.1% | 85.7% | 91.3% |
+| Bidirectional rebalancing — BIDIR (25 scenarios, 12-step planning) | 75 | 68.0% | – | **76.0%** |
+| ↳ BIDIR hard subset (16 scenarios)                | 48  | 50.0% | – | **62.5%** |
 
-**Key improvements**:
-- SFT → GRPO: **+7.5pp** recovery (+9 episodes)
-- Held-out generalization: **100%** (30/30) vs SFT 90% (27/30)
+Total: 449 evaluation episodes across 201 unique scenarios.
+
+**Headline observations**:
+- **+7.5pp on curated set** (GRPO 92.5% vs baseline SFT 85.0% across 120 episodes).
+- **100% held-out generalization** (Fisher exact one-sided p ≈ 0.012 vs the 80% SFT baseline) — the policy generalizes to scenarios never seen during SFT data collection.
+- **+12.5pp on the BIDIR hard tier**, where the policy must execute both directions of rebalancing (sell over-weight + buy under-weight) within the same recovery episode — the regime where multi-step planning matters most.
+- On single-violation magnitude-variant scenarios (mined 126) all three checkpoints converge within ~1pp; the solution path is short enough that single-shot imitation suffices.
 
 ## Application Context
 
