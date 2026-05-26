@@ -94,3 +94,19 @@ logs/run_evaluation/
 
 # Predictions broken-backups produced by fix_patch_escapes.py
 *.jsonl.broken-*
+
+# ANM experiment / eval output artifacts (repo-root only; regenerate via
+# scripts/anm_eval_sweep.py, anm_adversarial_sweep.py, anm_mpc_baseline.py).
+# Domain assets like domains/anm/scenarios_mined.json are NOT matched (path).
+/eval_*.json
+/adversarial_*.json
+/mpc_*.json
+/scenario_*.json
+/trajectory_*.json
+/verifier_latency_*.json
+/mined_scenarios_*.json
+*.partial.json
+*.stopped_*.json
+
+# Local operational orchestrator chains (contain server host/IP + username)
+scripts/local_orchestrator_*.sh
