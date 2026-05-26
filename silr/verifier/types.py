@@ -6,7 +6,28 @@ from typing import Any, Optional
 
 
 class Verdict(Enum):
+    """Verifier verdicts.
+
+    Graded safety semantics aligned with recoverability-set shielding:
+
+    - ``PASS``: post-action state has *zero* outstanding violations
+      (= recovered). The terminal-safety goal of the episode.
+    - ``SAFE_PROGRESS``: post-action state is *admissible* under the
+      selected progress-family criterion. The structured policies use
+      violation types/counts and optional severity magnitude; the
+      ``scalar_progress`` ablation uses the domain-native scalar penalty.
+      Only emitted when the domain's gating policy explicitly enables
+      non-terminal recovery admission.
+    - ``FAIL``: action is unsafe — solver diverged, new violation type
+      appeared, violation count grew, or (in ``terminal`` policy) the
+      state is not yet recovered.
+    - ``ERROR``: action could not even be evaluated (tool-layer error,
+      invalid params, exception). Kept distinct so DPO/GRPO training
+      does not conflate parser typos with physical unsafety.
+    """
+
     PASS = "PASS"
+    SAFE_PROGRESS = "SAFE_PROGRESS"
     FAIL = "FAIL"
     ERROR = "ERROR"
 

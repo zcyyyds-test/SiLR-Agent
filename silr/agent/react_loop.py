@@ -11,6 +11,7 @@ Flow per step:
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any, Optional
 
 from .config import AgentConfig
@@ -88,6 +89,14 @@ class ReActAgent:
         result = EpisodeResult(scenario_id=scenario_id)
         messages = [{"role": "system", "content": self._system_prompt}]
         consecutive_step_fails = 0
+        # Anti-stall liveness state: track the running-minimum
+        # post-action violation count across SAFE_PROGRESS-admitted steps.
+        # If we go ``stall_progress_budget`` consecutive SAFE_PROGRESS
+        # steps without strictly improving on that minimum, terminate.
+        stall_progress_budget = self._config.stall_progress_budget
+        min_post_viol = None
+        stall_streak = 0
+        stall_breakout = False
 
         for step_num in range(1, self._config.max_steps + 1):
             # 1. Observe
@@ -98,6 +107,8 @@ class ReActAgent:
                 record = StepRecord(
                     step_number=step_num,
                     observation=obs,
+                    pre_penalty=_manager_penalty(self._manager),
+                    post_penalty=_manager_penalty(self._manager),
                     outcome=StepOutcome.RECOVERED,
                 )
                 result.steps.append(record)
@@ -109,7 +120,11 @@ class ReActAgent:
             messages.append({"role": "user", "content": user_msg})
 
             # 3. Propose + Verify loop
-            record = StepRecord(step_number=step_num, observation=obs)
+            record = StepRecord(
+                step_number=step_num,
+                observation=obs,
+                pre_penalty=_manager_penalty(self._manager),
+            )
             action_applied = False
 
             for proposal_idx in range(self._config.max_proposals_per_step):
@@ -169,7 +184,12 @@ class ReActAgent:
                     vr = self._verifier.verify(action)
                     record.verification_results.append(vr)
 
-                    if vr.verdict == Verdict.PASS:
+                    # Admit both terminal-PASS (zero violations) and
+                    # SAFE_PROGRESS (recoverability-preserving step under
+                    # the ``progress`` gating policy). Both lead to apply
+                    # + advance; episode termination is still gated on
+                    # ``observation.is_stable`` (terminal recovery).
+                    if vr.verdict in (Verdict.PASS, Verdict.SAFE_PROGRESS):
                         apply_result = self._apply_action(action)
                         record.applied_action = action
                         record.tool_result = apply_result
@@ -177,13 +197,31 @@ class ReActAgent:
                         action_applied = True
                         consecutive_step_fails = 0
 
+                        # Unified APPROVED feedback for both PASS and SAFE_PROGRESS.
+                        # The 4-cell multi_1 contrast (2026-05-25 panel) showed the
+                        # ADMITTED wording induces a conservatism bias in Qwen3-14B:
+                        # the LLM reads "verifier-admitted" as "barely accepted, take
+                        # smaller next step" and converges in 6+ actions instead of 2.
+                        # Opt-in `SILR_SAFE_PROGRESS_DISTINCT_FEEDBACK=1` keeps the
+                        # ADMITTED branch available for studies that explicitly want
+                        # to compare PASS vs SAFE_PROGRESS context signaling.
+                        if (
+                            os.environ.get("SILR_SAFE_PROGRESS_DISTINCT_FEEDBACK")
+                            and vr.verdict == Verdict.SAFE_PROGRESS
+                        ):
+                            feedback = (
+                                "[SiLR ADMITTED] Action applied as a verifier-admitted "
+                                "recovery step."
+                            )
+                        else:
+                            feedback = "[SiLR APPROVED] Action applied successfully."
                         messages.append({
                             "role": "assistant",
                             "content": f"Thought: {thought}\nAction: {_format_action(action)}",
                         })
                         messages.append({
                             "role": "user",
-                            "content": "[SiLR APPROVED] Action applied successfully.",
+                            "content": feedback,
                         })
                         break
                     else:
@@ -257,6 +295,49 @@ class ReActAgent:
             # Run steady-state solver after action to update system state
             if record.applied_action:
                 self._manager.solve()
+            record.post_penalty = _manager_penalty(self._manager)
+
+            # Anti-stall liveness check: count consecutive SAFE_PROGRESS
+            # admissions that do not strictly reduce the running-minimum
+            # outstanding violation count. The intent is to defeat the
+            # denial-of-recovery / stall attacker who games the
+            # single-step progress gate with infinitesimal improvements
+            # that never reach terminal recovery.
+            if stall_progress_budget is not None and record.verification_results:
+                vr_last = record.verification_results[-1]
+                if (
+                    vr_last.verdict == Verdict.SAFE_PROGRESS
+                    and record.applied_action is not None
+                ):
+                    post_viol = sum(
+                        len(cr.violations) for cr in vr_last.check_results
+                        if not cr.passed
+                    )
+                    if min_post_viol is None or post_viol < min_post_viol:
+                        min_post_viol = post_viol
+                        stall_streak = 0
+                    else:
+                        stall_streak += 1
+                        if stall_streak >= stall_progress_budget:
+                            record.outcome = StepOutcome.STALL
+                            result.stall_terminated = True
+                            stall_breakout = True
+                            logger.info(
+                                "Stall budget exceeded after step %d "
+                                "(%d consecutive SAFE_PROGRESS without "
+                                "violation-count improvement); "
+                                "terminating episode",
+                                step_num, stall_streak,
+                            )
+                else:
+                    # Any non-SAFE_PROGRESS outcome (PASS recovery, FAIL,
+                    # ERROR) resets the stall streak. PASS exits naturally
+                    # via the is_stable check next iteration.
+                    stall_streak = 0
+                    min_post_viol = None
+
+            if stall_breakout:
+                break
 
         # Final observation
         result.final_observation = self._observer.observe()
@@ -389,3 +470,13 @@ def _format_action(action: dict) -> str:
     params = action.get("params", {})
     param_str = ", ".join(f"{k}={v!r}" for k, v in params.items())
     return f"{name}({param_str})"
+
+
+def _manager_penalty(manager: BaseSystemManager) -> float | None:
+    value = getattr(manager, "last_penalty", None)
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None

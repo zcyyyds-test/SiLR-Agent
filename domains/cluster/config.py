@@ -14,15 +14,24 @@ from .failsafe import ClusterFailsafe
 from .prompts import build_cluster_system_prompt, build_cluster_tool_schemas
 
 
-def build_cluster_domain_config(with_observer: bool = True) -> DomainConfig:
+def build_cluster_domain_config(
+    with_observer: bool = True,
+    gating_policy: str = "terminal",
+) -> DomainConfig:
     """Build a DomainConfig for the GPU cluster scheduling domain.
 
     Args:
         with_observer: If True, include ClusterObserver and ClusterFailsafe.
             Default True. Set False for lightweight verifier-only usage.
+        gating_policy: ``"terminal"`` (default), ``"progress"``, or
+            ``"progress_mag"``. Cluster scheduling default is terminal
+            because admission constraints (capacity, affinity) are typically
+            single-step-resolvable; cross-domain smoke uses progress to
+            test framework generalization.
     """
     return DomainConfig(
         domain_name="gpu_cluster",
+        gating_policy=gating_policy,
         # Verifier checkers: only per-action SAFETY constraints.
         # Global state checks (queue, priority, rack_spread) are handled by
         # the observer for episode termination — they require multiple actions

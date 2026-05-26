@@ -15,6 +15,9 @@ class StepOutcome(Enum):
     FAIL_EXECUTE = "fail_execute"    # action execution error on main system
     FAILSAFE = "failsafe"           # fell back to rule-based action
     RECOVERED = "recovered"          # system already stable, no action needed
+    STALL = "stall"                  # exceeded stall_progress_budget consecutive
+                                     # SAFE_PROGRESS without violation-count
+                                     # decrease — anti-stall liveness guard
 
 
 @dataclass
@@ -31,6 +34,8 @@ class StepRecord:
     """Record of a single ReAct step."""
     step_number: int
     observation: Observation
+    pre_penalty: Optional[float] = None
+    post_penalty: Optional[float] = None
     thought: str = ""
     proposed_actions: list[dict] = field(default_factory=list)
     verification_results: list[Any] = field(default_factory=list)
@@ -50,6 +55,13 @@ class EpisodeResult:
     total_proposals: int = 0
     total_rejections: int = 0
     failsafe_triggered: bool = False
+    stall_terminated: bool = False
+    """True iff the loop ended because the stall-budget was exceeded —
+    the agent applied ``stall_progress_budget`` consecutive
+    SAFE_PROGRESS actions without ever reducing the outstanding
+    violation count. Used to distinguish denial-of-recovery attacks /
+    genuine recovery dead-ends from natural max-steps termination."""
+
     final_observation: Optional[Observation] = None
     error: Optional[str] = None
 

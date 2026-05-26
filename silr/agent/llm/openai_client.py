@@ -3,11 +3,24 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
 
 from .base import BaseLLMClient, LLMResponse, ToolCall
 
 logger = logging.getLogger(__name__)
+
+
+def _env_int(name: str) -> int | None:
+    raw = os.environ.get(name)
+    if raw is None or raw == "":
+        return None
+    try:
+        value = int(raw)
+    except ValueError:
+        logger.warning("Ignoring invalid integer env %s=%r", name, raw)
+        return None
+    return value if value > 0 else None
 
 
 class OpenAIClient(BaseLLMClient):
@@ -23,6 +36,10 @@ class OpenAIClient(BaseLLMClient):
         api_key: str | None = None,
         base_url: str | None = None,
         default_headers: dict[str, str] | None = None,
+        timeout_s: float = 60.0,
+        connect_timeout_s: float = 10.0,
+        max_retries: int = 2,
+        max_tokens: int | None = None,
     ):
         try:
             import openai
@@ -34,8 +51,8 @@ class OpenAIClient(BaseLLMClient):
         import httpx
 
         kwargs: dict[str, Any] = {
-            "timeout": httpx.Timeout(60.0, connect=10.0),
-            "max_retries": 2,
+            "timeout": httpx.Timeout(timeout_s, connect=connect_timeout_s),
+            "max_retries": max_retries,
         }
         if api_key is not None:
             kwargs["api_key"] = api_key
@@ -46,6 +63,9 @@ class OpenAIClient(BaseLLMClient):
         self._client = openai.OpenAI(**kwargs)
         self._model = model
         self._is_gemini = "gemini" in model.lower()
+        self._max_tokens = max_tokens if max_tokens is not None else _env_int(
+            "SILR_MAX_TOKENS"
+        )
 
     def chat(
         self,
@@ -64,6 +84,8 @@ class OpenAIClient(BaseLLMClient):
         if tools:
             kwargs["tools"] = tools
             kwargs["tool_choice"] = "auto"
+        if self._max_tokens is not None:
+            kwargs["max_tokens"] = self._max_tokens
 
         resp = self._client.chat.completions.create(**kwargs)
         choice = resp.choices[0]
