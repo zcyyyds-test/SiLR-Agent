@@ -1,0 +1,123 @@
+\section{Evaluation}
+\label{sec:eval}
+
+The evaluation is a progressive falsification rather than a demonstration: we establish the failure of existing approaches (RQ1--RQ2), confirm the predicted mechanism (RQ3), validate the architecture's containment invariant (RQ4), then probe generalization (RQ5). \textbf{RQ1}: does a binary terminal gate deadlock multi-step post-violation recovery? \textbf{RQ2}: does scalar admission, swept up to $20\%$ slack, close the gap to structured admission? \textbf{RQ3}: does the predicted projection-trap plateau signature appear, and is it gate-induced rather than reflecting an unrecoverable underlying state? \textbf{RQ4}: under LLM-side compromise (prompt injection, observation poisoning, stall), does the verifier prevent system worsening and false recovery? \textbf{RQ5}: does the terminal-versus-structured dichotomy generalize across model families and a second domain?
+
+\subsection{Setup}
+\label{sec:eval:setup}
+
+We use Gym-ANM ANM6-Easy~\cite{henry2021gymanm} as the critical-infrastructure simulator, integrated as a \silr{} domain with a deep-copy shadow manager and a Newton--Raphson power-flow solver that is bit-exact across repeated solves ($\sigma{=}0$ over $100$ trials). The LLM is Qwen3-14B~\cite{qwen3} served via vLLM at temperature $0$. Each ReAct episode runs with $C_{\text{step}}{=}8$ control steps and $C_{\text{prop}}{=}3$ per-step proposals.
+
+\paragraph{Scenarios.}
+We mine a 600-scenario pool by gridded perturbation of load/generation multipliers, source seed, and storage SoC, classified by whether an MPC oracle and a one-action LLM probe each recover it into bands (\emph{single-action} 153, \emph{multi-action} 24, \emph{MPC-residual} 252, trivial 171). Our headline benchmark is the mined multi-action band; we evaluate three representative scenarios from it, MPC-recoverable by construction (gym-anm \texttt{MPCAgentConstant} oracle, a feasibility reference, not a competitor), so the gate comparison is well-posed. Full-pool stratification is future work. All four policies are compared at \emph{matched} $N{=}7$ (seeds $1003$--$1009$, $21$ episodes each) under $C_{\text{step}}{=}8$.
+
+\paragraph{Policies.}
+\texttt{OFF} (no verifier; every proposal applied), \texttt{terminal} (terminal predicate: admit iff $S(\hat{s}_{t+1})=\emptyset$), \texttt{progress} ($\psione\wedge\psitwo$), \texttt{progress\_mag} ($\psione\wedge\psitwo\wedge\psithree$; the structured admission gate). For the scalar falsifier we add \texttt{scalar\_progress} (admit iff $P(\hat{s}_{t+1})\le P(s_t)+\varepsilon$) and its relaxed variants \texttt{scalar\_progress}$_\eta$ with $\eta\in\{0.05,0.10,0.20\}$.
+
+\subsection{RQ1: Binary Terminal Admission Deadlocks Multi-Step Recovery}
+\label{sec:eval:rq1}
+
+Table~\ref{tab:rq1} reports the headline result at \emph{matched} $N{=}7$ under $C_{\text{step}}{=}8$. Terminal recovers $0/21$ (reject/prop $1.000$): it rejects every intermediate proposal because $S(\hat{s}_{t+1})\ne\emptyset$ at every proposed step, regardless of search depth. Structured admission recovers $\mathbf{21/21}$ (CI $[0.85, 1.00]$, residual $0.000$), while plain \texttt{progress} ($9/21$) and the scalar sweep peak ($9/21$) have CIs disjoint from it---the advantage is not sampling noise.
+
+\begin{table}[tb]
+\centering
+\caption{RQ1: Mined multi-action recovery at matched $N{=}7$ (21 episodes/policy) under $C_{\text{step}}{=}8$. Scalar row = sweep peak ($\eta{=}0.05$); full $\eta$-sweep reported in RQ2. CI is the Wilson 95\% interval. Material worsening (Sec.~\ref{sec:threat}) is $0/21$ for all rows.}
+\label{tab:rq1}
+\footnotesize
+\begin{tabular}{lcccc}
+\toprule
+Policy & Recovery & 95\% CI & Final pen.\ (mean) & Reject / prop.\ \\
+\midrule
+\texttt{terminal}                           & $0/21$   & $[0.00,0.15]$ & $12.451$ & $1.000$ \\
+\texttt{scalar\_progress} (sweep peak)      & $9/21$   & $[0.24,0.63]$ & $4.950$  & $0.408$ \\
+\texttt{progress}                           & $9/21$   & $[0.24,0.63]$ & $8.080$  & $0.327$ \\
+\texttt{progress\_mag}                      & $\mathbf{21/21}$ & $\mathbf{[0.85,1.00]}$ & $\mathbf{0.000}$ & $0.350$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The terminal deadlock is structural: the gate refuses every intermediate proposal independently of how many search rounds it sees. Plain $\psione\wedge\psitwo$ ($9/21$) is statistically tied with the scalar sweep peak ($9/21$); the per-branch magnitude predicate $\psithree$ supplies the decisive lift to $21/21$ (quantified in RQ2). The remaining sections ask whether scalar relaxation can close the gap by other means.
+
+\subsection{RQ2: Scalar Admission Is Insufficient---A Threshold Sweep Falsifier}
+\label{sec:eval:rq2}
+
+If the binary terminal gate fails only because it is too strict, the natural fix is to admit any proposal whose aggregate penalty $P$ is non-increasing or within a small slack of $P(s_t)$. We test this directly with the \texttt{scalar\_progress} family, sweeping the relative slack $\eta$ from strict ($0$) to $20\%$ at matched $N{=}7$ ($21$ episodes/setting, $C_{\text{step}}{=}8$).
+
+Relaxing the threshold neither closes the gap nor improves monotonically: across $\eta\in\{0,0.05,0.10,0.20\}$ recovery is $5/9/7/7$ out of $21$ (peak $43\%$ at $\eta{=}0.05$), with mean final penalties $4.7/5.0/4.2/2.9$ (default $12.451$) and 95\% CIs spanning $[0.11,0.63]$---all disjoint from structured admission's $21/21$ at $[0.85,1.00]$. Per-scenario (RQ3) no slack recovers \texttt{multi\_3} in more than $2/7$ seeds.
+
+\paragraph{The magnitude predicate gives the decisive lift.}
+Scalar (sweep peak $9/21$) and plain \texttt{progress} ($9/21$) are tied; adding the per-branch magnitude predicate $\psithree$ lifts recovery to $21/21$---a $12$-episode gap over both with the same proposer and budget. Mean scalar final penalties stay near $3$--$5$ (default $12.451$): far below default yet short of recovery, the empirical fingerprint of the scalar projection trap (Sec.~\ref{sec:method:trap}). The $\varepsilon$-dominance threshold $\alpha$ (Sec.~\ref{sec:method:predicates}) has an effective operating interval: sweeping $\alpha\in\{1.02,1.05,1.10,1.20\}$ ($3$ scenarios $\times$ $N{=}3$), $\alpha\in\{1.05,1.10\}$ recover $9/9$, whereas $\alpha{=}1.02$ over-rejects legitimate quantization drift ($7/9$) and $\alpha{=}1.20$ admits structurally poor steps ($6/9$). The per-scenario breakdown localizes the lift to the geometry-poor scenarios: $\psithree$ raises \texttt{multi\_1} $2/7{\to}7/7$ and \texttt{multi\_3} $0/7{\to}7/7$, whereas the smooth \texttt{multi\_2} ($7/7$) is recovered by $\psione\wedge\psitwo$ alone.
+
+\subsection{RQ3: The Scalar Projection Trap---Plateau Signature Across a Difficulty Spectrum}
+\label{sec:eval:rq3}
+
+The projection-trap mechanism predicts a per-trace signature: the scalar gate accepts \emph{one} early locally-improving proposal and lands on a residual plateau with no further admissible action, while structured admission clears the scenario. We see exactly this across the ordered triple of multi-action scenarios ($N{=}7$, $C_{\text{step}}{=}8$; scalar tuned to its per-scenario \emph{best} $\eta$). \texttt{multi\_2} is smooth---scalar at $\eta{=}0.10$ already reaches $7/7$ (residual $0.00$). \texttt{multi\_3} is the headline: scalar plateaus at $\le2/7$ (best $\eta{=}0.05$, residual $5.94$ vs.\ default $17.59$) while structured clears $7/7$; \texttt{multi\_1} is harder still for scalar (at most $1/7$, residual $8.38$ vs.\ default $14.70$) against structured $7/7$. Figure~\ref{fig:trap} contrasts a representative structured recovery trajectory with the scalar plateau.
+
+\paragraph{The plateau is gate-induced, not an unrecoverable state.}
+We rule out the objection that the scalar plateau is intrinsically unrecoverable: handing the scalar-admitted \texttt{multi\_3} plateau to the gym-anm MPC oracle recovers it to zero penalty---the plateau is gate-induced, and the structured gate avoids it by declining the geometry-poor first step.
+
+\begin{figure}[tb]
+\centering
+\includegraphics[width=0.54\textwidth]{../figures/mined_multi_action_3_scalar_vs_structured_FINAL.pdf}
+\caption{Scalar projection trap on \texttt{mined\_multi\_action\_3}. Structured admission (\texttt{progress\_mag}) descends to terminal recovery $\Phi(s){=}(\emptyset,\mathbf{0})$ through accepted \texttt{SAFE\_PROGRESS} steps interleaved with rejected non-compliant proposals, whereas the relaxed scalar gate admits one early locally-improving proposal and plateaus at a nonzero residual across all four slack settings (sweep best $2/7$ at $\eta{=}0.05$).}
+\label{fig:trap}
+\end{figure}
+
+\subsection{RQ4: Trust-Boundary Containment Under LLM-Side Compromise}
+\label{sec:eval:rq4}
+
+We test whether the verifier preserves containment when LLM-side inputs are compromised. The mini-suite runs the three mined multi-action scenarios under \texttt{progress\_mag} with the three attack channels of Sec.~\ref{sec:threat}---prompt injection, observation poisoning, and stall (with and without RAG-style retrieval scaffolding)---each at $N{=}3$ seeds per scenario plus a benign control ($45$ episodes), scored by the failure semantics defined there.
+
+Across all $45$ episodes the verifier produces $0/45$ attack success, false recovery, and material worsening ($0/9$ per channel); under \texttt{prompt\_injection} reject/prop rises to $0.638$ (vs $0.236$ benign). Containment here is \emph{architectural}, not statistical: the verifier shadow-executes every proposal on the trusted simulator state independent of the LLM's prompt and observation channels (Sec.~\ref{sec:method:shadow}), so any proposal that would worsen the physical state is rejected however the LLM input is corrupted---a design invariant. (Observation poisoning thus probes the LLM--verifier composition, not the verifier alone; under \texttt{stall} the agent issues no effective proposal, so containment holds without recovery.) Adaptive adversaries and simulator mismatch are out of scope (Sec.~\ref{sec:discussion}).
+
+\subsection{RQ5: Generalization Across Families and a Second Domain}
+\label{sec:eval:rq5}
+
+The containment result of RQ4 validates the architecture's core invariant; we now ask whether the admission-semantics contrast it enables generalizes beyond the primary benchmark.
+
+\paragraph{Cross-family generalization.}
+We replicate the terminal-versus-structured contrast across three independent model families---Alibaba Qwen3, Google Gemma, and Meta Llama-3.1---on the same three mined multi-action scenarios at $N{=}5$ (Table~\ref{tab:crossfamily}). The dichotomy is family-independent: terminal admission deadlocks every model ($0/15$), while structured admission recovers near-completely. At the canonical $C_{\text{step}}{=}8$ every configuration but one already reaches $15/15$; the single shortfall (Qwen3-8B, $12/15$) closes to $15/15$ once the step budget is doubled to $C_{\text{step}}{=}16$. Structured admission thus lets compact open-weight models perform the multi-step post-violation recovery that binary and scalar gates cannot.
+
+\begin{table}[tb]
+\centering
+\caption{RQ5: cross-family recovery on the three mined multi-action scenarios, $N{=}5$ (recovery [Wilson 95\% CI]). Terminal admission deadlocks every model; the $0$ is measured for Qwen3-14B, Gemma-3-12B, and Llama-3.1-8B, and structural for Qwen3-8B ($^\dagger$step-$8$ \texttt{progress\_mag}-only run, where the terminal gate is $0$ by construction).}
+\label{tab:crossfamily}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{llccc}
+\toprule
+Model & Family & terminal & \makecell[c]{\texttt{progress\_mag}\\$C_{\text{step}}{=}8$} & \makecell[c]{\texttt{progress\_mag}\\$C_{\text{step}}{=}16$} \\
+\midrule
+Qwen3-8B    & Alibaba Qwen3   & $0/15^\dagger$ & $12/15$ {\scriptsize[0.55,0.93]} & $\mathbf{15/15}$ {\scriptsize[0.80,1.00]} \\
+Qwen3-14B   & Alibaba Qwen3   & $0/15$ & $\mathbf{15/15}$ {\scriptsize[0.80,1.00]} & $15/15$ {\scriptsize[0.80,1.00]} \\
+Gemma-3-12B & Google Gemma-3  & $0/15$ & $\mathbf{15/15}$ {\scriptsize[0.80,1.00]} & $15/15$ {\scriptsize[0.80,1.00]} \\
+Llama-3.1-8B & Meta Llama-3.1 & $0/15$ & $\mathbf{15/15}$ {\scriptsize[0.80,1.00]} & $15/15$ {\scriptsize[0.80,1.00]} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Cross-domain portability.}
+We replicate the dichotomy in a second domain, CityLearn building-energy dispatch, on the same family-spanning subset (Table~\ref{tab:crossdomain}). The structure transfers: the terminal predicate recovers \emph{only} the single-step scenario (\texttt{cl\_3}) and deadlocks the multi-step ones, while structured admission recovers far more broadly. We report this as \emph{structural portability}---the same gate-semantics contrast recurs in a different physical model---not matched per-domain effectiveness; together with the cross-family results, the generalization evidence spans model families and physical domains, not scenario count within a single benchmark. The hardest scenario \texttt{cl\_2} is broadly demanding (Qwen3-14B $7/10$, Qwen3-8B $3/5$, Llama-3.1-8B $5/5$, Gemma-3-12B $0/5$): a scenario-level difficulty modulated by per-model instruction-following, not an admission-mechanism failure.
+
+\begin{table}[tb]
+\centering
+\caption{RQ5: cross-domain replication on CityLearn (three \texttt{cl} scenarios; recovery [Wilson 95\% CI]). \texttt{cl\_3} is single-step recoverable, so the terminal gate clears it but deadlocks the multi-step \texttt{cl\_1}/\texttt{cl\_2}, mirroring ANM; structured admission recovers far more broadly. Qwen3-14B at $N{=}10$ seeds (30 episodes), others $N{=}5$ (15 episodes).}
+\label{tab:crossdomain}
+\footnotesize
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{lccc}
+\toprule
+Model & terminal & \texttt{progress\_mag} step~$8$ & \texttt{progress\_mag} step~$16$ \\
+\midrule
+Qwen3-14B    & $10/30$ {\scriptsize[0.19,0.51]} & $27/30$ {\scriptsize[0.74,0.97]} & --- \\
+Qwen3-8B     & $5/15$ {\scriptsize[0.15,0.58]}  & $13/15$ {\scriptsize[0.62,0.96]} & $14/15$ {\scriptsize[0.70,0.99]} \\
+Gemma-3-12B  & $5/15$ {\scriptsize[0.15,0.58]}  & $10/15$ {\scriptsize[0.42,0.85]} & $10/15$ {\scriptsize[0.42,0.85]} \\
+Llama-3.1-8B & $5/15$ {\scriptsize[0.15,0.58]}  & $\mathbf{15/15}$ {\scriptsize[0.80,1.00]} & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Verifier Overhead}
+\label{sec:eval:cost}
+
+Each verifier call performs one $\mathrm{copy}\to\mathrm{apply}\to\mathrm{solve}$ plus three predicate evaluations: $17.5$--$30.0$\,ms on a single CPU core, dominated by the solver. Against the $\sim$22\,s wall-clock of one LLM ReAct step, the verifier is under $0.15\%$ of episode wall-clock.

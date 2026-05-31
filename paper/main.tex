@@ -1,0 +1,79 @@
+\documentclass[runningheads]{llncs}
+
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{makecell}
+\usepackage{pifont}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{url}
+
+% Compact lists / spacing helpers for 15-page LNCS budget
+\usepackage{enumitem}
+\setlist{itemsep=1pt,topsep=2pt,parsep=0pt}
+
+% Float-packing: allow more of each page to be floats, less forced whitespace
+\renewcommand{\topfraction}{0.92}
+\renewcommand{\bottomfraction}{0.85}
+\renewcommand{\textfraction}{0.06}
+\renewcommand{\floatpagefraction}{0.82}
+\setcounter{topnumber}{3}
+\setcounter{totalnumber}{4}
+\setlength{\textfloatsep}{9pt plus 2pt minus 2pt}
+\setlength{\intextsep}{9pt plus 2pt minus 2pt}
+\setlength{\abovecaptionskip}{4pt}
+\setlength{\belowcaptionskip}{2pt}
+
+% Custom macros
+\newcommand{\silr}{\textsc{SiLR}}
+\newcommand{\Phimeas}{\Phi}
+\newcommand{\Cset}{\mathcal{C}}
+\newcommand{\nfn}{n}
+\newcommand{\Pfn}{P}
+\newcommand{\psione}{\psi_1}
+\newcommand{\psitwo}{\psi_2}
+\newcommand{\psithree}{\psi_3}
+\newcommand{\psifour}{\psi_4}
+
+\begin{document}
+
+% Double-blind: anonymized author block
+\title{\silr{}: Structured Recovery Admission for LLM Tool Proposals in Critical Infrastructure}
+\titlerunning{Structured Recovery Admission for LLM Agents}
+
+\author{Anonymous Author(s)}
+\authorrunning{Anonymous}
+\institute{Anonymous Institution \\ \email{anon@example.org}}
+
+\maketitle
+
+\begin{abstract}
+\input{sections/00_abstract}
+\keywords{Runtime governance \and LLM agents \and Safety shielding \and Critical infrastructure \and Adversarial robustness.}
+\end{abstract}
+
+\input{sections/01_introduction}
+\input{sections/02_related_work}
+\input{sections/03_threat_model}
+\input{sections/04_method}
+\input{sections/05_evaluation}
+\input{sections/06_discussion}
+\input{sections/07_conclusion}
+
+\bibliographystyle{splncs04}
+\bibliography{refs}
+
+% Appendix deferred to post-main-text revision; legacy A_appendix.tex still uses
+% the old 5-tier/Φ=(n,P)/A4-magnitude-drift framing and will be rewritten after
+% the main narrative stabilizes.
+%\appendix
+%\renewcommand{\theHsection}{appendix.\arabic{section}}
+%\input{sections/A_appendix}
+
+\end{document}

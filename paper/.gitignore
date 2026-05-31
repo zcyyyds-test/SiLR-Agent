@@ -1,0 +1,16 @@
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.out
+*.pdf
+*.synctex.gz
+*.toc
+*.lof
+*.lot
+
+# legacy framework (moved out, not compiled) + scratch
+_legacy/
+*.bak

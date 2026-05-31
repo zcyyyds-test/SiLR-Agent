@@ -1,0 +1,14 @@
+\section{Discussion}
+\label{sec:discussion}
+
+\paragraph{Deployment scope.}
+\silr{} targets the medium-horizon advisory dispatch loop ($5$--$15$\,min cycles), not the sub-second AGC tick: LLM latency ($\sim$22\,s/step) precludes real-time control, and the shadow-execution model corresponds to the power-flow study preceding every dispatch decision, with protective relays operating independently of the LLM layer.
+
+\paragraph{Support-monotonicity.}
+The admission invariant (Prop.~\ref{prop:inv}) assumes recovery needs no transient redistribution: $\psitwo$ forbids steps that overload a new branch, valid in our benchmark; geometries requiring temporary redistribution would need a bounded-transient-growth variant. The projection trap is not an artifact of this assumption---the MPC oracle recovers the scalar plateau (Sec.~\ref{sec:eval:rq3}), so it is gate-induced.
+
+\paragraph{Scope and design properties.}
+\silr{} is validated primarily on Gym-ANM ANM6-Easy; we test generalization across three model families and a second domain (Sec.~\ref{sec:eval:rq5}), with broader pool stratification and further benchmarks left to future work. Two aspects are inherent to the design rather than tuning artifacts: liveness depends on proposal quality and is characterized empirically---Prop.~\ref{prop:inv} gives an LLM-independent safety bound (support containment and a severity envelope) but does not constrain proposal generation---and the $\varepsilon$-dominance thresholds ($\alpha,\varepsilon$) carry a principled reading ($\alpha$ absorbs action-space quantization, $\varepsilon$ numerical precision) and are set once per domain. The security claim is scoped to a \emph{fixed} compromised-LLM adversary on a trusted simulator; adaptive adversaries and simulator--reality mismatch are out of scope.
+
+\paragraph{Future work.}
+Two extensions follow: (1)~benchmarks that concurrently activate multiple violation families, where the product order extends across $S$, $\sigma$, and inter-family ordering; (2)~using the graded verdict as a training-time reward, mapping the verdict ladder onto process-reward grading~\cite{lightman2024prm,deepseekmath2024grpo} with a deterministic physics verifier rather than a learned one.
