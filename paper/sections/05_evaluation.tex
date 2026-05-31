@@ -17,7 +17,7 @@ We mine a 600-scenario pool by gridded perturbation of load/generation multiplie
 \subsection{RQ1: Binary Terminal Admission Deadlocks Multi-Step Recovery}
 \label{sec:eval:rq1}
 
-Table~\ref{tab:rq1} reports the headline result at \emph{matched} $N{=}7$ under $C_{\text{step}}{=}8$. Terminal recovers $0/21$ (reject/prop $1.000$): it rejects every intermediate proposal because $S(\hat{s}_{t+1})\ne\emptyset$ at every proposed step, regardless of search depth. Structured admission recovers $\mathbf{21/21}$ (CI $[0.85, 1.00]$, residual $0.000$), while plain \texttt{progress} ($9/21$) and the scalar sweep peak ($9/21$) have CIs disjoint from it---the advantage is not sampling noise.
+Table~\ref{tab:rq1} reports the headline result at \emph{matched} $N{=}7$ under $C_{\text{step}}{=}8$. Terminal recovers $0/21$ (reject/prop $1.000$): it rejects every intermediate proposal because $S(\hat{s}_{t+1})\ne\emptyset$ at every proposed step, regardless of search depth. Structured admission recovers $\mathbf{21/21}$ (CI $[0.85, 1.00]$, residual $0.000$), while plain \texttt{progress} ($9/21$) and the scalar sweep peak ($9/21$) have CIs disjoint from it---the advantage is not sampling noise. Ungated execution (\texttt{OFF}) is the floor: in an $N{=}3$ sanity check it recovers $1/9$ and ends worse than the no-intervention default in $5/9$ episodes (max final penalty $33.5$), so raw proposals neither recover nor stay safe---the gate supplies the recovery rather than masking a self-correcting model.
 
 \begin{table}[tb]
 \centering
