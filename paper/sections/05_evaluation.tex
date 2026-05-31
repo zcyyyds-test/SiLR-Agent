@@ -97,11 +97,11 @@ Llama-3.1-8B & Meta Llama-3.1 & $0/15$ & $\mathbf{15/15}$ {\scriptsize[0.80,1.00
 \end{table}
 
 \paragraph{Cross-domain portability.}
-We replicate the dichotomy in a second domain, CityLearn building-energy dispatch~\cite{citylearn}, on the same family-spanning subset (Table~\ref{tab:crossdomain}). The three scenarios instantiate district battery-storage violations---state-of-charge floor/ceiling and feeder-export limits---with $\Phi$ indexed by the violating building or feeder; we carry over the terminal-versus-structured contrast, the scalar sweep staying confined to the primary domain. The structure transfers: the terminal predicate recovers \emph{only} the single-step scenario (\texttt{cl\_3}) and deadlocks the multi-step ones, while structured admission recovers far more broadly---Qwen3-14B reaches $30/30$, and the one residual shortfall (Qwen3-8B, $14/15$) closes to $15/15$ under a doubled step budget. We report this as \emph{structural portability}---the same gate-semantics contrast recurs in a different physical model---not matched per-domain effectiveness; together with the cross-family results, the generalization evidence spans model families and physical domains, not scenario count within a single benchmark. Only \texttt{cl\_2} on Gemma-3-12B ($0/5$) resists, while Qwen3-14B ($10/10$), Qwen3-8B ($4/5$), and Llama-3.1-8B ($5/5$) clear it: a per-model instruction-following limit on the smallest model, not a scenario-recoverability or admission-mechanism failure.
+We replicate the dichotomy in a second domain, CityLearn building-energy dispatch~\cite{citylearn}, on the same family-spanning subset (Table~\ref{tab:crossdomain}). The three scenarios instantiate district battery-storage violations---state-of-charge floor/ceiling and feeder-export limits---with $\Phi$ indexed by the violating building or feeder; we carry over the terminal-versus-structured contrast, the scalar sweep staying confined to the primary domain. The structure transfers: the terminal predicate recovers \emph{only} the single-step scenario (\texttt{cl\_3}) and deadlocks the multi-step ones, while structured admission recovers far more broadly---Qwen3-14B reaches $15/15$, and the one residual shortfall (Qwen3-8B, $14/15$) closes to $15/15$ under a doubled step budget. We report this as \emph{structural portability}---the same gate-semantics contrast recurs in a different physical model---not matched per-domain effectiveness; together with the cross-family results, the generalization evidence spans model families and physical domains, not scenario count within a single benchmark. Only \texttt{cl\_2} on Gemma-3-12B ($0/5$) resists, while Qwen3-14B ($5/5$), Qwen3-8B ($4/5$), and Llama-3.1-8B ($5/5$) clear it: a per-model instruction-following limit on the smallest model, not a scenario-recoverability or admission-mechanism failure.
 
 \begin{table}[tb]
 \centering
-\caption{RQ5: cross-domain replication on CityLearn (three \texttt{cl} scenarios; recovery [Wilson 95\% CI]). \texttt{cl\_3} is single-step recoverable, so the terminal gate clears it but deadlocks the multi-step \texttt{cl\_1}/\texttt{cl\_2}, mirroring ANM; structured admission recovers far more broadly. Qwen3-14B at $N{=}10$ seeds (30 episodes), others $N{=}5$ (15 episodes).}
+\caption{RQ5: cross-domain replication on CityLearn (three \texttt{cl} scenarios; recovery [Wilson 95\% CI]). \texttt{cl\_3} is single-step recoverable, so the terminal gate clears it but deadlocks the multi-step \texttt{cl\_1}/\texttt{cl\_2}, mirroring ANM; structured admission recovers far more broadly. All models at $N{=}5$ (15 episodes).}
 \label{tab:crossdomain}
 \footnotesize
 \setlength{\tabcolsep}{5pt}
@@ -109,7 +109,7 @@ We replicate the dichotomy in a second domain, CityLearn building-energy dispatc
 \toprule
 Model & terminal & \texttt{progress\_mag} step~$8$ & \texttt{progress\_mag} step~$16$ \\
 \midrule
-Qwen3-14B    & $10/30$ {\scriptsize[0.19,0.51]} & $\mathbf{30/30}$ {\scriptsize[0.89,1.00]} & --- \\
+Qwen3-14B    & $5/15$ {\scriptsize[0.15,0.58]}  & $\mathbf{15/15}$ {\scriptsize[0.80,1.00]} & --- \\
 Qwen3-8B     & $5/15$ {\scriptsize[0.15,0.58]}  & $14/15$ {\scriptsize[0.70,0.99]} & $\mathbf{15/15}$ {\scriptsize[0.80,1.00]} \\
 Gemma-3-12B  & $5/15$ {\scriptsize[0.15,0.58]}  & $10/15$ {\scriptsize[0.42,0.85]} & $10/15$ {\scriptsize[0.42,0.85]} \\
 Llama-3.1-8B & $5/15$ {\scriptsize[0.15,0.58]}  & $\mathbf{15/15}$ {\scriptsize[0.80,1.00]} & --- \\
