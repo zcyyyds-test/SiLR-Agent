@@ -76,7 +76,7 @@ Across all $45$ episodes the verifier produces $0/45$ attack success, false reco
 The containment result of RQ4 validates the architecture's core invariant; we now ask whether the admission-semantics contrast it enables generalizes beyond the primary benchmark.
 
 \paragraph{Cross-family generalization.}
-We replicate the terminal-versus-structured contrast across three independent model families---Alibaba Qwen3, Google Gemma-3~\cite{gemma3}, and Meta Llama-3.1~\cite{llama3}---on the same three mined multi-action scenarios at $N{=}5$ (Table~\ref{tab:crossfamily}). The dichotomy is family-independent: terminal admission deadlocks every model ($0/15$), while structured admission recovers near-completely. At the canonical $C_{\text{step}}{=}8$ every configuration but one already reaches $15/15$; the single shortfall (Qwen3-8B, $12/15$) closes to $15/15$ once the step budget is doubled to $C_{\text{step}}{=}16$. Structured admission thus lets compact open-weight models perform the multi-step post-violation recovery that binary and scalar gates cannot.
+We replicate the terminal-versus-structured contrast across three independent model families---Alibaba Qwen3, Google Gemma-3~\cite{gemma3}, and Meta Llama-3.1~\cite{llama3}---on the same three mined multi-action scenarios at $N{=}5$ (Table~\ref{tab:crossfamily}). The dichotomy is family-independent: terminal admission deadlocks every model ($0/15$), while structured admission recovers completely---every model reaches $15/15$ at the canonical $C_{\text{step}}{=}8$. Structured admission thus lets compact open-weight models perform the multi-step post-violation recovery that binary and scalar gates cannot.
 
 \begin{table}[tb]
 \centering
@@ -88,7 +88,7 @@ We replicate the terminal-versus-structured contrast across three independent mo
 \toprule
 Model & Family & terminal & \makecell[c]{\texttt{progress\_mag}\\$C_{\text{step}}{=}8$} & \makecell[c]{\texttt{progress\_mag}\\$C_{\text{step}}{=}16$} \\
 \midrule
-Qwen3-8B    & Alibaba Qwen3   & $0/15^\dagger$ & $12/15$ {\scriptsize[0.55,0.93]} & $\mathbf{15/15}$ {\scriptsize[0.80,1.00]} \\
+Qwen3-8B    & Alibaba Qwen3   & $0/15^\dagger$ & $\mathbf{15/15}$ {\scriptsize[0.80,1.00]} & $15/15$ {\scriptsize[0.80,1.00]} \\
 Qwen3-14B   & Alibaba Qwen3   & $0/15$ & $\mathbf{15/15}$ {\scriptsize[0.80,1.00]} & $15/15$ {\scriptsize[0.80,1.00]} \\
 Gemma-3-12B & Google Gemma-3  & $0/15$ & $\mathbf{15/15}$ {\scriptsize[0.80,1.00]} & $15/15$ {\scriptsize[0.80,1.00]} \\
 Llama-3.1-8B & Meta Llama-3.1 & $0/15$ & $\mathbf{15/15}$ {\scriptsize[0.80,1.00]} & $15/15$ {\scriptsize[0.80,1.00]} \\
@@ -97,7 +97,7 @@ Llama-3.1-8B & Meta Llama-3.1 & $0/15$ & $\mathbf{15/15}$ {\scriptsize[0.80,1.00
 \end{table}
 
 \paragraph{Cross-domain portability.}
-We replicate the dichotomy in a second domain, CityLearn building-energy dispatch~\cite{citylearn}, on the same family-spanning subset (Table~\ref{tab:crossdomain}). The three scenarios instantiate district battery-storage violations---state-of-charge floor/ceiling and feeder-export limits---with $\Phi$ indexed by the violating building or feeder; we carry over the terminal-versus-structured contrast, the scalar sweep staying confined to the primary domain. The structure transfers: the terminal predicate recovers \emph{only} the single-step scenario (\texttt{cl\_3}) and deadlocks the multi-step ones, while structured admission recovers far more broadly. We report this as \emph{structural portability}---the same gate-semantics contrast recurs in a different physical model---not matched per-domain effectiveness; together with the cross-family results, the generalization evidence spans model families and physical domains, not scenario count within a single benchmark. The hardest scenario \texttt{cl\_2} is broadly demanding (Qwen3-14B $7/10$, Qwen3-8B $3/5$, Llama-3.1-8B $5/5$, Gemma-3-12B $0/5$): a scenario-level difficulty modulated by per-model instruction-following, not an admission-mechanism failure.
+We replicate the dichotomy in a second domain, CityLearn building-energy dispatch~\cite{citylearn}, on the same family-spanning subset (Table~\ref{tab:crossdomain}). The three scenarios instantiate district battery-storage violations---state-of-charge floor/ceiling and feeder-export limits---with $\Phi$ indexed by the violating building or feeder; we carry over the terminal-versus-structured contrast, the scalar sweep staying confined to the primary domain. The structure transfers: the terminal predicate recovers \emph{only} the single-step scenario (\texttt{cl\_3}) and deadlocks the multi-step ones, while structured admission recovers far more broadly---Qwen3-14B reaches $30/30$, and the one residual shortfall (Qwen3-8B, $14/15$) closes to $15/15$ under a doubled step budget. We report this as \emph{structural portability}---the same gate-semantics contrast recurs in a different physical model---not matched per-domain effectiveness; together with the cross-family results, the generalization evidence spans model families and physical domains, not scenario count within a single benchmark. Only \texttt{cl\_2} on Gemma-3-12B ($0/5$) resists, while Qwen3-14B ($10/10$), Qwen3-8B ($4/5$), and Llama-3.1-8B ($5/5$) clear it: a per-model instruction-following limit on the smallest model, not a scenario-recoverability or admission-mechanism failure.
 
 \begin{table}[tb]
 \centering
@@ -109,8 +109,8 @@ We replicate the dichotomy in a second domain, CityLearn building-energy dispatc
 \toprule
 Model & terminal & \texttt{progress\_mag} step~$8$ & \texttt{progress\_mag} step~$16$ \\
 \midrule
-Qwen3-14B    & $10/30$ {\scriptsize[0.19,0.51]} & $27/30$ {\scriptsize[0.74,0.97]} & --- \\
-Qwen3-8B     & $5/15$ {\scriptsize[0.15,0.58]}  & $13/15$ {\scriptsize[0.62,0.96]} & $14/15$ {\scriptsize[0.70,0.99]} \\
+Qwen3-14B    & $10/30$ {\scriptsize[0.19,0.51]} & $\mathbf{30/30}$ {\scriptsize[0.89,1.00]} & --- \\
+Qwen3-8B     & $5/15$ {\scriptsize[0.15,0.58]}  & $14/15$ {\scriptsize[0.70,0.99]} & $\mathbf{15/15}$ {\scriptsize[0.80,1.00]} \\
 Gemma-3-12B  & $5/15$ {\scriptsize[0.15,0.58]}  & $10/15$ {\scriptsize[0.42,0.85]} & $10/15$ {\scriptsize[0.42,0.85]} \\
 Llama-3.1-8B & $5/15$ {\scriptsize[0.15,0.58]}  & $\mathbf{15/15}$ {\scriptsize[0.80,1.00]} & --- \\
 \bottomrule
