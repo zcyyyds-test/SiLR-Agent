@@ -29,7 +29,7 @@ S(s)\subseteq\mathcal{B},
 \sigma(s)\in\mathbb{R}_{\ge 0}^{|\mathcal{B}|},
 \label{eq:phi}
 \end{equation}
-where $\mathcal{B}$ is the set of branches, $S(s)$ is the support set of currently overloaded branches, and $\sigma(s)$ is the per-branch severity vector ($\sigma_i(s)\,{>}\,0$ iff $i\in S(s)$). The fully-recovered state satisfies $S(s)=\emptyset$ (equivalently $\sigma(s)=\mathbf{0}$). The count is $n(s)=|S(s)|$ and the aggregate penalty is $P(s)=\sum_i\sigma_i(s)$. We equip the state space with the product partial order
+where $\mathcal{B}$ is the set of branches, $S(s)$ is the support set of currently overloaded branches, and $\sigma(s)$ is the per-branch severity vector ($\sigma_i(s)\,{>}\,0$ iff $i\in S(s)$). The fully-recovered state satisfies $S(s)=\emptyset$ (equivalently $\sigma(s)=\mathbf{0}$). The count is $n(s)=|S(s)|$ and the aggregate penalty is $P(s)=\sum_i\sigma_i(s)$. We equip the state space with the product order
 \begin{equation}
 \Phi(s)\preceq\Phi(s')
 \;\iff\;
@@ -43,7 +43,7 @@ where support inclusion already subsumes count non-increase, since $n(s)=|S(s)|$
 \subsection{The Scalar Projection Trap}
 \label{sec:method:trap}
 
-A natural simpler design would replace the structured product order with a \emph{scalar admission gate}: admit $\hat{s}_{t+1}$ whenever the aggregate penalty $P(\hat{s}_{t+1})$ is non-increasing or within a small slack of $P(s_t)$. We now identify why this natural relaxation is structurally insufficient.
+A natural design would replace the product order with a \emph{scalar admission gate}: admit $\hat{s}_{t+1}$ whenever the aggregate penalty $P(\hat{s}_{t+1})$ is non-increasing or within a small slack of $P(s_t)$. We now identify why this natural relaxation is structurally insufficient.
 
 \paragraph{A representational lower bound.}
 Any scalar surrogate projects the vector state $\Phi(s)=(S(s),\sigma(s))$ onto $\mathbb{R}_{\ge 0}$; the aggregate penalty $P(s)=\sum_i\sigma_i(s)$ is one such surrogate. Projecting a partial order with antichains onto a total order necessarily makes some incomparable states comparable:
@@ -72,7 +72,7 @@ with $\alpha{=}1.05$, $\varepsilon{=}10^{-3}$. Together $\psitwo\wedge\psithree$
 \begin{equation}
 \Phi(\hat{s})\preceq_{\alpha,\varepsilon}\Phi(s)\;\iff\;S(\hat{s})\subseteq S(s)\;\wedge\;\sigma_i(\hat{s})\le\max\bigl(\alpha\sigma_i(s),\,\sigma_i(s)+\varepsilon\bigr)\;\forall i,
 \end{equation}
-a per-branch \emph{$\varepsilon$-dominance}-style relaxation (in the sense of~\cite{laumanns2002}, applied here as an admission predicate rather than an archive criterion) that recovers exact Pareto dominance $\preceq$ as $\alpha\to1,\varepsilon\to0$. The two thresholds carry a principled reading: $\alpha$ absorbs the finite resolution of the agent's discrete action space and $\varepsilon$ numerical precision, the solver itself being deterministic to machine precision. This yields the gate's containment guarantee:
+a per-branch \emph{$\varepsilon$-dominance}-style relaxation (in the sense of~\cite{laumanns2002}, applied here as an admission predicate rather than an archive criterion) that recovers the exact product order $\preceq$ as $\alpha\to1,\varepsilon\to0$. The two thresholds carry a principled reading: $\alpha$ absorbs the finite resolution of the agent's discrete action space and $\varepsilon$ numerical precision, the solver itself being deterministic to machine precision. This yields the gate's containment guarantee:
 \begin{proposition}[Admission invariant]
 \label{prop:inv}
 Under shadow fidelity (the live system reproduces the shadow post-state, exact in our deterministic simulators), every admitted trajectory satisfies $S(s_t)\subseteq S(s_0)$ for all $t$, independently of LLM behavior; per-branch severity obeys $\sigma_i(s_t)\le\alpha^{t}\sigma_i(s_0)+\varepsilon\tfrac{\alpha^{t}-1}{\alpha-1}$.
