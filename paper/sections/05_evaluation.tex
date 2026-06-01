@@ -17,7 +17,7 @@ We mine a 600-scenario pool by gridded perturbation of load/generation multiplie
 \subsection{RQ1: Binary Terminal Admission Deadlocks Multi-Step Recovery}
 \label{sec:eval:rq1}
 
-Table~\ref{tab:rq1} reports the headline result at \emph{matched} $N{=}7$ under $C_{\text{step}}{=}8$. Terminal recovers $0/21$ (reject/prop $1.000$): it rejects every intermediate proposal because $S(\hat{s}_{t+1})\ne\emptyset$ at every proposed step, regardless of search depth. Structured admission recovers $\mathbf{21/21}$ (CI $[0.85, 1.00]$, residual $0.000$), while plain \texttt{progress} ($9/21$) and the scalar sweep peak ($9/21$) have CIs disjoint from it---the advantage is not sampling noise.
+Table~\ref{tab:rq1} reports the headline result at \emph{matched} $N{=}7$ under $C_{\text{step}}{=}8$. Terminal recovers $0/21$ (reject/prop $1.000$): it rejects every intermediate proposal because $S(\hat{s}_{t+1})\ne\emptyset$ at every proposed step, regardless of search depth. Structured admission recovers $\mathbf{21/21}$ (CI $[0.85, 1.00]$, residual $0.000$), while the scalar sweep peak ($9/21$) has a CI disjoint from it---the scalar gap is not sampling noise.
 
 \begin{table}[tb]
 \centering
@@ -47,7 +47,7 @@ If the binary terminal gate fails only because it is too strict, the natural fix
 Relaxing the threshold neither closes the gap nor improves monotonically: across $\eta\in\{0,0.05,0.10,0.20\}$ recovery is $5/9/7/7$ out of $21$ (peak $43\%$ at $\eta{=}0.05$), with mean final penalties $4.7/5.0/4.2/2.9$ (default $12.451$) and 95\% CIs spanning $[0.11,0.63]$---all disjoint from structured admission's $21/21$ at $[0.85,1.00]$. Per-scenario (RQ3) no slack recovers \texttt{multi\_3} in more than $2/7$ seeds.
 
 \paragraph{Structure, not magnitude, drives recovery.}
-The lift comes from the support geometry, not the magnitude bound: $\psione\wedge\psitwo$ alone recovers $20/21$ and $\psithree$ adds one episode ($21/21$), a low-cost defense-in-depth guard. Mean scalar final penalties stay near $3$--$5$ (default $12.451$): far below default yet short of recovery, the empirical fingerprint of the scalar projection trap (Sec.~\ref{sec:method:trap}). The gap to scalar localizes to the geometry-poor scenarios: scalar plateaus on \texttt{multi\_1}/\texttt{multi\_3} while clearing the smooth \texttt{multi\_2} ($\psithree$'s tolerance $\alpha$ is fixed at $1.05$ and recovery is insensitive to it).
+The lift comes from the support geometry, not the magnitude bound: $\psione\wedge\psitwo$ alone recovers $20/21$ and $\psithree$ adds one episode ($21/21$), a low-cost defense-in-depth guard. Mean scalar final penalties stay near $3$--$5$ (default $12.451$): far below default yet short of recovery, the empirical fingerprint of the scalar projection trap (Sec.~\ref{sec:method:trap}). The gap to scalar localizes to the geometry-poor scenarios: scalar plateaus on \texttt{multi\_1}/\texttt{multi\_3} while clearing the smooth \texttt{multi\_2}. Recovery is insensitive to the magnitude tolerance $\alpha$ ($15/15$ across $\alpha\in[1.05,1.20]$, $14/15$ at $1.02$), exactly as Prop.~\ref{prop:inv} predicts: the recovery-driving invariant is the $\alpha$-free support order, so $\alpha$ governs only the defense-in-depth severity envelope.
 
 \subsection{RQ3: The Scalar Projection Trap---Plateau Signature Across a Difficulty Spectrum}
 \label{sec:eval:rq3}
