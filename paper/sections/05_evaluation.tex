@@ -9,7 +9,7 @@ The evaluation is a progressive falsification rather than a demonstration: we es
 We use Gym-ANM ANM6-Easy~\cite{henry2021gymanm} as the critical-infrastructure simulator, integrated as a \silr{} domain with a deep-copy shadow manager and a Newton--Raphson power-flow solver that is bit-exact across repeated solves ($\sigma{=}0$ over $100$ trials). The LLM is Qwen3-14B~\cite{qwen3} served via vLLM at temperature $0$. Each ReAct episode runs with $C_{\text{step}}{=}8$ control steps and $C_{\text{prop}}{=}3$ per-step proposals.
 
 \paragraph{Scenarios.}
-We mine a 600-scenario pool by gridded perturbation of load/generation multipliers, source seed, and storage SoC, classified by whether an MPC oracle and a one-action LLM probe each recover it into bands (\emph{single-action} 153, \emph{multi-action} 24, \emph{MPC-residual} 252, trivial 171). Our headline benchmark is the mined multi-action band; we evaluate three representative scenarios from it, MPC-recoverable by construction (gym-anm \texttt{MPCAgentConstant} oracle, a feasibility reference, not a competitor), so the gate comparison is well-posed. Full-pool stratification is future work. All four policies are compared at \emph{matched} $N{=}7$ (seeds $1003$--$1009$, $21$ episodes each) under $C_{\text{step}}{=}8$.
+We mine a 600-scenario pool by gridded perturbation of load/generation multipliers, source seed, and storage SoC, classified by whether an MPC oracle and a one-action LLM probe each recover it into bands (\emph{single-action} 153, \emph{multi-action} 24, \emph{MPC-residual} 252, trivial 171). Our headline benchmark is the mined multi-action band; we evaluate three representative scenarios from it, MPC-recoverable by construction (gym-anm \texttt{MPCAgentConstant} oracle, a feasibility reference, not a competitor), so the gate comparison is well-posed. Full-pool stratification is future work. All four policies are compared at \emph{matched} $N{=}7$ (seeds $1003$--$1009$, $21$ episodes each) under $C_{\text{step}}{=}8$. Sampling is $N{=}7$ for this primary contrast, $N{=}5$ for generalization, and $N{=}3$ for the $\alpha$ and security probes.
 
 \paragraph{Policies.}
 \texttt{OFF} (no verifier; every proposal applied), \texttt{terminal} (terminal predicate: admit iff $S(\hat{s}_{t+1})=\emptyset$), \texttt{progress} ($\psione\wedge\psitwo$), \texttt{progress\_mag} ($\psione\wedge\psitwo\wedge\psithree$; the structured admission gate). For the scalar falsifier we add \texttt{scalar\_progress} (admit iff $P(\hat{s}_{t+1})\le P(s_t)+\varepsilon$) and its relaxed variants \texttt{scalar\_progress}$_\eta$ with $\eta\in\{0.05,0.10,0.20\}$.
@@ -21,13 +21,14 @@ Table~\ref{tab:rq1} reports the headline result at \emph{matched} $N{=}7$ under 
 
 \begin{table}[tb]
 \centering
-\caption{RQ1: Mined multi-action recovery at matched $N{=}7$ (21 episodes/policy) under $C_{\text{step}}{=}8$. Scalar row = sweep peak ($\eta{=}0.05$); full $\eta$-sweep reported in RQ2. CI is the Wilson 95\% interval. Material worsening (Sec.~\ref{sec:threat}) is $0/21$ for all rows.}
+\caption{RQ1: Mined multi-action recovery at matched $N{=}7$ (21 episodes/policy) under $C_{\text{step}}{=}8$. Scalar row = sweep peak ($\eta{=}0.05$); full $\eta$-sweep reported in RQ2. CI is the Wilson 95\% interval. Material worsening (Sec.~\ref{sec:threat}) is $0/21$ for every gated policy; ungated \texttt{OFF} worsens $16/21$ episodes past the no-intervention default.}
 \label{tab:rq1}
 \footnotesize
 \begin{tabular}{lcccc}
 \toprule
 Policy & Recovery & 95\% CI & Final pen.\ (mean) & Reject / prop.\ \\
 \midrule
+\texttt{OFF} (no gate)                      & $1/21$   & $[0.01,0.23]$ & $15.594$ & $0.000$ \\
 \texttt{terminal}                           & $0/21$   & $[0.00,0.15]$ & $12.451$ & $1.000$ \\
 \texttt{scalar\_progress} (sweep peak)      & $9/21$   & $[0.24,0.63]$ & $4.950$  & $0.408$ \\
 \texttt{progress}                           & $9/21$   & $[0.24,0.63]$ & $8.080$  & $0.327$ \\
