@@ -47,7 +47,7 @@ If the binary terminal gate fails only because it is too strict, the natural fix
 Relaxing the threshold neither closes the gap nor improves monotonically: across $\eta\in\{0,0.05,0.10,0.20\}$ recovery is $5/9/7/7$ out of $21$ (peak $43\%$ at $\eta{=}0.05$), with mean final penalties $4.7/5.0/4.2/2.9$ (default $12.451$) and 95\% CIs spanning $[0.11,0.63]$---all disjoint from structured admission's $21/21$ at $[0.85,1.00]$. Per-scenario (RQ3) no slack recovers \texttt{multi\_3} in more than $2/7$ seeds.
 
 \paragraph{Structure, not magnitude, drives recovery.}
-The lift comes from the support geometry: $\psione\wedge\psitwo$ alone recovers $20/21$. The magnitude predicate $\psithree$ closes the last episode ($21/21$), but its designed role is the per-branch severity envelope of Prop.~\ref{prop:inv}---bounding how far any single branch may drift---not a recovery gain. Mean scalar final penalties stay near $3$--$5$ (default $12.451$): far below default yet short of recovery, the empirical fingerprint of the scalar projection trap (Sec.~\ref{sec:method:trap}). The gap to scalar is consistent with Prop.~\ref{prop:gap}: it appears on \texttt{multi\_1}/\texttt{multi\_3}, where reducing one branch's overload requires overloading another---the $\preceq$-incomparable geometry no scalar surrogate can order---while \texttt{multi\_2} presents no such antichain and every gate clears it. Recovery is likewise insensitive to the magnitude tolerance $\alpha$ ($15/15$ across $\alpha\in[1.05,1.20]$, $14/15$ at $1.02$), as the $\alpha$-free support invariant of Prop.~\ref{prop:inv} implies: $\alpha$ governs only the defense-in-depth severity envelope, not recovery.
+The lift comes from the support geometry: $\psione\wedge\psitwo$ alone recovers $20/21$, and $\psithree$ closes the last episode ($21/21$). Mean scalar final penalties stay near $3$--$5$ (default $12.451$): far below default yet short of recovery, the empirical fingerprint of the scalar projection trap (Sec.~\ref{sec:method:trap}). The gap to scalar is consistent with Prop.~\ref{prop:gap}: it appears on \texttt{multi\_1}/\texttt{multi\_3}, where reducing one branch's overload requires overloading another---the $\preceq$-incomparable geometry no scalar surrogate can order---while \texttt{multi\_2} presents no such antichain and every gate clears it. Recovery is insensitive to $\alpha$ ($15/15$ across $\alpha\in[1.05,1.20]$), as the $\alpha$-free support invariant of Prop.~\ref{prop:inv} implies.
 
 \subsection{RQ3: The Scalar Projection Trap---Plateau Signature Across a Difficulty Spectrum}
 \label{sec:eval:rq3}
@@ -81,7 +81,7 @@ We replicate the terminal-versus-structured contrast across three independent mo
 
 \begin{table}[tb]
 \centering
-\caption{RQ5: cross-family recovery on the three mined multi-action scenarios, $N{=}5$ (recovery [Wilson 95\% CI]). Terminal admission deadlocks every model: the terminal rule admits only fully-recovered post-states, which a multi-step scenario never reaches in a single step, so it is $0/15$ by construction ($^\dagger$measured for all models except Qwen3-8B, for which it follows from the rule).}
+\caption{RQ5: cross-family recovery on the three mined multi-action scenarios, $N{=}5$ (recovery [Wilson 95\% CI]). Terminal admission deadlocks every model ($0/15$).}
 \label{tab:crossfamily}
 \footnotesize
 \setlength{\tabcolsep}{4pt}
@@ -89,7 +89,7 @@ We replicate the terminal-versus-structured contrast across three independent mo
 \toprule
 Model & Family & terminal & \makecell[c]{\texttt{progress\_mag}\\$C_{\text{step}}{=}8$} & \makecell[c]{\texttt{progress\_mag}\\$C_{\text{step}}{=}16$} \\
 \midrule
-Qwen3-8B    & Alibaba Qwen3   & $0/15^\dagger$ & $\mathbf{15/15}$ {\scriptsize[0.80,1.00]} & $15/15$ {\scriptsize[0.80,1.00]} \\
+Qwen3-8B    & Alibaba Qwen3   & $0/15$ & $\mathbf{15/15}$ {\scriptsize[0.80,1.00]} & $15/15$ {\scriptsize[0.80,1.00]} \\
 Qwen3-14B   & Alibaba Qwen3   & $0/15$ & $\mathbf{15/15}$ {\scriptsize[0.80,1.00]} & $15/15$ {\scriptsize[0.80,1.00]} \\
 Gemma-3-12B & Google Gemma-3  & $0/15$ & $\mathbf{15/15}$ {\scriptsize[0.80,1.00]} & $15/15$ {\scriptsize[0.80,1.00]} \\
 Llama-3.1-8B & Meta Llama-3.1 & $0/15$ & $\mathbf{15/15}$ {\scriptsize[0.80,1.00]} & $15/15$ {\scriptsize[0.80,1.00]} \\
@@ -98,7 +98,7 @@ Llama-3.1-8B & Meta Llama-3.1 & $0/15$ & $\mathbf{15/15}$ {\scriptsize[0.80,1.00
 \end{table}
 
 \paragraph{Cross-domain portability.}
-We replicate the dichotomy in a second domain, CityLearn building-energy dispatch~\cite{citylearn}, on the same family-spanning subset (Table~\ref{tab:crossdomain}). The three scenarios instantiate district battery-storage violations---state-of-charge floor/ceiling and feeder-export limits---with $\Phi$ indexed by the violating building or feeder; we carry over the terminal-versus-structured contrast, the scalar sweep staying confined to the primary domain. The gate semantics recur: the terminal predicate clears only the single-step \texttt{cl\_3} and deadlocks the multi-step scenarios, while structured admission recovers broadly---$15/15$ for Qwen3-14B and Llama-3.1-8B, and $14/15{\to}15/15$ for Qwen3-8B under a doubled budget. Gemma-3-12B reaches $10/15$, its gap confined to \texttt{cl\_2} ($0/5$), which the other three models clear. The contrast thus exhibits \emph{structural portability}: the same gate semantics recur in a distinct physical model, generalizing across both model families and physical domains.
+We replicate the dichotomy in a second domain, CityLearn building-energy dispatch~\cite{citylearn}, on the same family-spanning subset (Table~\ref{tab:crossdomain}). The three scenarios instantiate district battery-storage violations---state-of-charge floor/ceiling and feeder-export limits---with $\Phi$ indexed by the violating building or feeder; we carry over the terminal-versus-structured contrast. The gate semantics recur: the terminal predicate clears only the single-step \texttt{cl\_3} and deadlocks the multi-step scenarios, while structured admission recovers broadly---$15/15$ for Qwen3-14B and Llama-3.1-8B, and $14/15{\to}15/15$ for Qwen3-8B under a doubled budget. Gemma-3-12B reaches $10/15$, its gap confined to \texttt{cl\_2} ($0/5$), which the other three models clear. The contrast thus exhibits \emph{structural portability}: the same gate semantics recur in a distinct physical model, generalizing across both model families and physical domains.
 
 \begin{table}[tb]
 \centering
