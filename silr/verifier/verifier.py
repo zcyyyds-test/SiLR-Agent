@@ -40,11 +40,12 @@ logger = logging.getLogger(__name__)
 
 
 # L3 magnitude-guard hyperparameters (see docs/method_predicates.md §4.2).
-# A magnitude-aware step passes iff post_score is within a relative slack
-# of α-1 over baseline (default 5%) OR an absolute floor (default 1e-3) —
-# whichever is larger. The relative threshold dominates for non-trivial
-# baselines; the absolute floor is used when baseline ≈ 0 to keep the
-# guard robust to deterministic-solver round-off.
+# The guard is per-branch (ψ₃), not on the aggregate Σσ: a magnitude-aware
+# step passes iff *every* surviving violation branch i has post-severity σ_i
+# within a relative slack α-1 over its own baseline σ_i (default 5%) OR an
+# absolute floor (default 1e-3) — whichever is larger. The relative threshold
+# dominates for non-trivial baselines; the absolute floor handles σ_i ≈ 0
+# robustly against deterministic-solver round-off.
 _MAGNITUDE_RELATIVE_SLACK = 0.05
 _MAGNITUDE_ABS_FLOOR = 1e-3
 
@@ -85,27 +86,67 @@ def _scalar_progress_threshold(baseline: float) -> float:
     return max(baseline + abs_floor, baseline * (1.0 + rel_slack))
 
 
-def _severity_score(check_results) -> float:
-    """Domain-agnostic magnitude proxy: sum of |value - limit| over violations.
+def _violation_severity(v) -> float:
+    """Per-branch magnitude σ_i = |value - limit| with robust fallbacks.
 
-    Non-finite values map to a large constant so that a divergent solver
-    output (NaN propagation) trips the L3 guard rather than silently
-    comparing as zero.
+    Non-castable fields contribute a unit penalty; non-finite values map to a
+    large constant so a divergent solver (NaN propagation) trips the L3 guard
+    rather than silently comparing as zero.
     """
-    score = 0.0
+    try:
+        val = float(v.value)
+        lim = float(v.limit)
+    except (TypeError, ValueError):
+        return 1.0
+    if not (math.isfinite(val) and math.isfinite(lim)):
+        return 1e6
+    return abs(val - lim)
+
+
+def _severity_score(check_results) -> float:
+    """Aggregate magnitude proxy: Σ_i σ_i over all violations.
+
+    This is the *scalar projection* of the structured state — retained for
+    reporting / scalar-baseline diagnostics. The structured progress_mag guard
+    uses :func:`_violation_branches` (per-branch σ_i), not this sum.
+    """
+    return sum(_violation_severity(v) for cr in check_results for v in cr.violations)
+
+
+def _violation_branches(check_results) -> dict:
+    """Structured safety state Φ = (S, σ) as a per-branch severity map.
+
+    Keys are the violation support set S — each a unique branch identifier
+    ``(constraint_type, device_type, device_id, metric)`` — and values are the
+    per-branch severities σ_i = |value - limit|. This is the per-branch state
+    over which the structured admission predicates are evaluated: ψ₂ (support
+    inclusion S(ŝ) ⊆ S(s)) and ψ₃ (per-branch severity envelope), as opposed
+    to the scalar projection Σ_i σ_i used by the scalar baseline.
+
+    Only violations from *failed* checkers are included; passed checkers carry
+    no violations by the ``passed == (len(violations) == 0)`` invariant upheld
+    by every checker.
+
+    INVARIANT (relied upon by ψ₂/ψ₃): a branch — a unique physical quantity —
+    is identified by exactly one ``(constraint_type, device_type, device_id,
+    metric)`` key, and no two distinct checkers emit the same key. ``device_id``
+    is coerced with ``str`` so that a domain reporting it as ``1`` in one call
+    and ``"1"`` in another (the type is ``Any``) cannot be mistaken for two
+    distinct branches and trip a spurious support expansion. On the rare event
+    of a duplicate key (same checker, repeated entry) the worst (max) severity
+    is kept — a conservative upper bound that keeps the guard sound.
+    """
+    branches: dict = {}
     for cr in check_results:
+        if cr.passed:
+            continue
         for v in cr.violations:
-            try:
-                val = float(v.value)
-                lim = float(v.limit)
-            except (TypeError, ValueError):
-                score += 1.0
-                continue
-            if not (math.isfinite(val) and math.isfinite(lim)):
-                score += 1e6
-                continue
-            score += abs(val - lim)
-    return score
+            key = (v.constraint_type, v.device_type, str(v.device_id), v.metric)
+            sev = _violation_severity(v)
+            prev = branches.get(key)
+            if prev is None or sev > prev:
+                branches[key] = sev
+    return branches
 
 
 def _native_scalar_penalty(manager: BaseSystemManager) -> Optional[float]:
@@ -205,24 +246,18 @@ class SiLRVerifier:
                     checker.check(shadow.system_state, shadow.base_mva)
                     for checker in self._checkers
                 ]
-                baseline_violation_count = sum(
-                    len(cr.violations) for cr in baseline_checks if not cr.passed
-                )
-                baseline_violation_types = {
-                    cr.checker_name for cr in baseline_checks if not cr.passed
-                }
-                if self._gating_policy == "progress_mag":
-                    baseline_severity_score = _severity_score(baseline_checks)
+                if self._gating_policy in ("progress", "progress_mag"):
+                    # Φ(s) = (S, σ): the per-branch baseline against which the
+                    # structured predicates ψ₂/ψ₃ are evaluated.
+                    baseline_branches = _violation_branches(baseline_checks)
                 else:
-                    baseline_severity_score = None
+                    baseline_branches = None
                 if self._gating_policy == "scalar_progress":
                     baseline_scalar_penalty = _native_scalar_penalty(shadow)
                 else:
                     baseline_scalar_penalty = None
             else:
-                baseline_violation_count = None
-                baseline_violation_types = None
-                baseline_severity_score = None
+                baseline_branches = None
                 baseline_scalar_penalty = None
 
             # 3. Execute action on shadow
@@ -331,56 +366,79 @@ class SiLRVerifier:
                             f"(penalty {baseline:.4f} -> {post:.4f})"
                         )
             elif self._gating_policy in ("progress", "progress_mag"):
-                post_violation_count = sum(
-                    len(cr.violations) for cr in check_results if not cr.passed
-                )
-                post_violation_types = set(failed_names)
-                new_violation_types = post_violation_types - baseline_violation_types
-                if new_violation_types:
+                # ψ₂ — support inclusion: the post-action violation support set
+                # S(ŝ) must be contained in the baseline support set S(s),
+                # evaluated *per branch*. This fails count-preserving support
+                # swaps (e.g. {A} -> {B}, same count but a different branch)
+                # that an aggregate count/type check would wrongly admit, and
+                # it subsumes both "no new violation type" and "violation count
+                # does not grow" (S(ŝ) ⊆ S(s) ⟹ |S(ŝ)| ≤ |S(s)|).
+                post_branches = _violation_branches(check_results)
+                new_branches = [
+                    key for key in post_branches if key not in baseline_branches
+                ]
+                if new_branches:
                     verdict = Verdict.FAIL
                     fail_reason = (
-                        f"Introduced new violation type(s): "
-                        f"{sorted(new_violation_types)}"
-                    )
-                elif post_violation_count > baseline_violation_count:
-                    verdict = Verdict.FAIL
-                    fail_reason = (
-                        f"Violation count worsened: "
-                        f"{baseline_violation_count} -> {post_violation_count}"
+                        f"Support set expanded — {len(new_branches)} new "
+                        f"violation branch(es) outside baseline: "
+                        f"{[str(k) for k in new_branches[:3]]}"
                     )
                 elif self._gating_policy == "progress_mag":
-                    # L3 magnitude guard: violation count and types are
-                    # admissible, but check that aggregated severity score
-                    # does not inflate beyond the relative-OR-absolute
-                    # threshold. Defends against count-preserving magnitude
-                    # drift attacks (see decisions.md "Magnitude-aware
-                    # SAFE_PROGRESS" entry).
-                    post_severity_score = _severity_score(check_results)
-                    threshold = max(
-                        baseline_severity_score * (1.0 + _MAGNITUDE_RELATIVE_SLACK),
-                        baseline_severity_score + _MAGNITUDE_ABS_FLOOR,
+                    # ψ₃ — per-branch severity envelope: for every surviving
+                    # branch i ∈ S(ŝ) ⊆ S(s), σ_i(ŝ) ≤ max(α·σ_i(s), σ_i(s)+ε).
+                    # Enforced per branch (not on the scalar sum Σσ), so a
+                    # severity reallocation that lowers the aggregate while
+                    # inflating a single branch is rejected. Defends against
+                    # count-preserving magnitude drift (see decisions.md
+                    # "Magnitude-aware SAFE_PROGRESS" entry).
+                    rel = _env_float(
+                        "SILR_MAGNITUDE_RELATIVE_SLACK",
+                        _MAGNITUDE_RELATIVE_SLACK,
                     )
-                    if post_severity_score > threshold:
+                    abs_floor = _env_float(
+                        "SILR_MAGNITUDE_ABS_FLOOR",
+                        _MAGNITUDE_ABS_FLOOR,
+                    )
+                    drifted = []
+                    for key, post_sev in post_branches.items():
+                        # ψ₂ above (empty ``new_branches``) guarantees every
+                        # post key is present in ``baseline_branches``, so this
+                        # lookup is total — a resolved baseline branch simply
+                        # drops out of ``post_branches`` and is not checked.
+                        base_sev = baseline_branches[key]
+                        branch_threshold = max(
+                            base_sev * (1.0 + rel),
+                            base_sev + abs_floor,
+                        )
+                        if post_sev > branch_threshold:
+                            drifted.append(
+                                (key, base_sev, post_sev, branch_threshold)
+                            )
+                    if drifted:
+                        worst = max(drifted, key=lambda d: d[2] - d[3])
+                        key, base_sev, post_sev, branch_threshold = worst
                         verdict = Verdict.FAIL
                         fail_reason = (
-                            f"Magnitude drift: severity {baseline_severity_score:.4f} "
-                            f"-> {post_severity_score:.4f} > threshold {threshold:.4f}"
+                            f"Per-branch magnitude drift on {key}: severity "
+                            f"{base_sev:.4f} -> {post_sev:.4f} > threshold "
+                            f"{branch_threshold:.4f} "
+                            f"({len(drifted)} branch(es) drifted)"
                         )
                     else:
                         verdict = Verdict.SAFE_PROGRESS
                         fail_reason = (
-                            f"Admissible recovery step "
-                            f"(viol {baseline_violation_count} -> "
-                            f"{post_violation_count}, severity "
-                            f"{baseline_severity_score:.4f} -> "
-                            f"{post_severity_score:.4f}, no new types)"
+                            f"Admissible recovery step (support "
+                            f"{len(baseline_branches)} -> {len(post_branches)} "
+                            f"branches ⊆ baseline, per-branch severity within "
+                            f"envelope)"
                         )
                 else:
                     verdict = Verdict.SAFE_PROGRESS
                     fail_reason = (
-                        f"Admissible recovery step "
-                        f"(viol {baseline_violation_count} -> "
-                        f"{post_violation_count}, no new types)"
+                        f"Admissible recovery step (support "
+                        f"{len(baseline_branches)} -> {len(post_branches)} "
+                        f"branches ⊆ baseline)"
                     )
             else:
                 verdict = Verdict.FAIL
@@ -395,6 +453,13 @@ class SiLRVerifier:
                 post_solve_passed=post_solve_passed,
                 fail_reason=fail_reason,
                 elapsed_seconds=time.perf_counter() - t0,
+                # Persist Φ = (S, σ) for downstream GRPO process-reward scoring.
+                # baseline_branches is in scope from the pre-action snapshot
+                # (None for non-progress policies); post_branches is recomputed
+                # from check_results here so it is total across every verdict
+                # path (PASS → {}, FAIL/SAFE_PROGRESS → post support set).
+                baseline_branches=baseline_branches,
+                post_branches=_violation_branches(check_results),
             )
             result.report_text = self._reporter.generate(result)
             return result

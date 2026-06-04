@@ -2,32 +2,32 @@
 \label{sec:related}
 
 \paragraph{Shielding and recoverability-set safe RL.}
-Shielding~\cite{alshiekh2018safe} synthesizes a finite-state shield from a temporal-logic specification that intercepts policy outputs at runtime; Model-Predictive Shielding~\cite{bastani2019mps}, Recovery RL~\cite{thananjeyan2021recovery}, and RL power-grid shielding~\cite{hrlshield2026} relax binary terminal gates by admitting recoverability-set states or screening actions with forward simulation. All assume a fixed action space and require either a backup/recovery policy or a dynamics-model lookahead. \silr{} instead shields \emph{black-box LLM tool-call dispatch} with neither: proposals are admitted by single-step shadow simulation under a product order on the branch-level violation state, at constant per-step cost. Where these lineages apply a fixed admissibility filter to a known action model, \silr{} makes admission itself the design variable---a graded predicate over violation geometry---so the same shadow simulator that enforces safety also shapes which recoveries stay reachable.
+Shielding~\cite{alshiekh2018safe} synthesizes a finite-state shield from a temporal-logic specification that intercepts policy outputs at runtime; Model-Predictive Shielding~\cite{bastani2019mps}, Recovery RL~\cite{thananjeyan2021recovery}, and RL power-grid shielding~\cite{hrlshield2026} relax binary terminal gates by admitting recoverability-set states or screening actions with forward simulation. All assume a fixed action space and require either a backup/recovery policy or a dynamics-model lookahead. \silr{} instead shields \emph{black-box LLM tool-call dispatch} with neither: proposals are admitted by single-step shadow simulation under a product order on the branch-level violation state, at constant per-step cost. Where these lineages apply a fixed admissibility filter to a known action model, \silr{} makes admission itself the design variable---a graded predicate over violation geometry.
 
 \paragraph{Runtime guards for LLM agents.}
-Recent work adds runtime enforcement to tool-using LLM agents through architectural gates, guard agents, or rule languages. SARC's Pre-Action Gate~\cite{sarc2026} is the closest binary baseline: it admits a proposed tool call only when a hand-written predicate holds. AgentSpec~\cite{agentspec2026} is a broader DSL for runtime enforcement, with triggers, predicates, and enforcement mechanisms such as user inspection, LLM self-examination, and invoking corrective actions; GuardAgent~\cite{guardagent2025} and ShieldAgent~\cite{shieldagent2025} likewise focus on generating or compiling guard policies, while VeriGuard~\cite{veriguard2025} emphasizes verified code generation plus monitoring. Concurrently, \cite{verifiertax2026} observes that runtime mediation can intercept unsafe tool-using actions yet rarely converts blocked actions into safe task completion, consistent with our premise that enforcement and recovery are distinct problems. These systems make LLM agents more governable, but they do not target the post-violation recovery admission setting studied here. In our benchmark, a terminal predicate---the binary admission rule a Pre-Action Gate such as SARC's instantiates---preserves safety but deadlocks multi-step recovery (Sec.~\ref{sec:eval:rq1}); \silr{} separates terminal recovery from admissible progress using a simulator-grounded product order.
+Recent work adds runtime enforcement to tool-using LLM agents through architectural gates, guard agents, or rule languages: SARC's Pre-Action Gate~\cite{sarc2026} (the closest binary baseline, admitting a tool call only when a hand-written predicate holds), AgentSpec's runtime-enforcement DSL~\cite{agentspec2026}, GuardAgent~\cite{guardagent2025} and ShieldAgent~\cite{shieldagent2025} (compiling guard policies), and VeriGuard~\cite{veriguard2025} (verified code generation plus monitoring). These make LLM agents more governable but do not target post-violation recovery admission: a terminal predicate (as a SARC-style Pre-Action Gate instantiates) preserves safety but deadlocks multi-step recovery (Sec.~\ref{sec:eval:rq1}).
 
 \paragraph{LLM agents for power-grid control.}
-Grid-Agent~\cite{gridagent2025} is the closest same-domain near-neighbor: it couples LLM agents with sandboxed power-flow validation, rollback of negative actions, and monotonic-progress behavior for power-grid control. The mechanisms differ in kind: Grid-Agent's monotonic check is a \emph{post-hoc} rollback that applies an action and reverts it on regression, whereas \silr{}'s product order is a \emph{pre-action} admission predicate that never applies a geometry-poor step and emits graded verdicts reusable as a training signal. \silr{} also isolates the admission-semantics question---comparing terminal, structured, magnitude-aware, and scalar gates under one ReAct controller---and identifies the scalar projection trap (Sec.~\ref{sec:method:trap}).
+Grid-Agent~\cite{gridagent2025} is the closest same-domain near-neighbor: it couples LLM agents with sandboxed power-flow validation, rollback of negative actions, and monotonic-progress behavior for power-grid control. The mechanisms differ in kind: Grid-Agent's monotonic check is a \emph{post-hoc} rollback that applies an action and reverts it on regression, whereas \silr{}'s product order is a \emph{pre-action} admission predicate that never applies a geometry-poor step and emits graded verdicts reusable as a training signal.
 
 \paragraph{Multi-objective optimization and scalarization.}
-Linear scalarization is known to miss solutions on non-convex regions of the Pareto front~\cite{miettinen1999nonlinear}. The scalar projection trap (Sec.~\ref{sec:method:trap}) is a runtime-gate manifestation of this classical issue on the per-branch violation state; the novelty here is that in a ReAct loop the gate is a commitment operator---once admitted, the trajectory restarts the per-step search from the plateau state, turning a static representational gap into a behavioral failure mode of the gate.
+Scalarization trade-offs are classically studied as a \emph{static} representational question---e.g., linear scalarization cannot reach non-convex Pareto regions~\cite{miettinen1999nonlinear}. The scalar projection trap (Sec.~\ref{sec:method:trap}) is a \emph{behavioral} phenomenon of the runtime gate: in a ReAct loop the gate is a commitment operator, so an admitted aggregate-improving step restarts the per-step search from a plateau state---a failure of the gate's trajectory dynamics, not merely of an aggregate's expressiveness.
 
 \paragraph{Adversarial LLM defenses.}
 Prompt injection~\cite{greshake2023injection} is a documented attack vector; prior defenses sanitize inputs or outputs. \silr{} adopts a third stance: the LLM \emph{may} be compromised, and safety is enforced after the proposal by shadow-executing it on the simulator, shifting the trust boundary from the LLM to the verifier and simulator.
 
 \paragraph{Positioning.}
-Table~\ref{tab:related} places \silr{} against the closest systems along four axes that jointly characterize the recovery-admission design point: whether admission is \emph{graded} (beyond binary accept/reject), whether the gate \emph{retains the multi-component violation geometry} rather than a scalar aggregate, whether it targets \emph{black-box LLM tool proposals} (no fixed action space), and whether it operates with \emph{neither a backup/recovery policy nor a multi-step dynamics lookahead}. \silr{} is the only point that is graded, geometry-preserving, black-box, and lookahead-free; this combination, not any single axis, is the contribution.
+Table~\ref{tab:related} places \silr{} against the closest systems along four axes: \emph{graded} admission (beyond binary accept/reject), \emph{retained multi-component violation geometry} (vs.\ a scalar aggregate), \emph{black-box LLM tool proposals} (no fixed action space), and \emph{neither a backup/recovery policy nor a multi-step dynamics lookahead}. \silr{} is the only point meeting all four---this combination is the contribution.
 
 \begin{table}[tb]
 \centering
-\caption{Positioning of \silr{} against the closest runtime-safety systems. ``Geometry'' = preserves the multi-component (support, severity) violation state rather than a scalar aggregate. ``No lookahead/backup'' = admits via single-step shadow only, with no recovery policy or multi-step dynamics rollout.}
+\caption{Positioning of \silr{} against the closest runtime-safety systems. ``Geometry'': retains the (support, severity) violation state vs.\ a scalar aggregate; ``No lookahead/backup'': single-step shadow only, no recovery policy or dynamics rollout.}
 \label{tab:related}
 \footnotesize
 \setlength{\tabcolsep}{4pt}
-\begin{tabular}{lcccc}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lcccc}
 \toprule
-System & Graded & Geometry & Black-box LLM & No lookahead/backup \\
+System & Graded & Geometry & \makecell{Black-box\\LLM} & \makecell{No lookahead/\\backup} \\
 \midrule
 SARC Pre-Action Gate~\cite{sarc2026}        & \ding{55} & \ding{55} & \ding{51} & \ding{51} \\
 AgentSpec DSL~\cite{agentspec2026}          & \ding{55} & \ding{55} & \ding{51} & \ding{51} \\
@@ -36,6 +36,6 @@ Grid-Agent~\cite{gridagent2025}             & \ding{55} & \ding{55}$^\dagger$ & 
 MPS / Recovery RL~\cite{bastani2019mps,thananjeyan2021recovery} & \ding{55} & \ding{55} & \ding{55} & \ding{55} \\
 \silr{} (ours)                              & \ding{51} & \ding{51} & \ding{51} & \ding{51} \\
 \bottomrule
-\end{tabular}\\[2pt]
+\end{tabular*}\\[2pt]
 {\footnotesize $^\dagger$scalar/penalty progress only; $^\ddagger$applies then reverts (post-hoc rollback).}
 \end{table}

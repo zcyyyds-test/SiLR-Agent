@@ -1,4 +1,4 @@
-\documentclass[runningheads]{llncs}
+\documentclass[runningheads,a4paper]{llncs}
 
 \usepackage[T1]{fontenc}
 \usepackage{graphicx}
@@ -13,6 +13,13 @@
 \usepackage{xcolor}
 \usepackage[hidelinks]{hyperref}
 \usepackage{url}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,backgrounds,calc}
+% Okabe-Ito colorblind-safe palette
+\definecolor{oiVermillion}{HTML}{D55E00}
+\definecolor{oiOrange}{HTML}{E69F00}
+\definecolor{oiGreen}{HTML}{009E73}
+\definecolor{oiBlue}{HTML}{0072B2}
 
 % Compact lists / spacing helpers for 15-page LNCS budget
 \usepackage{enumitem}
@@ -30,6 +37,12 @@
 \setlength{\abovecaptionskip}{4pt}
 \setlength{\belowcaptionskip}{2pt}
 
+% Tighten reference list spacing (content unchanged; reclaims page-budget)
+\let\oldthebibliography\thebibliography
+\renewcommand\thebibliography[1]{%
+  \oldthebibliography{#1}%
+  \setlength{\itemsep}{0pt}\setlength{\parsep}{0pt}\setlength{\parskip}{0pt}}
+
 % Custom macros
 \newcommand{\silr}{\textsc{SiLR}}
 \newcommand{\Phimeas}{\Phi}
@@ -43,7 +56,7 @@
 \begin{document}
 
 % Double-blind: anonymized author block
-\title{\silr{}: Structured Recovery Admission for LLM Tool Proposals in Critical Infrastructure}
+\title{\silr{}: Structured Recovery Admission for LLM Tool Proposals in AI-Driven Critical Systems}
 \titlerunning{Structured Recovery Admission for LLM Agents}
 
 \author{Anonymous Author(s)}
@@ -54,7 +67,7 @@
 
 \begin{abstract}
 \input{sections/00_abstract}
-\keywords{Runtime governance \and LLM agents \and Safety shielding \and Critical infrastructure \and Adversarial robustness.}
+\keywords{Runtime governance \and Trustworthy AI \and LLM agents \and Safety shielding \and AI-driven critical systems \and Adversarial robustness.}
 \end{abstract}
 
 \input{sections/01_introduction}
@@ -62,6 +75,7 @@
 \input{sections/03_threat_model}
 \input{sections/04_method}
 \input{sections/05_evaluation}
+\input{sections/06_process_reward}
 \input{sections/06_discussion}
 \input{sections/07_conclusion}
 

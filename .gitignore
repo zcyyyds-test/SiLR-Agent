@@ -55,7 +55,17 @@ tools/
 # Internal decision / experiment logs (contain server IPs, debug notes)
 decisions.md
 decisions-swe.md
+decisions-core.md
+decisions*.md
 experiments/
+# Internal working notes (handoffs, exp logs, narrative drafts, direction docs)
+handoff*.md
+exp-*.md
+story.md
+direction-*.md
+# Archived internal notes + one-off scripts (history, not for release)
+_archive/
+scripts/_archive/
 
 # Internal design specs and implementation plans (NOT for public release).
 # Spec/plan contain implementation details, server IPs, file paths, PAT

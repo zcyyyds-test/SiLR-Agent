@@ -1,12 +1,55 @@
 \section{Method: Structured Recovery Admission}
 \label{sec:method}
 
+\begin{figure}[t]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  box/.style={rounded corners=3pt, draw, align=center, inner sep=5pt, line width=0.7pt},
+  trusted/.style={fill=oiBlue!7, draw=oiBlue!60},
+  untrusted/.style={fill=oiVermillion!8, draw=oiVermillion!60},
+  arr/.style={-{Stealth[length=2.2mm]}, line width=0.9pt, gray!35!black},
+  admit/.style={-{Stealth[length=2.2mm]}, line width=1pt, oiGreen!70!black},
+  fail/.style={-{Stealth[length=2.2mm]}, line width=0.9pt, oiVermillion!85!black, dashed},
+  lbl/.style={font=\scriptsize, inner sep=1.5pt},
+  lblg/.style={font=\scriptsize, text=oiGreen!55!black, inner sep=1.5pt},
+  lblr/.style={font=\scriptsize, text=oiVermillion!80!black, inner sep=1.5pt}
+]
+\node[box,untrusted,text width=3.0cm] (llm) at (0,0)
+  {\textbf{LLM agent}\\[1pt]\scriptsize prompt/obs may be\\ \scriptsize compromised (C1--C3)};
+\node[box,trusted,text width=5.0cm] (shadow) at (5.7,2.1)
+  {\textbf{Shadow verifier}\\[2pt]
+   {\small$\hat{s}_{t+1}=\mathrm{solve}\bigl(\mathrm{apply}(\mathrm{copy}(s_t),a_t)\bigr)$}\\[2pt]
+   \scriptsize deep copy $\cdot$ Newton--Raphson};
+\node[box,trusted,text width=4.2cm] (gate) at (11.3,2.1)
+  {\textbf{Product-order gate}\\[2pt]$\psi_1\wedge\psi_2\wedge\psi_3$ on $\Phi{=}(S,\sigma)$\\[2pt]\scriptsize \texttt{PASS}\,$\cdot$\,\texttt{SAFE\_PROGRESS}\,$\cdot$\,\texttt{FAIL}};
+\node[box,trusted,text width=4.6cm] (live) at (5.7,-2.1)
+  {\textbf{Live simulator $M$}\\[2pt]\scriptsize apply admitted action:\, $s_t\!\to\!s_{t+1}$};
+\begin{scope}[on background layer]
+  \fill[oiVermillion!5]  (-2.3,-3.6) rectangle (1.85,4.0);
+  \fill[oiBlue!5] (1.85,-3.6) rectangle (13.9,4.0);
+  \draw[dashed,gray,line width=0.8pt] (1.85,-3.6) -- (1.85,4.0);
+\end{scope}
+\node[gray!75,font=\scriptsize\itshape] at (1.85,-3.85) {trust boundary};
+\node[oiVermillion,font=\scriptsize\bfseries]  at (-0.2,3.7) {Untrusted};
+\node[oiBlue,font=\scriptsize\bfseries] at (6.7,3.7) {Trusted (verifier + simulator)};
+\draw[arr] (llm.north) |- node[lbl,pos=0.72,above=1pt]{proposal $a_t$} (shadow.west);
+\draw[arr] (shadow.east) -- node[lbl,above=1pt]{$\hat{s}_{t+1}$} (gate.west);
+\draw[admit] (gate.south) |- node[lblg,pos=0.28,right=2pt]{admit: apply} (live.east);
+\draw[arr] (live.west) -| node[lbl,pos=0.20,below=1pt]{$\mathit{obs}_t$} (llm.south);
+\draw[fail] (gate.north) to[out=95,in=85,looseness=0.7]
+   node[lblr,pos=0.5,above=4pt,align=center]{\texttt{FAIL}: regenerate within step\\[-1pt]($\le C_{\mathrm{prop}}$ proposals)} (llm.north);
+\end{tikzpicture}}
+\caption{\silr{} admission architecture and trust boundary. A possibly-compromised LLM (untrusted) emits a tool proposal $a_t$; the verifier shadow-executes it on a deep copy of the trusted simulator, applies the product-order gate $\psi_1\wedge\psi_2\wedge\psi_3$, and either applies the admitted action to the live system ($\texttt{PASS}$/$\texttt{SAFE\_PROGRESS}$) or rejects it ($\texttt{FAIL}$, regenerating within the step).}
+\label{fig:arch}
+\end{figure}
+
 \subsection{Setting: Post-Violation Recovery in a ReAct Loop}
 \label{sec:method:setting}
 
-We consider an LLM tool-calling agent that controls a critical-infrastructure simulator $M$ through a ReAct loop. At each control step $t=1,\ldots,C_{\text{step}}$, the agent observes $\mathit{obs}_t$, proposes a tool call $a_t$, and the proposal is mediated by a runtime verifier before it is applied. If the verifier rejects $a_t$, the agent generates another proposal within the same step, up to a per-step proposal budget $C_{\text{prop}}$. \emph{Post-violation} initial conditions mean $M$ starts in a state $s_0$ with one or more active constraint violations; the goal is to drive $M$ to a violation-free state through a sequence of admitted tool calls.
+We consider an LLM tool-calling agent that controls a critical-infrastructure simulator $M$ through a ReAct loop (Fig.~\ref{fig:arch}). At each control step $t=1,\ldots,C_{\text{step}}$, the agent observes $\mathit{obs}_t$, proposes a tool call $a_t$, and the proposal is mediated by a runtime verifier before it is applied. If the verifier rejects $a_t$, the agent generates another proposal within the same step, up to a per-step proposal budget $C_{\text{prop}}$. \emph{Post-violation} initial conditions mean $M$ starts in a state $s_0$ with one or more active constraint violations; the goal is to drive $M$ to a violation-free state through a sequence of admitted tool calls.
 
-Two consequences make admission semantics the central object: a \emph{terminal} gate (admit only fully-recovered post-states) stalls multi-action recovery; and since a rejected proposal triggers another within the step, the gate is a \emph{search operator} over the proposal stream, not a fixed filter---which nonterminal states it admits shapes the trajectories explored.
+Two features make admission semantics central: a \emph{terminal} gate stalls multi-action recovery, and---since a rejected proposal triggers another within the step---the gate is a \emph{search operator} over the proposal stream whose admitted nonterminal states shape the trajectories explored.
 
 \subsection{Shadow-Execution Verifier}
 \label{sec:method:shadow}
@@ -15,7 +58,7 @@ For each candidate $a_t$, the verifier evaluates a deterministic shadow state
 \begin{equation}
 \hat{s}_{t+1} \;=\; \mathrm{shadow}(s_t,a_t)\;=\;\mathrm{solve}\bigl(\mathrm{apply}(\mathrm{copy}(s_t),\,a_t)\bigr),
 \end{equation}
-where $\mathrm{solve}(\cdot)$ is the domain's steady-state solver (Newton--Raphson power flow for Gym-ANM~\cite{henry2021gymanm}), run on a deep copy of $M$ so rejected proposals leave the live system untouched. The verifier emits a verdict from $\{\texttt{PASS}, \texttt{SAFE\_PROGRESS}, \texttt{FAIL}, \texttt{ERROR}\}$ and applies the admitted ($\texttt{PASS}$/$\texttt{SAFE\_PROGRESS}$) action. The verdict thus depends on the simulator's deterministic response to the action, not the LLM's reasoning---the trust boundary of Sec.~\ref{sec:threat}.
+where $\mathrm{solve}(\cdot)$ is the domain's steady-state solver (Newton--Raphson power flow for Gym-ANM~\cite{henry2021gymanm}), run on a deep copy of $M$ so rejected proposals leave the live system untouched. The verifier emits a verdict from $\{\texttt{PASS}, \texttt{SAFE\_PROGRESS}, \texttt{FAIL}, \texttt{ERROR}\}$ and applies the admitted ($\texttt{PASS}$/$\texttt{SAFE\_PROGRESS}$) action---a verdict that depends on the simulator's deterministic response, not the LLM's reasoning (the trust boundary of Sec.~\ref{sec:threat}).
 
 \subsection{Branch-Level Violation State and the Verdict Ladder}
 \label{sec:method:state}
@@ -37,27 +80,27 @@ S(s)\subseteq S(s')
 \;\wedge\;
 \sigma(s)\le\sigma(s')\text{ componentwise},
 \end{equation}
-where support inclusion already subsumes count non-increase, since $n(s)=|S(s)|$ and $S(s)\subseteq S(s')\Rightarrow n(s)\le n(s')$; we therefore order directly on support and per-branch severity. This order is precisely \emph{Pareto dominance} on the vector-valued violation state $(S,\sigma)$: admitting only $\Phi$-non-increasing steps is a vector-valued (Pareto-improvement) admission rule, of which a scalar penalty gate is the one-dimensional projection. We call $\hat{s}_{t+1}$ \emph{admissible} from $s_t$ if $\Phi(\hat{s}_{t+1})\preceq\Phi(s_t)$, relaxed in practice to the $\varepsilon$-dominance order $\preceq_{\alpha,\varepsilon}$ of Sec.~\ref{sec:method:predicates}. The verdict ladder is then
-\texttt{PASS} if $S(\hat{s}_{t+1})=\emptyset$ (terminal recovery); \texttt{SAFE\_PROGRESS} if $\Phi(\hat{s}_{t+1})\preceq\Phi(s_t)$ but $S(\hat{s}_{t+1})\ne\emptyset$ (admissible nonterminal progress); \texttt{FAIL} otherwise. Our benchmark exercises one dominant violation family (branch loading) over multiple concurrent overloaded components, so the order acts on the $(S,\sigma)$ geometry within that family.
+where support inclusion already subsumes count non-increase, since $n(s)=|S(s)|$ and $S(s)\subseteq S(s')\Rightarrow n(s)\le n(s')$; we therefore order directly on support and per-branch severity. This order is precisely \emph{Pareto dominance} on the vector-valued violation state $(S,\sigma)$; a scalar penalty gate is its one-dimensional projection, which we show unsound as an admission criterion in Sec.~\ref{sec:method:trap}. We call $\hat{s}_{t+1}$ \emph{admissible} from $s_t$ if $\Phi(\hat{s}_{t+1})\preceq\Phi(s_t)$, relaxed in practice to the $\varepsilon$-dominance order $\preceq_{\alpha,\varepsilon}$ of Sec.~\ref{sec:method:predicates}. The verdict ladder is then
+\texttt{PASS} if $S(\hat{s}_{t+1})=\emptyset$ (terminal recovery); \texttt{SAFE\_PROGRESS} if $\Phi(\hat{s}_{t+1})\preceq\Phi(s_t)$ but $S(\hat{s}_{t+1})\ne\emptyset$ (admissible nonterminal progress); \texttt{FAIL} otherwise.
 
 \subsection{The Scalar Projection Trap}
 \label{sec:method:trap}
 
-A natural design would replace the product order with a \emph{scalar admission gate}: admit $\hat{s}_{t+1}$ whenever the aggregate penalty $P(\hat{s}_{t+1})$ is non-increasing or within a small slack of $P(s_t)$. We now identify why this natural relaxation is structurally insufficient.
+An obvious alternative replaces the product order with a \emph{scalar admission gate}: admit $\hat{s}_{t+1}$ whenever the aggregate penalty $P(\hat{s}_{t+1})$ is non-increasing or within a small slack of $P(s_t)$. We identify why this relaxation is structurally insufficient.
 
-\paragraph{A representational lower bound.}
+\paragraph{A representational impossibility.}
 Any scalar surrogate projects the vector state $\Phi(s)=(S(s),\sigma(s))$ onto $\mathbb{R}_{\ge 0}$; the aggregate penalty $P(s)=\sum_i\sigma_i(s)$ is one such surrogate. Projecting a partial order with antichains onto a total order necessarily makes some incomparable states comparable:
 \begin{proposition}[Scalarization gap]
 \label{prop:gap}
-No scalar surrogate is sound for $\preceq$: for any $f:(S,\sigma)\to\mathbb{R}_{\ge 0}$, a gate that admits whenever $f$ is non-increasing accepts, on some $\preceq$-antichain pair, a step that introduces or relocates a violation.
+No scalar-threshold admission gate is sound for $\preceq$: for any $f:(S,\sigma)\to\mathbb{R}_{\ge 0}$ and any slack $\eta\ge0$, the gate that admits whenever $f(\hat{s})\le(1{+}\eta)f(s)$ accepts, on some $\preceq$-antichain pair, a step that introduces or relocates a violation.
 \end{proposition}
 \begin{proof}
-Take $\Phi(s)=(\{A\},\,2\delta\,e_A)$ and $\Phi(s')=(\{A,B\},\,0.9\delta(e_A{+}e_B))$ for any $\delta>0$; these are $\preceq$-incomparable, since $S(s')\not\subseteq S(s)$ while $\sigma_A(s)=2\delta>0.9\delta=\sigma_A(s')$. As $\mathbb{R}$ is totally ordered, $f$ ranks the pair, so the gate admits one of $s\!\to\!s'$ or $s'\!\to\!s$: the former adds branch $B$, the latter drives $\sigma_A$ from $0.9\delta$ to $2\delta$. Either step is non-improving under $\preceq$. The aggregate $P=\sum_i\sigma_i$ is the special case $P(s')=1.8\delta<2\delta=P(s)$. \qed
+Take $\Phi(s)=(\{A\},\,2\delta\,e_A)$ and $\Phi(s')=(\{A,B\},\,0.9\delta(e_A{+}e_B))$, $\delta>0$: these are $\preceq$-incomparable ($S(s')\not\subseteq S(s)$ while $\sigma_A(s)=2\delta>0.9\delta=\sigma_A(s')$). Since $\mathbb{R}$ is totally ordered, $f$ ranks the pair, so the gate admits $s\!\to\!s'$ (adds branch $B$) or $s'\!\to\!s$ (drives $\sigma_A$ to $2\delta$); either is non-improving under $\preceq$. For the aggregate $P=\sum_i\sigma_i$, $P(s')=1.8\delta<2\delta=P(s)\le(1{+}\eta)P(s)$ for every $\eta\ge0$, so no slack removes the acceptance. \qed
 \end{proof}
-The gap is intrinsic to projecting a partial order with antichains onto a total order, independent of the surrogate or threshold: relaxing the test to $f(\hat{s}_{t+1})\le(1{+}\eta)f(s_t)$ only enlarges the admissible set, never removing the collapse. \silr{} avoids the gap by admitting on $\preceq$ directly.
+The gap is intrinsic to projecting a partial order with antichains onto a total order: relaxing the slack only enlarges the admissible set, never removing the collapse. \silr{} admits on $\preceq$ directly.
 
 \paragraph{Mechanism: the gate as a commitment operator.}
-This representational gap becomes a \emph{behavioral} failure through the search loop. A rejected proposal causes the agent to regenerate at the same $s_t$, so a scalar gate that admits the \emph{first} $P$-improving proposal ends the per-step search and commits the trajectory to $\hat{s}_{\text{bad}}$, from which further descent to $P=0$ may be infeasible---a residual plateau; a structured gate rejects the same geometry-poor proposal and keeps the search active. We call this the \textbf{scalar projection trap}: a runtime-gate manifestation of the classical scalarization gap~\cite{miettinen1999nonlinear}, made behavioral by the gate's per-step commitment. Scalar slack helps only where scalar descent and Pareto-admissibility coincide (Sec.~\ref{sec:eval:rq3}); no scalar projection is a \emph{general} recovery-admission semantics.
+This representational gap becomes a \emph{behavioral} failure through the search loop. A rejected proposal causes the agent to regenerate at the same $s_t$, so a scalar gate that admits the \emph{first} $P$-improving proposal ends the per-step search and commits the trajectory to $\hat{s}_{\text{bad}}$, from which further descent to $P=0$ may be infeasible---a residual plateau; a structured gate rejects the same geometry-poor proposal and keeps the search active. We call this the \textbf{scalar projection trap}: a behavioral failure mode of the runtime gate, in which the per-step commitment turns the representational gap into lost recovery. Scalar slack helps only where scalar descent and Pareto-admissibility coincide (Sec.~\ref{sec:eval:rq3}); no scalar projection is a \emph{general} recovery-admission semantics.
 
 \subsection{Predicates and Apply-Gate}
 \label{sec:method:predicates}
@@ -72,9 +115,9 @@ with $\alpha{=}1.05$, $\varepsilon{=}10^{-3}$. Together $\psitwo\wedge\psithree$
 \begin{equation}
 \Phi(\hat{s})\preceq_{\alpha,\varepsilon}\Phi(s)\;\iff\;S(\hat{s})\subseteq S(s)\;\wedge\;\sigma_i(\hat{s})\le\max\bigl(\alpha\sigma_i(s),\,\sigma_i(s)+\varepsilon\bigr)\;\forall i,
 \end{equation}
-a per-branch \emph{$\varepsilon$-dominance}-style relaxation (in the sense of~\cite{laumanns2002}, applied here as an admission predicate rather than an archive criterion) that recovers the exact product order $\preceq$ as $\alpha\to1,\varepsilon\to0$. The two thresholds carry a principled reading: $\alpha$ absorbs the finite resolution of the agent's discrete action space and $\varepsilon$ numerical precision, the solver itself being deterministic to machine precision. This yields the gate's containment guarantee:
+a per-branch \emph{$\varepsilon$-dominance} relaxation~\cite{laumanns2002} (here an admission predicate, not an archive criterion) that recovers the exact product order $\preceq$ as $\alpha\to1,\varepsilon\to0$. The thresholds read: $\alpha$ absorbs the discrete action space's finite resolution, $\varepsilon$ numerical precision. This yields the gate's containment guarantee:
 \begin{proposition}[Admission invariant]
 \label{prop:inv}
 Under shadow fidelity (the live system reproduces the shadow post-state, exact in our deterministic simulators), every admitted trajectory satisfies $S(s_t)\subseteq S(s_0)$ for all $t$, independently of LLM behavior; per-branch severity obeys $\sigma_i(s_t)\le\alpha^{t}\sigma_i(s_0)+\varepsilon\tfrac{\alpha^{t}-1}{\alpha-1}$.
 \end{proposition}
-\noindent(Induction on $t$: $\psitwo$ gives $S(s_{t+1})\subseteq S(s_t)$; $\psithree$ gives $\sigma_i(s_{t+1})\le\alpha\sigma_i(s_t)+\varepsilon$, unrolled; the bound reads $\sigma_i(s_0)+t\varepsilon$ at $\alpha{=}1$.) The support invariant is $\alpha$-free and holds for \emph{any} gated policy, including a compromised LLM---the containment guarantee a runtime shield should make. The severity term is a worst-case per-step drift envelope, not a descent guarantee: convergence to $S=\emptyset$ depends on proposal quality (Sec.~\ref{sec:discussion}). The action is applied iff $\psione\wedge\psitwo\wedge\psithree$; this realizes the verdict ladder of Sec.~\ref{sec:method:state} (with \texttt{ERROR} when $\psione$ fails on an invalid proposal).
+\noindent(Induction on $t$: $\psitwo$ gives $S(s_{t+1})\subseteq S(s_t)$; $\psithree$ gives $\sigma_i(s_{t+1})\le\alpha\sigma_i(s_t)+\varepsilon$, unrolled; the bound reads $\sigma_i(s_0)+t\varepsilon$ at $\alpha{=}1$.) The support invariant is $\alpha$-free and holds for \emph{any} gated policy, including a compromised LLM---the containment guarantee a runtime shield should make. The severity term is a worst-case per-step drift envelope, not a descent guarantee: convergence to $S=\emptyset$ depends on proposal quality (Sec.~\ref{sec:discussion}). Empirically $\psitwo$ (support inclusion) is the recovery workhorse and $\psithree$ a conservative magnitude guard: $\psithree$ rejects a count-preserving redistribution that both $\psitwo$ and any scalar aggregate admit---e.g.\ severities $(10,10)\!\to\!(19,0.1)$ leave the support unchanged and \emph{lower} $\sum_i\sigma_i$ from $20$ to $19.1$ yet drive one branch from $10$ to $19$; only the per-branch test flags it. Thus $\psithree$ closes a magnitude-redistribution attack surface at negligible cost. The action is applied iff $\psione\wedge\psitwo\wedge\psithree$; this realizes the verdict ladder of Sec.~\ref{sec:method:state} (with \texttt{ERROR} when $\psione$ fails on an invalid proposal).

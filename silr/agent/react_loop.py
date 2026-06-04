@@ -76,6 +76,53 @@ class ReActAgent:
             else _MinimalObserver(manager, self._tools)
         )
 
+        # In bare-text mode (tools=None to API), the domain system prompt may
+        # rely on native tool-calling to convey output format. Append an
+        # explicit JSON-block emission contract so cross-family models without
+        # a matching vLLM tool-call parser still produce parseable actions.
+        if not self._llm.supports_tool_use():
+            base_prompt = base_prompt + "\n\n" + (
+                "## Output Format (REQUIRED)\n\n"
+                "After your reasoning, emit EXACTLY ONE action as a JSON code "
+                "block on its own line, using this schema:\n\n"
+                "```json\n"
+                "{\"tool_name\": \"<one of the tools above>\", "
+                "\"params\": {\"<param>\": <value>, ...}}\n"
+                "```\n\n"
+                "Rules: (1) one JSON block per response, no other code blocks; "
+                "(2) `tool_name` must exactly match a tool listed above; "
+                "(3) `params` must contain every required parameter for that "
+                "tool with numeric values as JSON numbers (not strings); "
+                "(4) any reasoning may precede the JSON block but must NOT be "
+                "inside it. "
+                "(5) You MUST emit the JSON block on EVERY response, even if "
+                "the observation looks similar to a previous step — never reply "
+                "with reasoning alone or 'no action'."
+            )
+            # Optional few-shot rescue for instruct-tuned models (e.g. Gemma)
+            # that emit a valid JSON on step 1 but drop the format in
+            # subsequent multi-turn observations. Opt-in via SILR_FEWSHOT=1 so
+            # baseline cross-family runs (DSR1-Llama-8B, default Gemma) remain
+            # unchanged for already-published results.
+            if os.environ.get("SILR_FEWSHOT", "").strip() in ("1", "true", "True"):
+                base_prompt = base_prompt + "\n\n" + (
+                    "## Example response shape (illustrative only — your actual "
+                    "tool names and parameters come from the schema above)\n\n"
+                    "User observation: <observation showing a stressed bus / "
+                    "branch / storage>\n\n"
+                    "Your response:\n\n"
+                    "The stressed bus voltage is below v_min; I will reduce a "
+                    "nearby renewable generator's active power to relieve the "
+                    "over-supply.\n\n"
+                    "```json\n"
+                    "{\"tool_name\": \"<actual tool from list>\", "
+                    "\"params\": {\"<param>\": <number>, ...}}\n"
+                    "```\n\n"
+                    "Every subsequent observation you receive should be answered "
+                    "with the SAME response shape: brief reasoning + one JSON "
+                    "block. Do not abbreviate or skip the JSON block."
+                )
+
         if few_shot_context:
             self._system_prompt = base_prompt + "\n\n" + few_shot_context
         else:
@@ -115,9 +162,23 @@ class ReActAgent:
                 result.recovered = True
                 break
 
-            # 2. Build user message with observation
+            # 2. Build user message with observation.
+            # The previous step ends on a `user` turn (verifier feedback, e.g.
+            # "[SiLR APPROVED]..."), so naively appending the next observation
+            # as another `user` turn produces two consecutive user messages.
+            # Permissive chat templates (Qwen, Llama) accept this, but strict
+            # ones (Gemma) raise "Conversation roles must alternate" → the
+            # serving backend returns HTTP 400 and the model is never called
+            # (observed: Gemma-3/4 step-2..N all 400, mistaken for 0/9 model
+            # failure). Merge into the trailing user turn to keep strict
+            # alternation. Content is identical for permissive models.
             user_msg = self._build_observation_message(step_num, obs)
-            messages.append({"role": "user", "content": user_msg})
+            if messages and messages[-1]["role"] == "user":
+                messages[-1]["content"] = (
+                    messages[-1]["content"] + "\n\n" + user_msg
+                )
+            else:
+                messages.append({"role": "user", "content": user_msg})
 
             # 3. Propose + Verify loop
             record = StepRecord(
@@ -144,11 +205,30 @@ class ReActAgent:
                     record.outcome = StepOutcome.FAIL_PARSE
                     break
 
+                # Optional raw-response instrumentation (SILR_LOG_RAW=1).
+                # Diagnoses elicitation confound: distinguishes "model emitted
+                # no JSON" from "model emitted JSON but parser missed it", and
+                # whether native tool_calls fired. Default off — zero effect on
+                # data; emits one structured log line per proposal.
+                if os.environ.get("SILR_LOG_RAW", "").strip() in ("1", "true", "True"):
+                    _rc = response.content or ""
+                    logger.warning(
+                        "[RAW] step=%d prop=%d finish=%s n_tool_calls=%d "
+                        "content_len=%d content_head=%r",
+                        step_num, proposal_idx, response.finish_reason,
+                        len(response.tool_calls), len(_rc), _rc[:400],
+                    )
+
                 # Parse action
                 try:
                     thought, action = self._parser.parse(response)
                     thought = _clean_thought(thought)
                     record.thought = thought
+                    if os.environ.get("SILR_LOG_RAW", "").strip() in ("1", "true", "True"):
+                        logger.warning(
+                            "[RAW] step=%d prop=%d PARSE_OK tool_name=%s",
+                            step_num, proposal_idx, action.get("tool_name"),
+                        )
                 except ParseError as e:
                     logger.warning(f"Parse error (attempt {proposal_idx+1}): {e}")
                     record.error = str(e)

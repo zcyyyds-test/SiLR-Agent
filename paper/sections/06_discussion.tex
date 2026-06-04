@@ -2,13 +2,13 @@
 \label{sec:discussion}
 
 \paragraph{Deployment scope.}
-\silr{} targets the medium-horizon advisory dispatch loop ($5$--$15$\,min cycles), not the sub-second AGC tick: LLM latency ($\sim$22\,s/step) precludes real-time control, and the shadow-execution model corresponds to the power-flow study preceding every dispatch decision, with protective relays operating independently of the LLM layer.
+\silr{} targets the medium-horizon advisory dispatch loop ($5$--$15$\,min cycles), not the sub-second AGC tick: LLM latency ($\sim$22\,s/step) precludes real-time control, and shadow execution corresponds to the power-flow study preceding each dispatch, with protective relays independent of the LLM layer.
 
 \paragraph{Support-monotonicity.}
-The admission invariant (Prop.~\ref{prop:inv}) assumes recovery needs no transient redistribution: $\psitwo$ forbids steps that overload a new branch, valid in our benchmark. The MPC check (Sec.~\ref{sec:eval:rq3}) recovers the scalar plateau under the same assumption, so the projection trap is gate-induced.
+The admission invariant (Prop.~\ref{prop:inv}) assumes recovery needs no transient redistribution: $\psitwo$ forbids steps that overload a new branch, which holds for the Gym-ANM and CityLearn scenarios studied here.
 
 \paragraph{Scope and design properties.}
-The security claim is scoped to a \emph{fixed} compromised-LLM adversary on a trusted simulator; adaptive adversaries and simulator--reality mismatch are open.
+The security claim is scoped to a \emph{fixed} compromised-LLM adversary on a trusted simulator (a corrupted model behind an intact control stack); adaptive adversaries and simulator--reality mismatch are out of scope.
 
 \paragraph{Future work.}
-Two extensions follow: (1)~benchmarks that concurrently activate multiple violation families, where the product order extends across $S$, $\sigma$, and inter-family ordering; (2)~using the graded verdict as a training-time reward, mapping the verdict ladder onto process-reward grading~\cite{lightman2024prm,deepseekmath2024grpo} with a deterministic physics verifier rather than a learned one.
+The process-reward result of \S\ref{sec:reward} is established on a single violation family; the natural extension is benchmarks that concurrently activate multiple families, extending the product order across $S$, $\sigma$, and inter-family ordering---the regime in which a scalar surrogate must collapse incomparable violations and the geometric reward should separate most sharply.

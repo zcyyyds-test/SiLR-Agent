@@ -67,6 +67,14 @@ class OpenAIClient(BaseLLMClient):
             "SILR_MAX_TOKENS"
         )
 
+    def supports_tool_use(self) -> bool:
+        # SILR_DISABLE_TOOLS=1 forces bare-text mode (tools=None) so cross-family
+        # served models without a matching vLLM tool-call parser still elicit
+        # actions via Layer-2 (JSON block) parsing in ActionParser.
+        if os.environ.get("SILR_DISABLE_TOOLS", "").strip() in ("1", "true", "True"):
+            return False
+        return True
+
     def chat(
         self,
         messages: list[dict[str, Any]],
@@ -131,8 +139,16 @@ class OpenAIClient(BaseLLMClient):
                 "completion_tokens": resp.usage.completion_tokens,
             }
 
+        # vLLM 0.21.0 leaks GPT-2 ByteLevel BPE markers in chat-completion
+        # `content` for models like DeepSeek-R1-Distill-Llama-8B (`Ġ`→space,
+        # `Ċ`→newline). No-op for tokenizers that decode cleanly (Qwen3, etc.)
+        # because those markers never appear in their output.
+        content = msg.content or ""
+        if "Ġ" in content or "Ċ" in content:
+            content = content.replace("Ġ", " ").replace("Ċ", "\n")
+
         return LLMResponse(
-            content=msg.content or "",
+            content=content,
             tool_calls=tool_calls,
             finish_reason=choice.finish_reason or "stop",
             usage=usage,

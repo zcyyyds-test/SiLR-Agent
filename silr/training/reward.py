@@ -9,10 +9,39 @@ domain-agnostic. Each domain provides its own thresholds.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from typing import Optional
 
 from ..verifier.types import CheckResult, Verdict, VerificationResult
+
+
+def _env_float(name: str, default: float) -> float:
+    """Read a float from env, falling back to ``default`` on missing/garbage."""
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return default
+
+
+# --- Arm D (structured) SAFE_PROGRESS weights ---------------------------------
+# The per-step SAFE_PROGRESS reward is W2·support_elim + W3·severity_reduction
+# − WD·branch_drift, every term derived from the PER-BRANCH map Φ = (S, σ)
+# (never from the scalar sum Σσ). W2 > W3 encodes the product-order priority
+# "support inclusion ψ₂ dominates per-branch severity ψ₃" (decisions §2.3).
+# Bounded by construction (each term ∈ [0,1]) so the value stays well inside
+# GRPO's advantage-normalisation + clamp[-3,3] range — no exploding lexicographic
+# tiers (panel 2026-06-03). All three sweep-able via env for the reward-scale study.
+_SP_W_SUPPORT = _env_float("SILR_SP_W_SUPPORT", 0.6)   # ψ₂ — primary
+_SP_W_SEVERITY = _env_float("SILR_SP_W_SEVERITY", 0.3)  # ψ₃ — secondary
+_SP_W_DRIFT = _env_float("SILR_SP_W_DRIFT", 0.3)        # per-branch worsening penalty
+# Flat-constant ablation (NOT the claim arm): set >0 to override the graded form
+# with a constant, to isolate "does graded geometry matter vs just non-terminal
+# positive feedback". 0 = use the graded Φ-descent form.
+_SP_FLAT = _env_float("SILR_SP_FLAT", 0.0)
 
 
 @dataclass
@@ -37,22 +66,36 @@ def compute_grpo_reward(
     result: VerificationResult,
     config: Optional[RewardConfig] = None,
 ) -> float:
-    """Compute scalar reward from a SiLR verification result.
+    """Arm D — structured (product-order) GRPO process reward.
+
+    This is the *claim* arm: the per-step scalar reward is an
+    **order-preserving** encoding of the product-order descent
+    Φ(s) → Φ(ŝ), so the geometric distinction the runtime gate makes
+    (support inclusion ψ₂ dominating per-branch severity ψ₃) survives
+    into the training signal rather than collapsing into the scalar
+    projection it criticises (that collapse is arm E,
+    :func:`compute_scalar_reward`).
 
     Reward design:
-        PASS : +1.0 + margin_bonus (0 ~ 0.5)
-        FAIL : -0.3 ~ -1.0 (scaled by worst severity)
-        ERROR: -1.0
+        PASS          : +1.0 + margin_bonus (0 ~ 0.5)   — terminal recovery
+        SAFE_PROGRESS : bounded Φ-descent (see _safe_progress_reward),
+                        always < PASS; ≈0 when admissible-but-non-progressing
+                        (anti reward-hacking)
+        FAIL          : -0.3 ~ -1.0 (scaled by worst severity)
+        ERROR         : -1.0 (kept distinct so parser typos are not
+                        conflated with physical unsafety)
 
-    The margin bonus rewards actions that leave safety headroom.
-    The FAIL penalty scales with severity so the model learns to
-    distinguish near-miss from catastrophic violations.
+    The terminal recovery bonus is added by the training loop at the
+    trajectory level; this function scores a single step.
     """
     if result.verdict == Verdict.ERROR:
         return -1.0
 
     if result.verdict == Verdict.PASS:
         return _pass_reward(result.check_results, config)
+
+    if result.verdict == Verdict.SAFE_PROGRESS:
+        return _safe_progress_reward(result)
 
     # FAIL
     return _fail_penalty(result.check_results)
@@ -93,6 +136,107 @@ def _fail_penalty(checks: list[CheckResult]) -> float:
             worst = max(worst, score)
 
     return -worst
+
+
+def _safe_progress_reward(result: VerificationResult) -> float:
+    """Arm D SAFE_PROGRESS reward — bounded, order-preserving Φ-descent.
+
+    Scores the product-order descent Φ(s) = (S, σ) → Φ(ŝ) = (Ŝ, σ̂) using the
+    per-branch geometry persisted on the VerificationResult:
+
+        support_elim   = Σ_{k ∈ S\\Ŝ} σ_k / Σ_{k ∈ S} σ_k   (ψ₂, severity-weighted)
+        severity_red   = Σ_{k ∈ S∩Ŝ} max(0, σ_k - σ̂_k) / Σ σ   (ψ₃, surviving branches)
+        drift          = max_{k ∈ S∩Ŝ} max(0, σ̂_k - σ_k)/σ_k    (per-branch worsening)
+        r = W2·support_elim + W3·severity_red − WD·min(drift, 1)
+
+    Key properties (vs the scalar arm E):
+    * **severity-weighted, not count-based** — eliminating a high-σ branch is
+      worth more than a low-σ one; a count-preserving magnitude reallocation
+      (the projection trap) earns ~0 here but can score positive under arm E.
+    * **W2 > W3** — support elimination dominates severity polishing
+      (product-order priority, not a free weighted sum over Σσ).
+    * **anti reward-hacking** — an admissible-but-non-progressing step
+      (support_elim ≈ 0, severity_red ≈ 0) earns ≈ 0, not a positive constant,
+      so the policy cannot farm SAFE_PROGRESS by stalling.
+    * **bounded < PASS** — max ≈ W2 + W3 < 1.0 (PASS).
+
+    Falls back to a flat constant when the geometry is unavailable (non-progress
+    gating policy, missing baseline) or when SILR_SP_FLAT > 0 (ablation arm).
+    """
+    if _SP_FLAT > 0.0:
+        return _SP_FLAT
+
+    pre = result.baseline_branches
+    post = result.post_branches or {}
+    if not pre:
+        # No pre-action geometry (non-progress policy / no prior violations):
+        # cannot score a descent — fall back to a small positive constant so the
+        # verdict is still distinguished from FAIL.
+        return _SP_W_SEVERITY  # modest, < PASS
+
+    pre_keys = set(pre)
+    post_keys = set(post)
+    eliminated = pre_keys - post_keys
+    surviving = pre_keys & post_keys
+    total_pre = sum(pre.values()) + 1e-8
+
+    support_elim = sum(pre[k] for k in eliminated) / total_pre
+    severity_red = sum(max(0.0, pre[k] - post[k]) for k in surviving) / total_pre
+    drift = max(
+        (max(0.0, post[k] - pre[k]) / (pre[k] + 1e-8) for k in surviving),
+        default=0.0,
+    )
+
+    return (
+        _SP_W_SUPPORT * support_elim
+        + _SP_W_SEVERITY * severity_red
+        - _SP_W_DRIFT * min(drift, 1.0)
+    )
+
+
+def compute_scalar_reward(
+    result: VerificationResult,
+    config: Optional[RewardConfig] = None,
+) -> float:
+    """Arm E — scalar-projection GRPO process reward (the criticised baseline).
+
+    Identical verdict scaffold to arm D, but the SAFE_PROGRESS step is scored by
+    the **count-based projection** — the violation-count reduction fraction,
+    blind to *which* branch or *how severe*. This is the training-signal analogue
+    of the scalar gate: it collapses Φ = (S, σ) to |S|, so a high-severity and a
+    low-severity branch elimination are indistinguishable, and a count-preserving
+    magnitude drift scores 0 (no penalty). Arm D must beat this to show the
+    geometry matters as a learning signal, not just at inference.
+    """
+    if result.verdict == Verdict.ERROR:
+        return -1.0
+    if result.verdict == Verdict.PASS:
+        return _pass_reward(result.check_results, config)
+    if result.verdict == Verdict.SAFE_PROGRESS:
+        pre = result.baseline_branches
+        post = result.post_branches or {}
+        if not pre:
+            return _SP_W_SEVERITY
+        # Pure count-delta fraction — the severity-blind scalar projection.
+        return (len(pre) - len(post)) / (len(pre) + 1e-8)
+    # FAIL
+    return _fail_penalty(result.check_results)
+
+
+def compute_binary_reward(
+    result: VerificationResult,
+    config: Optional[RewardConfig] = None,
+) -> float:
+    """Arm C — binary baseline reward (no graded verifier signal).
+
+    Admitted (PASS or SAFE_PROGRESS) → +0.5; rejected (FAIL/ERROR) → -0.5.
+    The terminal recovery bonus is added by the training loop. This mirrors the
+    hard-coded reward the existing cluster/finance trainers use, exposed here as
+    a function so all three arms share one tested code path.
+    """
+    if result.verdict in (Verdict.PASS, Verdict.SAFE_PROGRESS):
+        return 0.5
+    return -0.5
 
 
 def _get_first(d: dict, *keys) -> float | None:

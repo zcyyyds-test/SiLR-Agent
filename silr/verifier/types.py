@@ -64,3 +64,12 @@ class VerificationResult:
     fail_reason: Optional[str] = None
     report_text: str = ""
     elapsed_seconds: float = 0.0
+    # Product-order geometry Φ = (S, σ) snapshots, persisted so downstream
+    # consumers (GRPO process reward) can score the *descent* Φ(s) → Φ(ŝ)
+    # without re-running the verifier. Keys are branch identifiers
+    # (constraint_type, device_type, device_id, metric); values are per-branch
+    # severities σ_i = |value - limit|. ``baseline_branches`` is the pre-action
+    # support set (None unless a progress-family gating policy ran);
+    # ``post_branches`` is the post-action support set ({} when recovered).
+    baseline_branches: Optional[dict] = None
+    post_branches: Optional[dict] = None
