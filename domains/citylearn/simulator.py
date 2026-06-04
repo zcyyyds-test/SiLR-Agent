@@ -33,15 +33,39 @@ class CityLearnState:
     peak_import_kw: float
 
 
-# ── Per-building catalog (CityLearn 2022 Phase-1, 3-building slice) ─
-N_BUILDINGS = 3
-SOC_MIN_KWH = (0.5, 0.5, 0.5)
-SOC_MAX_KWH = (6.4, 5.6, 4.0)
-INITIAL_SOC_KWH = (3.2, 2.8, 2.0)
-MAX_CHARGE_KW = (3.0, 2.5, 2.0)
-MAX_DISCHARGE_KW = (3.0, 2.5, 2.0)
-ETA_CHARGE = (0.95, 0.95, 0.95)
-ETA_DISCHARGE = (0.95, 0.95, 0.95)
+# ── Per-building catalog (CityLearn 2022 Phase-1, parameterized) ─
+# N_BUILDINGS is a difficulty knob: the joint discrete action space is
+# 5^N_BUILDINGS, so raising it past the original 3 enlarges the search the
+# policy must solve UNGATED (no reject feedback) -- the headroom the 3-building
+# slice lacked (base 8B saturated, decisions-aamas.md A-route). Buildings beyond
+# the 3 real CityLearn-2022 buildings reuse base battery column b%3 with a scaled
+# demand profile (_LOAD_SCALE), so N_BUILDINGS=3 reproduces the original domain
+# exactly. Feeder limits are NOT scaled with N, so more buildings tighten the
+# import/export constraints relative to demand (harder + activates the feeder
+# families more often).
+N_BUILDINGS = 4
+
+_BASE_SOC_MIN = (0.5, 0.5, 0.5)
+_BASE_SOC_MAX = (6.4, 5.6, 4.0)
+_BASE_INITIAL_SOC = (3.2, 2.8, 2.0)
+_BASE_MAX_CHARGE = (3.0, 2.5, 2.0)
+_BASE_MAX_DISCHARGE = (3.0, 2.5, 2.0)
+_BASE_ETA = (0.95, 0.95, 0.95)
+# Demand scale per building (len >= any supported N); 1.0 for the 3 real ones.
+_LOAD_SCALE = (1.0, 1.0, 1.0, 1.15, 0.85, 1.2)
+
+
+def _derive(base: tuple) -> tuple:
+    return tuple(base[b % 3] for b in range(N_BUILDINGS))
+
+
+SOC_MIN_KWH = _derive(_BASE_SOC_MIN)
+SOC_MAX_KWH = _derive(_BASE_SOC_MAX)
+INITIAL_SOC_KWH = _derive(_BASE_INITIAL_SOC)
+MAX_CHARGE_KW = _derive(_BASE_MAX_CHARGE)
+MAX_DISCHARGE_KW = _derive(_BASE_MAX_DISCHARGE)
+ETA_CHARGE = _derive(_BASE_ETA)
+ETA_DISCHARGE = _derive(_BASE_ETA)
 
 # ── District feeder limits + cost coefficients ───────────────────
 DISTRICT_IMPORT_LIMIT_KW = 16.0
@@ -54,8 +78,8 @@ DT_H = 1.0
 # Per-building discrete action set (charge negative, discharge positive).
 ACTIONS_PER_BUILDING = (-3.0, -1.5, 0.0, 1.5, 3.0)
 
-# ── 24h profiles (hour 0..23, one tuple per hour for buildings B1,B2,B3) ─
-LOAD_KW = (
+# ── 24h base profiles (hour 0..23, one tuple per hour for buildings B1,B2,B3) ─
+_BASE_LOAD = (
     (0.48, 0.41, 0.32), (0.45, 0.39, 0.29), (0.42, 0.37, 0.27), (0.41, 0.35, 0.26),
     (0.43, 0.36, 0.27), (0.55, 0.45, 0.32), (0.72, 0.58, 0.48), (1.18, 0.92, 0.74),
     (1.45, 1.21, 0.93), (1.32, 1.08, 0.82), (1.15, 0.94, 0.71), (1.04, 0.87, 0.68),
@@ -63,7 +87,7 @@ LOAD_KW = (
     (1.31, 1.15, 0.89), (1.78, 1.52, 1.18), (2.05, 1.74, 1.36), (1.92, 1.61, 1.23),
     (1.61, 1.34, 1.04), (1.24, 1.03, 0.81), (0.86, 0.71, 0.56), (0.58, 0.49, 0.39),
 )
-PV_KW = (
+_BASE_PV = (
     (0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0),
     (0.0, 0.0, 0.0), (0.02, 0.01, 0.01), (0.18, 0.12, 0.08), (0.62, 0.41, 0.28),
     (1.21, 0.82, 0.55), (1.78, 1.21, 0.81), (2.18, 1.49, 1.01), (2.41, 1.65, 1.12),
@@ -71,6 +95,17 @@ PV_KW = (
     (0.61, 0.42, 0.28), (0.18, 0.12, 0.08), (0.02, 0.01, 0.01), (0.0, 0.0, 0.0),
     (0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0),
 )
+
+
+def _derive_profile(base_24x3: tuple) -> tuple:
+    return tuple(
+        tuple(round(hour[b % 3] * _LOAD_SCALE[b], 4) for b in range(N_BUILDINGS))
+        for hour in base_24x3
+    )
+
+
+LOAD_KW = _derive_profile(_BASE_LOAD)
+PV_KW = _derive_profile(_BASE_PV)
 PRICE = (
     0.10, 0.10, 0.10, 0.10, 0.10, 0.12, 0.16, 0.21, 0.21, 0.18, 0.16, 0.16,
     0.18, 0.21, 0.24, 0.28, 0.32, 0.36, 0.36, 0.32, 0.24, 0.18, 0.14, 0.12,

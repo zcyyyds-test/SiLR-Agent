@@ -55,6 +55,10 @@ def main() -> None:
     parser.add_argument("--multitype-only", action="store_true",
                         help="Select only multi-type (>=2 family) scenarios; "
                              "do not top up with single-family multi-action.")
+    parser.add_argument("--min-feasible", type=int, default=3,
+                        help="Floor on n_feasible (recovering joint actions) to "
+                             "avoid razor-thin near-unrecoverable scenarios that "
+                             "would starve GRPO of positive samples (cold-start).")
     args = parser.parse_args()
 
     with open(args.catalogue) as f:
@@ -63,9 +67,13 @@ def main() -> None:
     print(f"Loaded {len(data['catalogue'])} candidates; "
           f"{len(multi)} are multi_action.")
 
-    # Priority: multi-type first, then more feasible recoveries (more headroom
-    # for a monotone gated path), then deterministic tie-break.
-    multi.sort(key=lambda e: (-e["n_families"], -e["n_feasible"],
+    # Priority: most incomparable families first (3-family > 2-family), then the
+    # TIGHTEST recovery sets (fewest feasible joint actions) -- these are the
+    # scenarios a base policy is least likely to solve UNGATED, the headroom the
+    # 3-building slice lacked. (Selecting the most-feasible scenarios was the
+    # original easiness bug that let base 8B saturate.) Deterministic tie-break.
+    multi = [e for e in multi if e["n_feasible"] >= args.min_feasible]
+    multi.sort(key=lambda e: (-e["n_families"], e["n_feasible"],
                               e["fixed_t"], tuple(e["initial_actions"])))
 
     # Bucket by family signature so the band balances across *kinds* of
