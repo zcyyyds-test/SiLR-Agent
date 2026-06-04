@@ -35,7 +35,7 @@ ENV_DIR="$WORK/envs/silr-vllm"
 MODEL_DIR="$WORK/models/Qwen_Qwen3-8B"
 LOG_DIR="$PROJECT/logs"
 JOB_TAG="${JOB_ID:-manual}"
-PORT="${SILR_VLLM_PORT:-8006}"
+PORT="${SILR_VLLM_PORT:-$((8100 + RANDOM % 800))}"  # randomize: gpu_1 is a shared node
 SERVER_LOG="$LOG_DIR/step0_qwen8b_cl_mined_server_${JOB_TAG}.log"
 RUN_LOG="$LOG_DIR/step0_qwen8b_cl_mined_pmag_n3_${JOB_TAG}.log"
 OUT_JSON="$PROJECT/eval_step0_qwen3_8b_citylearn_mined_n3.json"
@@ -45,6 +45,7 @@ exec > >(tee -a "$LOG_DIR/step0_qwen8b_cl_mined_pmag_n3_${JOB_TAG}.inner.log") 2
 echo "[start] $(date)"
 module purge; module load cuda/13.1.1
 export HF_HOME="$WORK/hf"; export HF_HUB_DISABLE_TELEMETRY=1
+export HF_HUB_OFFLINE=1; export TRANSFORMERS_OFFLINE=1   # model is local; no network probe
 export PYTHONPATH="$PROJECT"; export PATH="$ENV_DIR/bin:$PATH"
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
 export VLLM_WORKER_MULTIPROC_METHOD=spawn
@@ -52,10 +53,12 @@ export SILR_MAX_TOKENS=2048
 export SILR_SYNC_ID="step0_qwen8b_cl_mined_pmag_n3_${JOB_TAG}"
 cd "$PROJECT"
 
-# Pull the mined scenario ids from the selector output (fail loudly if absent).
+# Pull the mined scenario ids THROUGH the loader (not the raw JSON) so the list
+# is exactly what the eval will accept -- if the loader skips a malformed record
+# the id never reaches eval (fail-fast consistency).
 [ -f "$MINED_JSON" ] || { echo "[error] $MINED_JSON missing -- run mine+select first"; exit 1; }
 SCENARIO_IDS=$("$ENV_DIR/bin/python" -c \
-  "import json,sys; print(' '.join(s['id'] for s in json.load(open('$MINED_JSON'))['scenarios']))")
+  "from domains.citylearn.scenarios import SCENARIOS; print(' '.join(s.id for s in SCENARIOS if s.id.startswith('cl_mined_')))")
 [ -n "$SCENARIO_IDS" ] || { echo "[error] no scenarios in $MINED_JSON"; exit 1; }
 N_SCEN=$(echo "$SCENARIO_IDS" | wc -w)
 echo "[scenarios] $N_SCEN mined CityLearn scenarios"
@@ -68,13 +71,21 @@ nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
   --trust-remote-code >"$SERVER_LOG" 2>&1 &
 SERVER_PID=$!
 cleanup() { kill "$SERVER_PID" 2>/dev/null || true; wait "$SERVER_PID" 2>/dev/null || true; }
-trap cleanup EXIT TERM
+trap cleanup EXIT TERM INT
 for i in $(seq 1 180); do
   if curl -fsS "http://127.0.0.1:${PORT}/v1/models" >/dev/null 2>&1; then echo "[ready] $(date)"; break; fi
   ! kill -0 "$SERVER_PID" 2>/dev/null && { echo "[serve-exited]"; tail -120 "$SERVER_LOG"; exit 1; }
   [ "$i" -eq 180 ] && { echo "[timeout]"; tail -160 "$SERVER_LOG"; exit 1; }
   sleep 5
 done
+# Inference smoke: one real completion before the 72-episode sweep, so a server
+# that is up but cannot infer (e.g. inference-time OOM) fails in seconds, not
+# after hours of timing-out episodes.
+echo "[inference smoke] $(date)"
+curl -fsS "http://127.0.0.1:${PORT}/v1/chat/completions" \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"qwen3-8b","messages":[{"role":"user","content":"ping"}],"max_tokens":4}' \
+  >/dev/null || { echo "[inference-smoke-failed] server up but inference broken"; tail -80 "$SERVER_LOG"; exit 1; }
 echo "[eval progress_mag CityLearn-mined x N=3 @ step=8] $(date)"
 "$ENV_DIR/bin/python" -u scripts/citylearn_eval_sweep.py \
   --base-url "http://127.0.0.1:${PORT}/v1" --model qwen3-8b \
