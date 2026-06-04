@@ -6,23 +6,28 @@
 #$ -e logs/
 
 # === CityLearn Step-0 go/no-go gate (pillar-2 multi-type amplification) ===
-# Qwen3-8B + progress_mag over the mined CityLearn multi-action band, N=3,
-# greedy (temp 0). Mirrors the ANM band24 Step-0 gate exactly; only the domain
-# and scenario source differ. Question: is 8B sub-saturated on the multi-type
-# CityLearn band (so a GRPO training signal exists)?
+# Qwen3-8B over the mined CityLearn multi-action band, N=3, greedy (temp 0),
+# THINKING OFF. Runs BOTH the OFF (ungated, no admission gate) and progress_mag
+# (gated) policies. Question: is there a GRPO training signal?
+#
+# Why OFF, not just gated (first run, job 7863959, found gated saturated):
+#   The action set is small (5^3=125 joint actions) and every mined snapshot has
+#   >=14 recovering actions, so the GATED policy trivially recovers (gated ~1.0,
+#   structurally saturated) -- gated is NOT a useful signal here. The pillar-2
+#   dependent variable is UNGATED recovery (internalization): with no gate the
+#   model gets no reject feedback, so base ungated can be far below 1.0 even when
+#   gated saturates. base ungated recovery is the real headroom check.
 #
 # QUANTIFIED go/no-go (7-way panel 2026-06-04, panel-log/2026-06-04-1027):
-#   Per scenario, count gated recovery rate over N=3 reps.
-#   - GO (train): >=6 of 24 scenarios are SUB-SATURATED, i.e. gated recovery
-#     in {0/3,1/3,2/3} (8B partially recovers -> learnable signal). This
-#     mirrors ANM, where 9 sub-saturated scenarios carried the GRPO signal.
-#   - NO-GO (re-mine): nearly all scenarios at 3/3 (saturated) -> no signal;
-#     re-mine harder snapshots (other hours / lower n_feasible) before training.
-#   - The band is stratified by family (ids encode the tag): report recovery
-#     SEPARATELY for soc_min x export_limit (cross-family, *_smin-exp) and
-#     soc_min x soc_max (cross-device antichain, *_smax-smin / *_smin-smax).
-#     The cross-family subset is the regime the geometric reward should help
-#     most; if only the cross-device subset is sub-saturated, narrow the claim.
+#   Per scenario, base 8B UNGATED (OFF policy) recovery over N=3 reps.
+#   - GO (train): base ungated has headroom -- mean ungated recovery <~0.7 on
+#     >=6 of 24 scenarios (room for training to internalize the geometry).
+#   - NO-GO (defer): base ungated already high everywhere -> no headroom ->
+#     defer the CityLearn campaign, keep pillar-2 as the single-type ANM result.
+#   - Stratify by family (ids encode the tag): report ungated recovery SEPARATELY
+#     for soc_min x export_limit (cross-family, *_smin-exp) and soc_min x soc_max
+#     (cross-device antichain, *_smax-smin / *_smin-smax). The cross-family subset
+#     is the regime the geometric reward should help most.
 # Decisive gate BEFORE forking train_grpo_anm.py -> train_grpo_citylearn.py.
 # DO NOT freeze the multi-type narrative in the paper before this returns.
 #
@@ -64,6 +69,7 @@ N_SCEN=$(echo "$SCENARIO_IDS" | wc -w)
 echo "[scenarios] $N_SCEN mined CityLearn scenarios"
 
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
+"$ENV_DIR/bin/vllm" --version 2>&1 | sed 's/^/[vllm-version] /' || true
 "$ENV_DIR/bin/vllm" serve "$MODEL_DIR" --host 127.0.0.1 --port "$PORT" \
   --served-model-name qwen3-8b --gpu-memory-utilization 0.85 \
   --max-model-len 16384 --enforce-eager \
@@ -78,19 +84,27 @@ for i in $(seq 1 180); do
   [ "$i" -eq 180 ] && { echo "[timeout]"; tail -160 "$SERVER_LOG"; exit 1; }
   sleep 5
 done
-# Inference smoke: one real completion before the 72-episode sweep, so a server
-# that is up but cannot infer (e.g. inference-time OOM) fails in seconds, not
-# after hours of timing-out episodes.
-echo "[inference smoke] $(date)"
-curl -fsS "http://127.0.0.1:${PORT}/v1/chat/completions" \
+# Inference + thinking-off smoke: one real completion with the SAME
+# chat_template_kwargs the eval injects (top-level body field = what the openai
+# SDK extra_body produces). Two guards before the 144-episode sweep:
+#   (1) server up but cannot infer (inference-time OOM) -> fail in seconds;
+#   (2) the chat_template_kwargs.enable_thinking=false path is silently ignored
+#       (wrong vLLM/template) -> a <think> block appears -> abort, do NOT repeat
+#       the first run's 320s/episode thinking-on stall over 144 episodes.
+echo "[inference + thinking-off smoke] $(date)"
+SMOKE_RESP=$(curl -fsS "http://127.0.0.1:${PORT}/v1/chat/completions" \
   -H 'Content-Type: application/json' \
-  -d '{"model":"qwen3-8b","messages":[{"role":"user","content":"ping"}],"max_tokens":4}' \
-  >/dev/null || { echo "[inference-smoke-failed] server up but inference broken"; tail -80 "$SERVER_LOG"; exit 1; }
-echo "[eval progress_mag CityLearn-mined x N=3 @ step=8] $(date)"
+  -d '{"model":"qwen3-8b","temperature":0,"max_tokens":64,"chat_template_kwargs":{"enable_thinking":false},"messages":[{"role":"user","content":"A district has battery SoC and feeder export violations. Reason step by step about which set-points to change."}]}') \
+  || { echo "[inference-smoke-failed] server up but inference broken"; tail -80 "$SERVER_LOG"; exit 1; }
+echo "[smoke resp head] $(printf '%s' "$SMOKE_RESP" | head -c 280)"
+printf '%s' "$SMOKE_RESP" | grep -q '<think>' \
+  && { echo "[thinking-off-FAILED] <think> present -> enable_thinking not honored by server; aborting before 144-ep run"; exit 1; } \
+  || echo "[thinking-off OK] no <think> block"
+echo "[eval OFF+progress_mag CityLearn-mined x N=3 @ step=8 = 144 ep] $(date)"
 "$ENV_DIR/bin/python" -u scripts/citylearn_eval_sweep.py \
   --base-url "http://127.0.0.1:${PORT}/v1" --model qwen3-8b \
   --scenarios $SCENARIO_IDS \
-  --policies progress_mag --reps 3 --rep-start-seed 1000 \
+  --policies OFF progress_mag --reps 3 --rep-start-seed 1000 \
   --max-steps 8 --max-proposals 3 --temperature 0.0 \
   --request-timeout-s 360 --max-retries 0 \
   --output "$OUT_JSON" --log-file "$RUN_LOG"

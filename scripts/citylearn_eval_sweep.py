@@ -318,6 +318,10 @@ def main() -> None:
                         help="Inject L2+L3 admission criteria into observation. "
                              "Tests progress-certificate forward-communication "
                              "of the apply-gate predicates to the LLM.")
+    parser.add_argument("--enable-thinking", action="store_true",
+                        help="Keep Qwen3 <think> blocks on. Default OFF, matching "
+                             "the canonical thinking-off + temp-0 eval; leaving "
+                             "thinking on stalls the action parser into retries.")
     args = parser.parse_args()
 
     requested_policies = set(args.policies)
@@ -335,6 +339,9 @@ def main() -> None:
         timeout_s=args.request_timeout_s,
         connect_timeout_s=args.connect_timeout_s,
         max_retries=args.max_retries,
+        # Default: thinking OFF (matches the canonical ANM eval: thinking-off +
+        # temp 0). Leaving Qwen3 <think> on stalls the action parser into retries.
+        enable_thinking=(None if args.enable_thinking else False),
     )
 
     logger = setup_run_logger(args.log_file)

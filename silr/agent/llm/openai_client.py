@@ -40,6 +40,7 @@ class OpenAIClient(BaseLLMClient):
         connect_timeout_s: float = 10.0,
         max_retries: int = 2,
         max_tokens: int | None = None,
+        enable_thinking: bool | None = None,
     ):
         try:
             import openai
@@ -66,6 +67,10 @@ class OpenAIClient(BaseLLMClient):
         self._max_tokens = max_tokens if max_tokens is not None else _env_int(
             "SILR_MAX_TOKENS"
         )
+        # None = leave server default; False = disable the Qwen3 <think> block so
+        # the action parser sees a direct action (the vLLM server path has no
+        # LocalModelClient chat-template control). Set via extra_body in chat().
+        self._enable_thinking = enable_thinking
 
     def supports_tool_use(self) -> bool:
         # SILR_DISABLE_TOOLS=1 forces bare-text mode (tools=None) so cross-family
@@ -94,6 +99,13 @@ class OpenAIClient(BaseLLMClient):
             kwargs["tool_choice"] = "auto"
         if self._max_tokens is not None:
             kwargs["max_tokens"] = self._max_tokens
+        if self._enable_thinking is not None:
+            # Qwen3 on vLLM reads chat_template_kwargs.enable_thinking; passing
+            # False suppresses the <think> block that otherwise stalls the action
+            # parser (retries -> ~6x slower episodes).
+            kwargs["extra_body"] = {
+                "chat_template_kwargs": {"enable_thinking": self._enable_thinking}
+            }
 
         resp = self._client.chat.completions.create(**kwargs)
         choice = resp.choices[0]
