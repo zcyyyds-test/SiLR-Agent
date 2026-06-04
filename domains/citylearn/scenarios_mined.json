@@ -1,0 +1,628 @@
+{
+  "scenarios": [
+    {
+      "id": "cl_mined_000_t11_smin-exp",
+      "fixed_t": 11,
+      "initial_soc": [
+        3.45,
+        1.01,
+        0.85
+      ],
+      "initial_actions": [
+        0.0,
+        3.0,
+        3.0
+      ],
+      "peak_import_kw": 0.0,
+      "difficulty": "hard",
+      "source_seed": 0,
+      "class": "multi_action",
+      "families": [
+        "soc_min",
+        "export_limit"
+      ],
+      "n_families": 2,
+      "default_penalty": 6.0458,
+      "n_feasible": 36,
+      "single_action_solvable": false
+    },
+    {
+      "id": "cl_mined_001_t7_smax-smin",
+      "fixed_t": 7,
+      "initial_soc": [
+        3.45,
+        3.05,
+        0.85
+      ],
+      "initial_actions": [
+        -3.0,
+        -3.0,
+        1.5
+      ],
+      "peak_import_kw": 0.0,
+      "difficulty": "hard",
+      "source_seed": 0,
+      "class": "multi_action",
+      "families": [
+        "soc_max",
+        "soc_min"
+      ],
+      "n_families": 2,
+      "default_penalty": 1.5289,
+      "n_feasible": 36,
+      "single_action_solvable": false
+    },
+    {
+      "id": "cl_mined_002_t11_smin-exp",
+      "fixed_t": 11,
+      "initial_soc": [
+        3.45,
+        1.01,
+        2.25
+      ],
+      "initial_actions": [
+        0.0,
+        3.0,
+        3.0
+      ],
+      "peak_import_kw": 0.0,
+      "difficulty": "hard",
+      "source_seed": 0,
+      "class": "multi_action",
+      "families": [
+        "soc_min",
+        "export_limit"
+      ],
+      "n_families": 2,
+      "default_penalty": 4.6458,
+      "n_feasible": 36,
+      "single_action_solvable": false
+    },
+    {
+      "id": "cl_mined_003_t7_smax-smin",
+      "fixed_t": 7,
+      "initial_soc": [
+        3.45,
+        5.09,
+        0.85
+      ],
+      "initial_actions": [
+        -3.0,
+        -3.0,
+        1.5
+      ],
+      "peak_import_kw": 0.0,
+      "difficulty": "hard",
+      "source_seed": 0,
+      "class": "multi_action",
+      "families": [
+        "soc_max",
+        "soc_min"
+      ],
+      "n_families": 2,
+      "default_penalty": 3.5689,
+      "n_feasible": 36,
+      "single_action_solvable": false
+    },
+    {
+      "id": "cl_mined_004_t11_smin-exp",
+      "fixed_t": 11,
+      "initial_soc": [
+        3.45,
+        3.05,
+        0.85
+      ],
+      "initial_actions": [
+        0.0,
+        3.0,
+        3.0
+      ],
+      "peak_import_kw": 0.0,
+      "difficulty": "hard",
+      "source_seed": 0,
+      "class": "multi_action",
+      "families": [
+        "soc_min",
+        "export_limit"
+      ],
+      "n_families": 2,
+      "default_penalty": 4.0058,
+      "n_feasible": 36,
+      "single_action_solvable": false
+    },
+    {
+      "id": "cl_mined_005_t7_smax-smin",
+      "fixed_t": 7,
+      "initial_soc": [
+        3.45,
+        3.05,
+        2.25
+      ],
+      "initial_actions": [
+        -3.0,
+        -3.0,
+        3.0
+      ],
+      "peak_import_kw": 0.0,
+      "difficulty": "hard",
+      "source_seed": 0,
+      "class": "multi_action",
+      "families": [
+        "soc_max",
+        "soc_min"
+      ],
+      "n_families": 2,
+      "default_penalty": 1.7079,
+      "n_feasible": 36,
+      "single_action_solvable": false
+    },
+    {
+      "id": "cl_mined_006_t11_smin-exp",
+      "fixed_t": 11,
+      "initial_soc": [
+        3.45,
+        3.05,
+        2.25
+      ],
+      "initial_actions": [
+        0.0,
+        3.0,
+        3.0
+      ],
+      "peak_import_kw": 0.0,
+      "difficulty": "hard",
+      "source_seed": 0,
+      "class": "multi_action",
+      "families": [
+        "soc_min",
+        "export_limit"
+      ],
+      "n_families": 2,
+      "default_penalty": 2.6058,
+      "n_feasible": 36,
+      "single_action_solvable": false
+    },
+    {
+      "id": "cl_mined_007_t7_smax-smin",
+      "fixed_t": 7,
+      "initial_soc": [
+        3.45,
+        5.09,
+        2.25
+      ],
+      "initial_actions": [
+        -3.0,
+        -3.0,
+        3.0
+      ],
+      "peak_import_kw": 0.0,
+      "difficulty": "hard",
+      "source_seed": 0,
+      "class": "multi_action",
+      "families": [
+        "soc_max",
+        "soc_min"
+      ],
+      "n_families": 2,
+      "default_penalty": 3.7479,
+      "n_feasible": 36,
+      "single_action_solvable": false
+    },
+    {
+      "id": "cl_mined_008_t11_smin-exp",
+      "fixed_t": 11,
+      "initial_soc": [
+        3.45,
+        5.09,
+        0.85
+      ],
+      "initial_actions": [
+        3.0,
+        0.0,
+        3.0
+      ],
+      "peak_import_kw": 0.0,
+      "difficulty": "hard",
+      "source_seed": 0,
+      "class": "multi_action",
+      "families": [
+        "soc_min",
+        "export_limit"
+      ],
+      "n_families": 2,
+      "default_penalty": 3.6058,
+      "n_feasible": 36,
+      "single_action_solvable": false
+    },
+    {
+      "id": "cl_mined_009_t7_smin-smax",
+      "fixed_t": 7,
+      "initial_soc": [
+        3.45,
+        1.01,
+        2.25
+      ],
+      "initial_actions": [
+        -3.0,
+        1.5,
+        -3.0
+      ],
+      "peak_import_kw": 0.0,
+      "difficulty": "hard",
+      "source_seed": 0,
+      "class": "multi_action",
+      "families": [
+        "soc_min",
+        "soc_max"
+      ],
+      "n_families": 2,
+      "default_penalty": 2.1689,
+      "n_feasible": 36,
+      "single_action_solvable": false
+    },
+    {
+      "id": "cl_mined_010_t12_smin-exp",
+      "fixed_t": 12,
+      "initial_soc": [
+        3.45,
+        1.01,
+        0.85
+      ],
+      "initial_actions": [
+        0.0,
+        3.0,
+        3.0
+      ],
+      "peak_import_kw": 0.0,
+      "difficulty": "hard",
+      "source_seed": 0,
+      "class": "multi_action",
+      "families": [
+        "soc_min",
+        "export_limit"
+      ],
+      "n_families": 2,
+      "default_penalty": 6.2858,
+      "n_feasible": 36,
+      "single_action_solvable": false
+    },
+    {
+      "id": "cl_mined_011_t8_smax-smin",
+      "fixed_t": 8,
+      "initial_soc": [
+        3.45,
+        3.05,
+        0.85
+      ],
+      "initial_actions": [
+        -3.0,
+        -3.0,
+        1.5
+      ],
+      "peak_import_kw": 0.0,
+      "difficulty": "hard",
+      "source_seed": 0,
+      "class": "multi_action",
+      "families": [
+        "soc_max",
+        "soc_min"
+      ],
+      "n_families": 2,
+      "default_penalty": 1.5289,
+      "n_feasible": 36,
+      "single_action_solvable": false
+    },
+    {
+      "id": "cl_mined_012_t12_smin-exp",
+      "fixed_t": 12,
+      "initial_soc": [
+        3.45,
+        1.01,
+        2.25
+      ],
+      "initial_actions": [
+        0.0,
+        3.0,
+        3.0
+      ],
+      "peak_import_kw": 0.0,
+      "difficulty": "hard",
+      "source_seed": 0,
+      "class": "multi_action",
+      "families": [
+        "soc_min",
+        "export_limit"
+      ],
+      "n_families": 2,
+      "default_penalty": 4.8858,
+      "n_feasible": 36,
+      "single_action_solvable": false
+    },
+    {
+      "id": "cl_mined_013_t8_smax-smin",
+      "fixed_t": 8,
+      "initial_soc": [
+        3.45,
+        5.09,
+        0.85
+      ],
+      "initial_actions": [
+        -3.0,
+        -3.0,
+        1.5
+      ],
+      "peak_import_kw": 0.0,
+      "difficulty": "hard",
+      "source_seed": 0,
+      "class": "multi_action",
+      "families": [
+        "soc_max",
+        "soc_min"
+      ],
+      "n_families": 2,
+      "default_penalty": 3.5689,
+      "n_feasible": 36,
+      "single_action_solvable": false
+    },
+    {
+      "id": "cl_mined_014_t12_smin-exp",
+      "fixed_t": 12,
+      "initial_soc": [
+        3.45,
+        3.05,
+        0.85
+      ],
+      "initial_actions": [
+        0.0,
+        3.0,
+        3.0
+      ],
+      "peak_import_kw": 0.0,
+      "difficulty": "hard",
+      "source_seed": 0,
+      "class": "multi_action",
+      "families": [
+        "soc_min",
+        "export_limit"
+      ],
+      "n_families": 2,
+      "default_penalty": 4.2458,
+      "n_feasible": 36,
+      "single_action_solvable": false
+    },
+    {
+      "id": "cl_mined_015_t8_smax-smin",
+      "fixed_t": 8,
+      "initial_soc": [
+        3.45,
+        3.05,
+        2.25
+      ],
+      "initial_actions": [
+        -3.0,
+        -3.0,
+        3.0
+      ],
+      "peak_import_kw": 0.0,
+      "difficulty": "hard",
+      "source_seed": 0,
+      "class": "multi_action",
+      "families": [
+        "soc_max",
+        "soc_min"
+      ],
+      "n_families": 2,
+      "default_penalty": 1.7079,
+      "n_feasible": 36,
+      "single_action_solvable": false
+    },
+    {
+      "id": "cl_mined_016_t12_smin-exp",
+      "fixed_t": 12,
+      "initial_soc": [
+        3.45,
+        3.05,
+        2.25
+      ],
+      "initial_actions": [
+        0.0,
+        3.0,
+        3.0
+      ],
+      "peak_import_kw": 0.0,
+      "difficulty": "hard",
+      "source_seed": 0,
+      "class": "multi_action",
+      "families": [
+        "soc_min",
+        "export_limit"
+      ],
+      "n_families": 2,
+      "default_penalty": 2.8458,
+      "n_feasible": 36,
+      "single_action_solvable": false
+    },
+    {
+      "id": "cl_mined_017_t8_smax-smin",
+      "fixed_t": 8,
+      "initial_soc": [
+        3.45,
+        5.09,
+        2.25
+      ],
+      "initial_actions": [
+        -3.0,
+        -3.0,
+        3.0
+      ],
+      "peak_import_kw": 0.0,
+      "difficulty": "hard",
+      "source_seed": 0,
+      "class": "multi_action",
+      "families": [
+        "soc_max",
+        "soc_min"
+      ],
+      "n_families": 2,
+      "default_penalty": 3.7479,
+      "n_feasible": 36,
+      "single_action_solvable": false
+    },
+    {
+      "id": "cl_mined_018_t12_smin-exp",
+      "fixed_t": 12,
+      "initial_soc": [
+        3.45,
+        5.09,
+        0.85
+      ],
+      "initial_actions": [
+        3.0,
+        0.0,
+        3.0
+      ],
+      "peak_import_kw": 0.0,
+      "difficulty": "hard",
+      "source_seed": 0,
+      "class": "multi_action",
+      "families": [
+        "soc_min",
+        "export_limit"
+      ],
+      "n_families": 2,
+      "default_penalty": 3.8458,
+      "n_feasible": 36,
+      "single_action_solvable": false
+    },
+    {
+      "id": "cl_mined_019_t8_smin-smax",
+      "fixed_t": 8,
+      "initial_soc": [
+        3.45,
+        1.01,
+        2.25
+      ],
+      "initial_actions": [
+        -3.0,
+        1.5,
+        -3.0
+      ],
+      "peak_import_kw": 0.0,
+      "difficulty": "hard",
+      "source_seed": 0,
+      "class": "multi_action",
+      "families": [
+        "soc_min",
+        "soc_max"
+      ],
+      "n_families": 2,
+      "default_penalty": 2.1689,
+      "n_feasible": 36,
+      "single_action_solvable": false
+    },
+    {
+      "id": "cl_mined_020_t13_smin-exp",
+      "fixed_t": 13,
+      "initial_soc": [
+        3.45,
+        1.01,
+        0.85
+      ],
+      "initial_actions": [
+        0.0,
+        3.0,
+        3.0
+      ],
+      "peak_import_kw": 0.0,
+      "difficulty": "hard",
+      "source_seed": 0,
+      "class": "multi_action",
+      "families": [
+        "soc_min",
+        "export_limit"
+      ],
+      "n_families": 2,
+      "default_penalty": 6.0158,
+      "n_feasible": 36,
+      "single_action_solvable": false
+    },
+    {
+      "id": "cl_mined_021_t11_smax-smin",
+      "fixed_t": 11,
+      "initial_soc": [
+        3.45,
+        3.05,
+        0.85
+      ],
+      "initial_actions": [
+        -3.0,
+        -3.0,
+        1.5
+      ],
+      "peak_import_kw": 0.0,
+      "difficulty": "hard",
+      "source_seed": 0,
+      "class": "multi_action",
+      "families": [
+        "soc_max",
+        "soc_min"
+      ],
+      "n_families": 2,
+      "default_penalty": 1.5289,
+      "n_feasible": 36,
+      "single_action_solvable": false
+    },
+    {
+      "id": "cl_mined_022_t13_smin-exp",
+      "fixed_t": 13,
+      "initial_soc": [
+        3.45,
+        1.01,
+        2.25
+      ],
+      "initial_actions": [
+        0.0,
+        3.0,
+        3.0
+      ],
+      "peak_import_kw": 0.0,
+      "difficulty": "hard",
+      "source_seed": 0,
+      "class": "multi_action",
+      "families": [
+        "soc_min",
+        "export_limit"
+      ],
+      "n_families": 2,
+      "default_penalty": 4.6158,
+      "n_feasible": 36,
+      "single_action_solvable": false
+    },
+    {
+      "id": "cl_mined_023_t11_smax-smin",
+      "fixed_t": 11,
+      "initial_soc": [
+        3.45,
+        5.09,
+        0.85
+      ],
+      "initial_actions": [
+        -3.0,
+        -3.0,
+        1.5
+      ],
+      "peak_import_kw": 0.0,
+      "difficulty": "hard",
+      "source_seed": 0,
+      "class": "multi_action",
+      "families": [
+        "soc_max",
+        "soc_min"
+      ],
+      "n_families": 2,
+      "default_penalty": 3.5689,
+      "n_feasible": 36,
+      "single_action_solvable": false
+    }
+  ]
+}

@@ -10,11 +10,21 @@
 # greedy (temp 0). Mirrors the ANM band24 Step-0 gate exactly; only the domain
 # and scenario source differ. Question: is 8B sub-saturated on the multi-type
 # CityLearn band (so a GRPO training signal exists)?
-#   - failures remain (recovery < 3/3 on some scenarios) -> train on the
-#     sub-saturated subset, main DV = ungated recovery (matches ANM pillar-2);
-#   - near-saturated (recovery ~ 3/3 everywhere) -> NO signal -> do NOT invest
-#     in the CityLearn GRPO fork (gated decision, decisions-aamas.md §3c).
+#
+# QUANTIFIED go/no-go (7-way panel 2026-06-04, panel-log/2026-06-04-1027):
+#   Per scenario, count gated recovery rate over N=3 reps.
+#   - GO (train): >=6 of 24 scenarios are SUB-SATURATED, i.e. gated recovery
+#     in {0/3,1/3,2/3} (8B partially recovers -> learnable signal). This
+#     mirrors ANM, where 9 sub-saturated scenarios carried the GRPO signal.
+#   - NO-GO (re-mine): nearly all scenarios at 3/3 (saturated) -> no signal;
+#     re-mine harder snapshots (other hours / lower n_feasible) before training.
+#   - The band is stratified by family (ids encode the tag): report recovery
+#     SEPARATELY for soc_min x export_limit (cross-family, *_smin-exp) and
+#     soc_min x soc_max (cross-device antichain, *_smax-smin / *_smin-smax).
+#     The cross-family subset is the regime the geometric reward should help
+#     most; if only the cross-device subset is sub-saturated, narrow the claim.
 # Decisive gate BEFORE forking train_grpo_anm.py -> train_grpo_citylearn.py.
+# DO NOT freeze the multi-type narrative in the paper before this returns.
 #
 # Prereq: scripts/citylearn_scenario_mine.py + citylearn_select_multi_action.py
 # have been run, so domains/citylearn/scenarios_mined.json exists.
