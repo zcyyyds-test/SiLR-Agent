@@ -113,6 +113,53 @@ SCENARIOS: list[CityLearnScenario] = [
 ]
 
 
+def _load_mined_scenarios() -> list["CityLearnScenario"]:
+    """Optionally extend the curated library with mining-pipeline output.
+
+    If ``domains/citylearn/scenarios_mined.json`` exists (written by
+    ``scripts/citylearn_select_multi_action.py``), each record is promoted to a
+    ``CityLearnScenario`` and merged with the hand-curated list -- mirrors ANM's
+    loader, letting the multi-type band grow without bloating this module. The
+    file is optional: when absent (before mining has run) the library stays at
+    the original three scenarios.
+    """
+    import json
+    from pathlib import Path
+
+    path = Path(__file__).with_name("scenarios_mined.json")
+    if not path.exists():
+        return []
+    try:
+        with path.open() as f:
+            data = json.load(f)
+    except Exception:
+        return []
+    mined: list[CityLearnScenario] = []
+    for r in data.get("scenarios", []):
+        try:
+            mined.append(
+                CityLearnScenario(
+                    id=r["id"],
+                    fixed_t=int(r["fixed_t"]),
+                    initial_soc=tuple(float(x) for x in r["initial_soc"]),
+                    initial_actions=tuple(float(x) for x in r["initial_actions"]),
+                    peak_import_kw=float(r.get("peak_import_kw", 0.0)),
+                    source_seed=r.get("source_seed"),
+                    difficulty=r.get("difficulty", "medium"),
+                    notes=(
+                        f"class={r.get('class')} families={r.get('families')} "
+                        f"default_penalty={r.get('default_penalty')} "
+                        f"n_feasible={r.get('n_feasible')} "
+                        f"single_action_solvable={r.get('single_action_solvable')}"
+                    ),
+                )
+            )
+        except (KeyError, TypeError, ValueError):
+            continue
+    return mined
+
+
+SCENARIOS.extend(_load_mined_scenarios())
 _SCENARIO_MAP = {s.id: s for s in SCENARIOS}
 
 
