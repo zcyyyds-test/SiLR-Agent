@@ -55,6 +55,7 @@ export PYTHONPATH="$PROJECT"; export PATH="$ENV_DIR/bin:$PATH"
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
 export VLLM_WORKER_MULTIPROC_METHOD=spawn
 export SILR_MAX_TOKENS=2048
+export SILR_CITYLEARN_N_BUILDINGS=4   # pillar-2 hardened band (default 3 keeps pillar-1 RQ5)
 export SILR_SYNC_ID="step0_qwen8b_cl_mined_pmag_n3_${JOB_TAG}"
 cd "$PROJECT"
 

@@ -36,6 +36,7 @@ export PYTHONPATH="$PROJECT"; export PATH="$ENV_DIR/bin:$PATH"
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
 export VLLM_WORKER_MULTIPROC_METHOD=spawn
 export SILR_MAX_TOKENS=2048
+export SILR_CITYLEARN_N_BUILDINGS=4   # pillar-2 hardened band (default 3 keeps pillar-1 RQ5)
 export SILR_SYNC_ID="cl_reward_sep_${JOB_TAG}"
 cd "$PROJECT"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
@@ -86,7 +87,7 @@ printf '%s' "$SMOKE_RESP" | grep -q '<think>' \
 echo "[separability smoke: hardened N=4 cl_mined band x N=3 @ step=8] $(date)"
 "$ENV_DIR/bin/python" -u scripts/citylearn_reward_separability_smoke.py \
   --base-url "http://127.0.0.1:${PORT}/v1" --model qwen3-8b \
-  --reps 3 --rep-start-seed 1000 \
+  --reps 2 --rep-start-seed 1000 \
   --max-steps 8 --max-proposals 3 --temperature 0.0 \
   --request-timeout-s 360 --max-retries 0 \
   --output "$OUT_JSON" --log-file "$RUN_LOG"

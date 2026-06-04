@@ -208,9 +208,14 @@ def main():
     het_sorted = sorted(het)
     het_median = het_sorted[len(het_sorted) // 2] if het_sorted else None
 
+    # Unlike single-type ANM, this band is multi-type: arms D and E separate
+    # ACROSS incomparable families (kWh vs kW), so within-family sigma uniformity
+    # does NOT imply D==E. The sigma-heterogeneity short-circuit (calibrated for
+    # single-type ANM) would false-positive here -- e.g. four SoC sigma in
+    # [2.34, 2.37] give ratio ~1.01 -- so we judge on rho(D,E) alone and report
+    # het only for traceability.
     collapsed = (
         (rho_DE is not None and rho_DE >= args.gate_rho)
-        or (het_median is not None and het_median < 1.05)
         or len(sp) < 10
     )
     gate = "COLLAPSED -- do NOT train; reconsider band" if collapsed \

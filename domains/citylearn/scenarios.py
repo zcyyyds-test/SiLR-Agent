@@ -160,6 +160,13 @@ def _load_mined_scenarios() -> list["CityLearnScenario"]:
 
 
 SCENARIOS.extend(_load_mined_scenarios())
+
+# Keep only scenarios whose per-building dimensionality matches the active
+# N_BUILDINGS (an env knob). At the default N=3 this keeps the curated
+# cl_multi_1/2/3 (pillar-1 RQ5) and drops the 4-dim mined band; with
+# SILR_CITYLEARN_N_BUILDINGS=4 it keeps the mined band and drops the 3-dim
+# curated set. Prevents a wrong-dim scenario from crashing the manager's solve().
+SCENARIOS = [s for s in SCENARIOS if len(s.initial_soc) == sim.N_BUILDINGS]
 _SCENARIO_MAP = {s.id: s for s in SCENARIOS}
 
 

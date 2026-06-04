@@ -21,6 +21,7 @@ is what enforces feasibility.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 
 
@@ -43,7 +44,14 @@ class CityLearnState:
 # exactly. Feeder limits are NOT scaled with N, so more buildings tighten the
 # import/export constraints relative to demand (harder + activates the feeder
 # families more often).
-N_BUILDINGS = 4
+#
+# N_BUILDINGS is an ENV knob, default 3, so the pillar-1 curated cl_multi_1/2/3
+# scenarios (3-dim, used by the paper's RQ5 cross-domain result) reproduce
+# unchanged. The pillar-2 amplification sets SILR_CITYLEARN_N_BUILDINGS=4; the
+# scenario loader then keeps only the scenarios whose dimensionality matches the
+# active N (curated 3-dim at N=3, mined 4-dim at N=4), so the two regimes never
+# crash into each other.
+N_BUILDINGS = int(os.environ.get("SILR_CITYLEARN_N_BUILDINGS", "3"))
 
 _BASE_SOC_MIN = (0.5, 0.5, 0.5)
 _BASE_SOC_MAX = (6.4, 5.6, 4.0)
