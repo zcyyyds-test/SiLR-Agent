@@ -218,6 +218,31 @@ class TestArmD_vs_ArmE_Separation:
         assert _safe_progress_reward(elim_high) != _safe_progress_reward(elim_low)
 
 
+class TestArmD_MultiFamilyNormalization:
+    """Regression: under physically incomparable families with heterogeneous
+    sigma, a single sum(sigma) normalizer let the large-magnitude family hijack
+    the reward (the multi-type null, panel 2026-06-05). Per-family normalization
+    must score families by their own total and weight them equally."""
+
+    def test_large_and_small_family_eliminations_balanced(self):
+        soc = ("soc_min", "battery", "battery_0", "soc_kwh")   # small sigma (kWh)
+        feeder = ("export_limit", "feeder", "district", "export_kw")  # large sigma (kW)
+        pre = {soc: 0.5, feeder: 8.0}
+        elim_soc = _sp(pre, {feeder: 8.0})       # cleared the tiny-sigma family
+        elim_feeder = _sp(pre, {soc: 0.5})       # cleared the big-sigma family
+        # Each family is one branch -> clearing either is full progress for that
+        # family -> equal reward, NOT magnitude-weighted (pre-fix: ~0.035 vs 0.565).
+        assert abs(_safe_progress_reward(elim_soc)
+                   - _safe_progress_reward(elim_feeder)) < 1e-9
+
+    def test_single_family_unchanged_by_per_family_norm(self):
+        # Single family must still be severity-weighted (the geometric advantage).
+        pre = {("bl", "line", "0-1", "load"): 8.0, ("bl", "line", "1-2", "load"): 1.0}
+        elim_high = _sp(pre, {("bl", "line", "1-2", "load"): 1.0})
+        elim_low = _sp(pre, {("bl", "line", "0-1", "load"): 8.0})
+        assert _safe_progress_reward(elim_high) > _safe_progress_reward(elim_low)
+
+
 class TestArmC_Binary:
     def test_admitted_positive_rejected_negative(self):
         assert compute_binary_reward(_make_result(Verdict.PASS)) == 0.5

@@ -178,14 +178,37 @@ def _safe_progress_reward(result: VerificationResult) -> float:
     post_keys = set(post)
     eliminated = pre_keys - post_keys
     surviving = pre_keys & post_keys
-    total_pre = sum(pre.values()) + 1e-8
 
-    support_elim = sum(pre[k] for k in eliminated) / total_pre
-    severity_red = sum(max(0.0, pre[k] - post[k]) for k in surviving) / total_pre
-    drift = max(
-        (max(0.0, post[k] - pre[k]) / (pre[k] + 1e-8) for k in surviving),
-        default=0.0,
-    )
+    # Per-family normalization (k[0] = constraint_type). The product order over
+    # Phi=(S, sigma) is over PHYSICALLY INCOMPARABLE families; a single
+    # sum(sigma) normalizer collapses it into a dimensionally-mixed scalar, so a
+    # large-magnitude family (or branch) dominates and the policy is rewarded
+    # ~0 for clearing a small-sigma branch -- which silently turned arm D into a
+    # "fix-the-largest-branch" scalar under high sigma-heterogeneity (the very
+    # multi-type regime; CityLearn sigma-het ~286). We instead score each family
+    # as a fraction of ITS OWN total severity and average the families with equal
+    # weight: within-family severity weighting (the single-type geometric
+    # advantage) is preserved, while no family can hijack the signal by raw
+    # magnitude. For a single family (e.g. ANM) this reduces EXACTLY to the
+    # original sum(sigma) normalization, so the published single-type result is
+    # unchanged. (7-way panel 2026-06-05; root cause of the multi-type null.)
+    by_family: dict = {}
+    for k in pre_keys:
+        by_family.setdefault(k[0], []).append(k)
+
+    se_terms, sr_terms, drift_vals = [], [], []
+    for keys in by_family.values():
+        fam_total = sum(pre[k] for k in keys) + 1e-8
+        se_terms.append(sum(pre[k] for k in keys if k in eliminated) / fam_total)
+        sr_terms.append(
+            sum(max(0.0, pre[k] - post[k]) for k in keys if k in surviving) / fam_total)
+        for k in keys:
+            if k in surviving:
+                drift_vals.append(max(0.0, post[k] - pre[k]) / (pre[k] + 1e-8))
+
+    support_elim = sum(se_terms) / len(se_terms)
+    severity_red = sum(sr_terms) / len(sr_terms)
+    drift = max(drift_vals, default=0.0)
 
     return (
         _SP_W_SUPPORT * support_elim
