@@ -26,7 +26,7 @@ ENV_DIR="$WORK/envs/silr-vllm"
 BASE_MODEL="$WORK/models/Qwen_Qwen3-8B"
 LOG_DIR="$PROJECT/logs"
 JOB_TAG="${JOB_ID:-manual}"
-OUT_DIR="$PROJECT/outputs/citylearn_grpo_${LABEL}_s${SEED}_${JOB_TAG}"
+OUT_DIR="/gs/fs/tga-zhou-spring/silr-outputs/citylearn_grpo_${LABEL}_s${SEED}_${JOB_TAG}"   # SSD: checkpoints belong on group SSD, not /work (100G quota)
 [ -n "${SP_FLAT:-}" ] && export SILR_SP_FLAT="$SP_FLAT"
 mkdir -p "$LOG_DIR" "$OUT_DIR"
 exec > >(tee -a "$LOG_DIR/grpo_cl_full_${LABEL}_s${SEED}_${JOB_TAG}.inner.log") 2>&1
@@ -58,12 +58,12 @@ cl_mined_002_t11_smax-smin-exp cl_mined_007_t12_smax-smin-exp cl_mined_012_t13_s
 cl_mined_003_t11_smin-exp cl_mined_008_t12_smin-exp cl_mined_013_t13_smin-exp \
 cl_mined_004_t11_smax-smin cl_mined_009_t12_smax-smin cl_mined_014_t13_smax-smin"
 
-echo "[full train arm $ARM seed $SEED: 12 scen x 4 rollout x 4 iter @ N=4] $(date)"
+echo "[full train arm $ARM seed $SEED: 12 scen x 6 rollout x 4 iter @ N=4] $(date)"
 "$ENV_DIR/bin/python" -u scripts/train_grpo_citylearn.py \
   --arm "$ARM" --seed "$SEED" \
   --base-model "$BASE_MODEL" \
   --scenarios $SCEN12 \
-  --iterations 4 --rollouts-per-scenario 4 \
+  --iterations 4 --rollouts-per-scenario 6 \
   --max-steps 8 --max-proposals 3 --temperature 0.7 \
   --max-new-tokens 512 \
   --output "$OUT_DIR"
