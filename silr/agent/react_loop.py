@@ -320,7 +320,14 @@ class ReActAgent:
                             f"{vr.fail_reason}"
                         )
                 else:
-                    # NoVerify mode — apply directly
+                    # NoVerify mode — apply directly.
+                    # Observer trace: when observe_verification is set, compute Φ
+                    # passively for the mechanism metrics WITHOUT gating (the action
+                    # is applied regardless of verdict). Mirrors the gated call order
+                    # (verify() has no persistent side effect on the manager), so the
+                    # greedy ungated trajectory and recovery outcome are unchanged.
+                    if self._config.observe_verification:
+                        record.verification_results.append(self._verifier.verify(action))
                     apply_result = self._apply_action(action)
                     record.applied_action = action
                     record.tool_result = apply_result

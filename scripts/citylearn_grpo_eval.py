@@ -44,7 +44,7 @@ from scripts.train_grpo_citylearn import LocalModelClient, DEFAULT_SCENARIOS
 logger = logging.getLogger("grpo_eval")
 
 
-def eval_episode(client, scenario_id, gated, max_steps, max_proposals):
+def eval_episode(client, scenario_id, gated, max_steps, max_proposals, observe_trace=False):
     cfg = build_citylearn_domain_config(with_observer=True, gating_policy="progress_mag")
     loader = CityLearnScenarioLoader()
     sc = loader.load(scenario_id)
@@ -58,7 +58,8 @@ def eval_episode(client, scenario_id, gated, max_steps, max_proposals):
     agent = ReActAgent(
         manager=mgr, verifier=verifier, llm_client=client, domain_config=cfg,
         config=AgentConfig(max_steps=max_steps, max_proposals_per_step=max_proposals,
-                           temperature=0.0, enable_verification=gated, seed=0))
+                           temperature=0.0, enable_verification=gated,
+                           observe_verification=observe_trace, seed=0))
     result = agent.run_episode(scenario_id=sc.id)
     # Per-step geometry trace for mechanism metrics (pre-registered): does the
     # policy use the product-order geometry (eliminate the WORST branch, avoid
@@ -94,6 +95,7 @@ def eval_episode(client, scenario_id, gated, max_steps, max_proposals):
     return {
         "scenario": scenario_id,
         "gated": gated,
+        "observed": observe_trace,
         "recovered": bool(result.recovered),
         "default_penalty": default_penalty,
         "final_penalty": mgr.last_penalty,
@@ -132,6 +134,11 @@ def main():
     p.add_argument("--max-new-tokens", type=int, default=512)
     p.add_argument("--output", required=True)
     p.add_argument("--log-file", default=None)
+    p.add_argument("--observer-trace", action="store_true",
+                   help="Single ungated pass that ALSO logs Φ passively (no gating). "
+                        "Measures the policy's intrinsic product-order geometry use "
+                        "(pre-reg H1b worst-branch elimination) which the verifier-off "
+                        "primary DV cannot record. Writes its own JSON.")
     args = p.parse_args()
 
     handlers = [logging.StreamHandler(sys.stdout)]
@@ -157,20 +164,36 @@ def main():
                               enable_thinking=False)
 
     records = []
-    for regime_gated in (True, False):
+    if args.observer_trace:
+        # Dedicated single pass: ungated execution + passive Φ trace. Recovery
+        # numbers match the plain ungated regime (greedy temp 0, verify() has no
+        # side effect); the new payload is the per-step Φ geometry under no gating.
         for sid in args.scenarios:
             t0 = time.time()
-            r = eval_episode(client, sid, regime_gated, args.max_steps, args.max_proposals)
+            r = eval_episode(client, sid, False, args.max_steps, args.max_proposals,
+                             observe_trace=True)
             records.append(r)
-            logger.info("  [%s] %s recovered=%s pen=%.2f (def %.2f) rej/prop=%d/%d (%.1fs)",
-                        "gated" if regime_gated else "ungated", sid, r["recovered"],
-                        r["final_penalty"], r["default_penalty"], r["rejections"],
-                        r["proposals"], time.time() - t0)
+            logger.info("  [observer] %s recovered=%s pen=%.2f (def %.2f) steps_traced=%d (%.1fs)",
+                        sid, r["recovered"], r["final_penalty"], r["default_penalty"],
+                        len(r["step_trace"]), time.time() - t0)
+    else:
+        for regime_gated in (True, False):
+            for sid in args.scenarios:
+                t0 = time.time()
+                r = eval_episode(client, sid, regime_gated, args.max_steps, args.max_proposals)
+                records.append(r)
+                logger.info("  [%s] %s recovered=%s pen=%.2f (def %.2f) rej/prop=%d/%d (%.1fs)",
+                            "gated" if regime_gated else "ungated", sid, r["recovered"],
+                            r["final_penalty"], r["default_penalty"], r["rejections"],
+                            r["proposals"], time.time() - t0)
 
-    gated = [r for r in records if r["gated"]]
-    ungated = [r for r in records if not r["gated"]]
+    gated = [r for r in records if r["gated"] and not r.get("observed")]
+    ungated = [r for r in records if not r["gated"] and not r.get("observed")]
+    observed = [r for r in records if r.get("observed")]
     summary = {"label": args.label, "adapter": args.adapter,
                "gated": _agg(gated), "ungated": _agg(ungated)}
+    if observed:
+        summary["observed"] = _agg(observed)
     out = {"summary": summary, "records": records}
     tmp = args.output + ".tmp"
     with open(tmp, "w") as f:
@@ -178,11 +201,16 @@ def main():
     os.replace(tmp, args.output)
 
     logger.info("=" * 64)
-    logger.info("LABEL %s | GATED recovery %s/%s pen=%.2f | UNGATED recovery %s/%s pen=%.2f",
-                args.label, summary["gated"]["recovered"], summary["gated"]["n"],
-                summary["gated"]["mean_final_penalty"],
-                summary["ungated"]["recovered"], summary["ungated"]["n"],
-                summary["ungated"]["mean_final_penalty"])
+    if observed:
+        o = summary["observed"]
+        logger.info("LABEL %s | OBSERVER(ungated+Φ trace) recovery %s/%s pen=%s",
+                    args.label, o["recovered"], o["n"], o["mean_final_penalty"])
+    else:
+        logger.info("LABEL %s | GATED recovery %s/%s pen=%.2f | UNGATED recovery %s/%s pen=%.2f",
+                    args.label, summary["gated"]["recovered"], summary["gated"]["n"],
+                    summary["gated"]["mean_final_penalty"],
+                    summary["ungated"]["recovered"], summary["ungated"]["n"],
+                    summary["ungated"]["mean_final_penalty"])
     logger.info("Output: %s", args.output)
 
 

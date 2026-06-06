@@ -11,6 +11,7 @@ class AgentConfig:
     max_proposals_per_step: int = 3
     consecutive_fail_limit: int = 2       # fail-safe after N full steps of all-reject
     enable_verification: bool = True      # False = ablation NoVerify mode
+    observe_verification: bool = False    # NoVerify execution + passive Φ trace, no gating
     temperature: float = 0.0
     seed: int | None = 42
     verification_feedback_mode: str = "detailed"  # "summary" | "detailed" | "full"
