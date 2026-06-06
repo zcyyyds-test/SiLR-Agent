@@ -47,7 +47,27 @@ def episode_metrics(rec):
     drift = sum(1 for t in tr
                 if t.get("n_post") == t.get("n_pre")
                 and (t.get("sum_sigma_post", 0) or 0) > (t.get("sum_sigma_pre", 0) or 0) + 1e-9)
-    return {"worst_red": worst, "maxsig_red": maxsig, "drift": drift, "n_steps": len(tr)}
+    # NB: `worst`/`maxsig` summed over the whole trajectory TELESCOPE under no
+    # gating (step t's post-state is step t+1's pre-state), so they collapse to
+    # ~(initial - final) max-sigma -- an ENDPOINT/recovery proxy, not a path
+    # signal (panel 2026-06-06-2230). The non-telescoping DVs below are the
+    # honest test of H1b (does the policy intrinsically work the worst branch):
+    #   active_improve_frac : fraction of steps that strictly reduce max-sigma
+    #   severity_auc        : mean max-sigma carried across the trajectory (risk load)
+    #   worst_mid           : worst_branch_reduced over intermediate steps only
+    #                         (post non-empty, admitted verdict) -- recovery-terminal
+    #                         steps (post={} -> +max(pre)) removed to de-conflate.
+    n = len(tr)
+    active_improve_frac = (sum(1 for t in tr
+                               if (t.get("max_sigma_pre", 0) or 0) - (t.get("max_sigma_post", 0) or 0) > 1e-9)
+                           / n) if n else 0.0
+    severity_auc = (sum((t.get("max_sigma_pre", 0) or 0) for t in tr) / n) if n else 0.0
+    mid = [t for t in tr
+           if (t.get("n_post") or 0) > 0 and t.get("verdict") in ("PASS", "SAFE_PROGRESS")]
+    worst_mid = sum((t.get("worst_branch_reduced", 0) or 0) for t in mid)
+    return {"worst_red": worst, "maxsig_red": maxsig, "drift": drift, "n_steps": n,
+            "active_improve_frac": active_improve_frac, "severity_auc": severity_auc,
+            "worst_mid": worst_mid}
 
 
 def load(arm):
@@ -81,7 +101,12 @@ def main():
     print("trace sanity: %d episodes, steps/episode min/mean/max = %d/%.1f/%d"
           % (len(nsteps), min(nsteps), st.mean(nsteps), max(nsteps)))
 
-    for metric, better in [("worst_red", "higher"), ("maxsig_red", "higher"), ("drift", "lower")]:
+    print("  (worst_red/maxsig_red TELESCOPE = endpoint proxy; trust the non-telescoping DVs below)")
+    for metric, better in [("worst_red", "higher (telescoped)"), ("maxsig_red", "higher (telescoped)"),
+                           ("drift", "lower"),
+                           ("worst_mid", "higher (de-conflated, intermediate steps)"),
+                           ("active_improve_frac", "higher (non-telescoping)"),
+                           ("severity_auc", "lower (non-telescoping risk load)")]:
         diffs = []
         for s in seeds:
             for sid in scens:
