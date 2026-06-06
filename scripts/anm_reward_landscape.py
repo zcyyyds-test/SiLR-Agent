@@ -202,6 +202,29 @@ def value_landscape(scenario_id):
                     if abs(rC[i] - rC[j]) < 1e-9:
                         cc += 1
         conf_C[f"{int(frac*100)}pct"] = round(cc / pr, 3) if pr else 0.0
+    # admissibility-separation control: re-compute confusion on ALL legal actions
+    # (incl. gate-REJECTED / FAIL), to rule out "geometric wins only because the
+    # gate already removed the high-confusion region". Reward over the full set:
+    all_rows = score_actions(mgr, verifier)
+    all_vals = []
+    for r in all_rows:
+        m3 = GymANMManager(seed=0)
+        loader.setup_episode(m3, sc)
+        all_vals.append(round(base_pen - float(apply_action(m3, r["action"])), 4))
+
+    def _conf(rk):
+        rv = [r[rk] for r in all_rows]
+        dl = 0.05 * (max(all_vals) if all_vals else 0.0)
+        pr = cc = 0
+        for i in range(len(rv)):
+            for j in range(i + 1, len(rv)):
+                if abs(all_vals[i] - all_vals[j]) > dl:
+                    pr += 1
+                    if abs(rv[i] - rv[j]) < 1e-9:
+                        cc += 1
+        return round(cc / pr, 3) if pr else 0.0
+    all_legal_conf = {"binary_C": _conf("rC"), "count_E": _conf("rE"),
+                      "perfamily_geom_D": _conf("rD"), "n_all_legal": len(all_rows)}
     # scalar degeneracy: distinct reward levels + GRPO advantage variance
     nD = len(set(round(x, 4) for x in rD))
     nE = len(set(round(x, 4) for x in rE))
@@ -251,6 +274,7 @@ def value_landscape(scenario_id):
             "severity_scalar_E2": rho_E2, "perfamily_geom_D": rho_D},
         "confusion_ladder_5pct": {
             "binary_C": conf_C["5pct"]},
+        "all_legal_confusion_5pct": all_legal_conf,
         "scalar_degeneracy": {"distinct_levels_D": nD, "distinct_levels_E": nE,
                               "grpo_adv_var_D": varD, "grpo_adv_var_E": varE},
         "E_top_tiegroup": {
