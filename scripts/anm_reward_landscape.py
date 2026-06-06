@@ -169,19 +169,25 @@ def value_landscape(scenario_id):
     # differs meaningfully -> that pair gives GRPO zero advantage signal to pick
     # the better action. delta = 5% of the best true value.
     n = len(rows)
-    delta = 0.05 * max(values) if values else 0.0
-    pairsE = pairsD = confE = confD = 0
-    for i in range(n):
-        for j in range(i + 1, n):
-            if abs(values[i] - values[j]) > delta:  # genuinely different actions
-                pairsE += 1
-                pairsD += 1
-                if abs(rE[i] - rE[j]) < 1e-9:
-                    confE += 1
-                if abs(rD[i] - rD[j]) < 1e-9:
-                    confD += 1
-    conf_rate_E = round(confE / pairsE, 3) if pairsE else 0.0
-    conf_rate_D = round(confD / pairsD, 3) if pairsD else 0.0
+    vmax = max(values) if values else 0.0
+    # threshold-robustness: confusion at delta = 1% / 5% / 10% of max true value
+    conf_E = {}
+    conf_D = {}
+    for frac in (0.01, 0.05, 0.10):
+        delta = frac * vmax
+        pairs = cE = cD = 0
+        for i in range(n):
+            for j in range(i + 1, n):
+                if abs(values[i] - values[j]) > delta:
+                    pairs += 1
+                    if abs(rE[i] - rE[j]) < 1e-9:
+                        cE += 1
+                    if abs(rD[i] - rD[j]) < 1e-9:
+                        cD += 1
+        conf_E[f"{int(frac*100)}pct"] = round(cE / pairs, 3) if pairs else 0.0
+        conf_D[f"{int(frac*100)}pct"] = round(cD / pairs, 3) if pairs else 0.0
+    conf_rate_E = conf_E["5pct"]
+    conf_rate_D = conf_D["5pct"]
     # tie-break regret: GRPO with no signal picks a random action in E's top tie
     # (expected = mean value); the geometric reward picks the best in that group.
     import statistics as _st
@@ -202,6 +208,8 @@ def value_landscape(scenario_id):
         "grpo_signal": {
             "scalar_confusion_rate": conf_rate_E,
             "geometric_confusion_rate": conf_rate_D,
+            "scalar_confusion_by_threshold": conf_E,
+            "geometric_confusion_by_threshold": conf_D,
             "tie_break_regret": regret},
     }
 
