@@ -164,6 +164,28 @@ def value_landscape(scenario_id):
     tie = [i for i in range(len(rows)) if abs(rE[i] - emax) < 1e-9]
     tie_val = [values[i] for i in tie]
     tie_rD = [rD[i] for i in tie]
+    # GRPO-signal metrics: among ALL admissible action pairs, what fraction does
+    # each reward leave INDISTINGUISHABLE (equal reward) while their TRUE value
+    # differs meaningfully -> that pair gives GRPO zero advantage signal to pick
+    # the better action. delta = 5% of the best true value.
+    n = len(rows)
+    delta = 0.05 * max(values) if values else 0.0
+    pairsE = pairsD = confE = confD = 0
+    for i in range(n):
+        for j in range(i + 1, n):
+            if abs(values[i] - values[j]) > delta:  # genuinely different actions
+                pairsE += 1
+                pairsD += 1
+                if abs(rE[i] - rE[j]) < 1e-9:
+                    confE += 1
+                if abs(rD[i] - rD[j]) < 1e-9:
+                    confD += 1
+    conf_rate_E = round(confE / pairsE, 3) if pairsE else 0.0
+    conf_rate_D = round(confD / pairsD, 3) if pairsD else 0.0
+    # tie-break regret: GRPO with no signal picks a random action in E's top tie
+    # (expected = mean value); the geometric reward picks the best in that group.
+    import statistics as _st
+    regret = round(max(tie_val) - _st.mean(tie_val), 4) if tie_val else 0.0
     return {
         "base_penalty": round(base_pen, 4), "n_admissible": len(rows),
         "prm_quality_spearman": {"rD_vs_value": rho_D, "rE_vs_value": rho_E},
@@ -177,6 +199,10 @@ def value_landscape(scenario_id):
             "rD_resolves_tie": (max(tie_rD) - min(tie_rD)) > 1e-6,
             "best_true_in_tie": round(max(tie_val), 4),
             "best_true_overall": round(max(values), 4)},
+        "grpo_signal": {
+            "scalar_confusion_rate": conf_rate_E,
+            "geometric_confusion_rate": conf_rate_D,
+            "tie_break_regret": regret},
     }
 
 
