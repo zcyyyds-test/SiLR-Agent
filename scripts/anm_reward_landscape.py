@@ -47,6 +47,15 @@ from silr.training.reward import (  # noqa: E402
 ADMISSIBLE = (Verdict.PASS, Verdict.SAFE_PROGRESS)
 
 
+def dflat_reward(vr, flat=0.5):
+    """Arm D-flat — D with the geometry removed (flat constant for SAFE_PROGRESS,
+    the SILR_SP_FLAT ablation). Keeps the PASS/FAIL verdict tiers but is blind
+    WITHIN admissible progress steps. A 4th rung between binary and count."""
+    if vr.verdict == Verdict.SAFE_PROGRESS:
+        return flat
+    return compute_grpo_reward(vr)
+
+
 def severity_scalar_reward(vr):
     """Baseline rE2 — severity-weighted SCALAR (cross-family Σσ reduction), the
     continuous-but-NOT-product-order control. Isolates whether the geometric
@@ -105,6 +114,7 @@ def score_actions(mgr, verifier):
             "rD": compute_grpo_reward(vr),
             "rE": compute_scalar_reward(vr),
             "rE2": severity_scalar_reward(vr),
+            "rDflat": dflat_reward(vr),
             "rC": compute_binary_reward(vr),
             "n_pre": len(pre), "n_post": len(post),
             "max_sigma_pre": max(pre.values()) if pre else 0.0,
@@ -236,7 +246,8 @@ def value_landscape(scenario_id):
                                  "rE2_severity_scalar_vs_value": rho_E2,
                                  "rC_binary_vs_value": rho_C},
         "prm_fidelity_ladder": {
-            "binary_C": rho_C, "count_E": rho_E,
+            "binary_C": rho_C, "Dflat_geomremoved": _spearman([r["rDflat"] for r in rows], values),
+            "count_E": rho_E,
             "severity_scalar_E2": rho_E2, "perfamily_geom_D": rho_D},
         "confusion_ladder_5pct": {
             "binary_C": conf_C["5pct"]},
