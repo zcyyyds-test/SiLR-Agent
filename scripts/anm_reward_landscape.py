@@ -225,6 +225,29 @@ def value_landscape(scenario_id):
         return round(cc / pr, 3) if pr else 0.0
     all_legal_conf = {"binary_C": _conf("rC"), "count_E": _conf("rE"),
                       "perfamily_geom_D": _conf("rD"), "n_all_legal": len(all_rows)}
+    # GRPO advantage-collapse: in GRPO, advantage_i = (r_i - mean_group)/std_group.
+    # Actions sharing a reward level get the SAME advantage -> GRPO cannot tell them
+    # apart. modal_mass = fraction of admissible actions sitting on the single most
+    # common reward level = the fraction GRPO collapses to one advantage value.
+    from collections import Counter
+
+    def _modal_mass(rv):
+        c = Counter(round(x, 4) for x in rv)
+        return round(max(c.values()) / len(rv), 3) if rv else 0.0
+
+    def _zero_adv_frac(rv):
+        # fraction of actions within 0.25 std of the group mean (weak/no signal)
+        if len(rv) < 2:
+            return 1.0
+        m = sum(rv) / len(rv)
+        sd = st.pstdev(rv)
+        if sd < 1e-9:
+            return 1.0
+        return round(sum(1 for x in rv if abs(x - m) / sd < 0.25) / len(rv), 3)
+    grpo_collapse = {
+        "modal_mass_D": _modal_mass(rD), "modal_mass_E": _modal_mass(rE),
+        "modal_mass_C": _modal_mass(rC),
+        "zero_adv_frac_D": _zero_adv_frac(rD), "zero_adv_frac_E": _zero_adv_frac(rE)}
     # scalar degeneracy: distinct reward levels + GRPO advantage variance
     nD = len(set(round(x, 4) for x in rD))
     nE = len(set(round(x, 4) for x in rE))
@@ -275,6 +298,7 @@ def value_landscape(scenario_id):
         "confusion_ladder_5pct": {
             "binary_C": conf_C["5pct"]},
         "all_legal_confusion_5pct": all_legal_conf,
+        "grpo_advantage_collapse": grpo_collapse,
         "scalar_degeneracy": {"distinct_levels_D": nD, "distinct_levels_E": nE,
                               "grpo_adv_var_D": varD, "grpo_adv_var_E": varE},
         "E_top_tiegroup": {
