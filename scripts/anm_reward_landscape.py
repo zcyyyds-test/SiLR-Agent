@@ -47,6 +47,26 @@ from silr.training.reward import (  # noqa: E402
 ADMISSIBLE = (Verdict.PASS, Verdict.SAFE_PROGRESS)
 
 
+def severity_scalar_reward(vr):
+    """Baseline rE2 — severity-weighted SCALAR (cross-family Σσ reduction), the
+    continuous-but-NOT-product-order control. Isolates whether the geometric
+    reward wins by severity-awareness (rE2 also has it) or by the product-order /
+    per-family structure (only rD). In single-family ANM rE2≈rD by construction;
+    the contrast only bites in multi-family CityLearn."""
+    if vr.verdict == Verdict.PASS:
+        return 1.0
+    if vr.verdict == Verdict.ERROR:
+        return -1.0
+    if vr.verdict == Verdict.SAFE_PROGRESS:
+        pre = vr.baseline_branches or {}
+        post = vr.post_branches or {}
+        sp = sum(pre.values())
+        if sp <= 0:
+            return 0.0
+        return (sp - sum(post.values())) / sp
+    return -0.5  # FAIL
+
+
 def enumerate_actions(mgr, n_grid=9):
     """All single-setpoint p actions on the 9-point device grid (q=0)."""
     base = mgr.base_mva
@@ -84,6 +104,7 @@ def score_actions(mgr, verifier):
             "admissible": vr.verdict in ADMISSIBLE,
             "rD": compute_grpo_reward(vr),
             "rE": compute_scalar_reward(vr),
+            "rE2": severity_scalar_reward(vr),
             "rC": compute_binary_reward(vr),
             "n_pre": len(pre), "n_post": len(post),
             "max_sigma_pre": max(pre.values()) if pre else 0.0,
@@ -144,6 +165,7 @@ def value_landscape(scenario_id):
     rows = [r for r in score_actions(mgr, verifier) if r["admissible"]]
     rD = [r["rD"] for r in rows]
     rE = [r["rE"] for r in rows]
+    rE2 = [r["rE2"] for r in rows]
     # TRUE value of each action = penalty reduction after applying it (fresh mgr)
     values = []
     for r in rows:
@@ -151,9 +173,25 @@ def value_landscape(scenario_id):
         loader.setup_episode(m2, sc)
         pen = apply_action(m2, r["action"])
         values.append(round(base_pen - float(pen), 4))  # higher = better
-    # PRM quality: which reward ranks actions by true value?
+    rC = [r["rC"] for r in rows]
+    # PRM quality: which reward ranks actions by true value? Full PRM-fidelity
+    # ladder by how much constraint geometry the reward preserves:
+    # binary(verdict) < count(cardinality) < severity-scalar < per-family geometric.
     rho_D = _spearman(rD, values)
     rho_E = _spearman(rE, values)
+    rho_E2 = _spearman(rE2, values)
+    rho_C = _spearman(rC, values)
+    conf_C = {f"{int(f*100)}pct": None for f in (0.01, 0.05, 0.10)}
+    for frac in (0.01, 0.05, 0.10):
+        delta = frac * (max(values) if values else 0.0)
+        pr = cc = 0
+        for i in range(len(rC)):
+            for j in range(i + 1, len(rC)):
+                if abs(values[i] - values[j]) > delta:
+                    pr += 1
+                    if abs(rC[i] - rC[j]) < 1e-9:
+                        cc += 1
+        conf_C[f"{int(frac*100)}pct"] = round(cc / pr, 3) if pr else 0.0
     # scalar degeneracy: distinct reward levels + GRPO advantage variance
     nD = len(set(round(x, 4) for x in rD))
     nE = len(set(round(x, 4) for x in rE))
@@ -194,7 +232,14 @@ def value_landscape(scenario_id):
     regret = round(max(tie_val) - _st.mean(tie_val), 4) if tie_val else 0.0
     return {
         "base_penalty": round(base_pen, 4), "n_admissible": len(rows),
-        "prm_quality_spearman": {"rD_vs_value": rho_D, "rE_vs_value": rho_E},
+        "prm_quality_spearman": {"rD_vs_value": rho_D, "rE_vs_value": rho_E,
+                                 "rE2_severity_scalar_vs_value": rho_E2,
+                                 "rC_binary_vs_value": rho_C},
+        "prm_fidelity_ladder": {
+            "binary_C": rho_C, "count_E": rho_E,
+            "severity_scalar_E2": rho_E2, "perfamily_geom_D": rho_D},
+        "confusion_ladder_5pct": {
+            "binary_C": conf_C["5pct"]},
         "scalar_degeneracy": {"distinct_levels_D": nD, "distinct_levels_E": nE,
                               "grpo_adv_var_D": varD, "grpo_adv_var_E": varE},
         "E_top_tiegroup": {
