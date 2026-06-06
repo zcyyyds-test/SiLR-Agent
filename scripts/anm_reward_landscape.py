@@ -1,0 +1,195 @@
+"""Reward landscaping: does the SCALAR reward (arm E) prefer a different action
+than the GEOMETRIC reward (arm D) at a trap state, and does greedily following
+the scalar reward fall into the scalar-projection plateau?
+
+This is the deterministic bridge that fuses pillar-1 (the scalar GATE traps) with
+pillar-2 (the scalar REWARD mis-trains): on the SAME progress_mag verifier output,
+we score every legal single-setpoint action with compute_grpo_reward (D, product-
+order Φ descent) and compute_scalar_reward (E, count-delta projection) and compare
+their argmax. Then we greedily roll out each reward's argmax-among-admissible
+policy (NO LLM, NO GPU) and read the penalty trajectory:
+
+  - if argmax_E != argmax_D and the E-greedy rollout plateaus while the D-greedy
+    rollout recovers, the scalar-projection trap is a property of the reward
+    function (not just the gate) -> fusion holds.
+  - if argmax_E == argmax_D (ANM single-family count/sigma collinear), the trap
+    does not exist at the reward level here -> do NOT force the fusion.
+
+Runs on TSUBAME (CPU only; imports the ANM simulator + verifier). No vLLM.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+import numpy as np
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from domains.anm import (  # noqa: E402
+    ANMScenarioLoader,
+    GymANMManager,
+    build_anm_domain_config,
+    create_anm_toolset,
+)
+from silr.verifier import SiLRVerifier  # noqa: E402
+from silr.verifier import Verdict  # noqa: E402
+from silr.training.reward import (  # noqa: E402
+    compute_grpo_reward,
+    compute_scalar_reward,
+    compute_binary_reward,
+)
+
+ADMISSIBLE = (Verdict.PASS, Verdict.SAFE_PROGRESS)
+
+
+def enumerate_actions(mgr, n_grid=9):
+    """All single-setpoint p actions on the 9-point device grid (q=0)."""
+    base = mgr.base_mva
+    actions = []
+    for gen_id in mgr._gen_ids:
+        dev = mgr._sim.devices[gen_id]
+        p_lo = float(dev.p_min) * base
+        p_hi = min(float(dev.p_max) * base, float(mgr._P_pot.get(gen_id, dev.p_max * base)))
+        for p in np.linspace(p_lo, p_hi, n_grid):
+            actions.append({"tool_name": "set_generator_setpoint",
+                            "params": {"gen_id": int(gen_id), "p_mw": float(p), "q_mvar": 0.0}})
+    for sid in mgr._des_ids:
+        dev = mgr._sim.devices[sid]
+        p_lo = float(dev.p_min) * base
+        p_hi = float(dev.p_max) * base
+        for p in np.linspace(p_lo, p_hi, n_grid):
+            actions.append({"tool_name": "set_storage_setpoint",
+                            "params": {"storage_id": int(sid), "p_mw": float(p), "q_mvar": 0.0}})
+    return actions
+
+
+def score_actions(mgr, verifier):
+    """Score every legal action at the CURRENT mgr state with rD, rE."""
+    rows = []
+    for action in enumerate_actions(mgr):
+        try:
+            vr = verifier.verify(action)
+        except Exception as e:  # noqa: BLE001
+            continue
+        pre = vr.baseline_branches or {}
+        post = vr.post_branches or {}
+        rows.append({
+            "action": action,
+            "verdict": vr.verdict.value,
+            "admissible": vr.verdict in ADMISSIBLE,
+            "rD": compute_grpo_reward(vr),
+            "rE": compute_scalar_reward(vr),
+            "rC": compute_binary_reward(vr),
+            "n_pre": len(pre), "n_post": len(post),
+            "max_sigma_pre": max(pre.values()) if pre else 0.0,
+            "max_sigma_post": max(post.values()) if post else 0.0,
+            "sum_sigma_post": sum(post.values()) if post else 0.0,
+        })
+    return rows
+
+
+def apply_action(mgr, action):
+    """Execute the chosen action on the REAL manager (mutate + solve)."""
+    tools = create_anm_toolset(mgr)
+    tools.get(action["tool_name"]).execute(**action["params"])
+    mgr.solve()
+    return mgr.last_penalty
+
+
+def greedy_rollout(scenario_id, reward_key, max_steps=8):
+    """Greedily apply argmax-`reward_key` among ADMISSIBLE actions; track penalty."""
+    cfg = build_anm_domain_config(with_observer=True, gating_policy="progress_mag")
+    loader = ANMScenarioLoader()
+    sc = loader.load(scenario_id)
+    mgr = GymANMManager(seed=0)
+    loader.setup_episode(mgr, sc)
+    verifier = SiLRVerifier(mgr, domain_config=cfg)
+    traj = [round(float(mgr.last_penalty), 4)]
+    picks = []
+    for _ in range(max_steps):
+        rows = score_actions(mgr, verifier)
+        adm = [r for r in rows if r["admissible"]]
+        if not adm:
+            break  # plateau: no admissible action
+        best = max(adm, key=lambda r: r[reward_key])
+        picks.append({"verdict": best["verdict"],
+                      "max_sigma_pre": round(best["max_sigma_pre"], 3),
+                      "max_sigma_post": round(best["max_sigma_post"], 3),
+                      "tool": best["action"]["tool_name"]})
+        pen = apply_action(mgr, best["action"])
+        traj.append(round(float(pen), 4))
+        if pen < 1e-6:
+            break  # recovered
+        if len(traj) >= 3 and abs(traj[-1] - traj[-2]) < 1e-6:
+            break  # plateau: penalty frozen
+    return {"reward": reward_key, "penalty_traj": traj,
+            "recovered": traj[-1] < 1e-6, "picks": picks}
+
+
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument("--scenarios", nargs="+",
+                   default=["mined_multi_action_3_l0p25g1p0_s12"])
+    p.add_argument("--out", default="figures/anm_reward_landscape.json")
+    args = p.parse_args()
+
+    report = {}
+    for sid in args.scenarios:
+        cfg = build_anm_domain_config(with_observer=True, gating_policy="progress_mag")
+        loader = ANMScenarioLoader()
+        sc = loader.load(sid)
+        mgr = GymANMManager(seed=0)
+        loader.setup_episode(mgr, sc)
+        verifier = SiLRVerifier(mgr, domain_config=cfg)
+        base_pen = float(mgr.last_penalty)
+        rows = score_actions(mgr, verifier)
+        adm = [r for r in rows if r["admissible"]]
+        if adm:
+            argD = max(adm, key=lambda r: r["rD"])
+            argE = max(adm, key=lambda r: r["rE"])
+            diverge = (argD["action"] != argE["action"])
+        else:
+            argD = argE = None
+            diverge = False
+        # greedy rollouts under each reward
+        roll_D = greedy_rollout(sid, "rD")
+        roll_E = greedy_rollout(sid, "rE")
+        report[sid] = {
+            "base_penalty": round(base_pen, 4),
+            "n_actions_scored": len(rows), "n_admissible": len(adm),
+            "argmax_diverges": diverge,
+            "argmax_D": None if not argD else {
+                "rD": round(argD["rD"], 4), "rE": round(argD["rE"], 4),
+                "max_sigma_pre": round(argD["max_sigma_pre"], 3),
+                "max_sigma_post": round(argD["max_sigma_post"], 3),
+                "n_post": argD["n_post"], "tool": argD["action"]["tool_name"]},
+            "argmax_E": None if not argE else {
+                "rD": round(argE["rD"], 4), "rE": round(argE["rE"], 4),
+                "max_sigma_pre": round(argE["max_sigma_pre"], 3),
+                "max_sigma_post": round(argE["max_sigma_post"], 3),
+                "n_post": argE["n_post"], "tool": argE["action"]["tool_name"]},
+            "greedy_D": roll_D, "greedy_E": roll_E,
+        }
+        print(f"\n=== {sid} (base_penalty={base_pen:.3f}, {len(adm)}/{len(rows)} admissible) ===")
+        print(f"  argmax diverges: {diverge}")
+        if argD and argE:
+            print(f"  argmax_D: maxσ {argD['max_sigma_pre']:.2f}->{argD['max_sigma_post']:.2f} "
+                  f"n_post={argD['n_post']} | rD={argD['rD']:.3f} rE={argD['rE']:.3f}")
+            print(f"  argmax_E: maxσ {argE['max_sigma_pre']:.2f}->{argE['max_sigma_post']:.2f} "
+                  f"n_post={argE['n_post']} | rD={argE['rD']:.3f} rE={argE['rE']:.3f}")
+        print(f"  greedy-D penalty traj: {roll_D['penalty_traj']} recovered={roll_D['recovered']}")
+        print(f"  greedy-E penalty traj: {roll_E['penalty_traj']} recovered={roll_E['recovered']}")
+
+    Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+    with open(args.out, "w") as f:
+        json.dump(report, f, indent=2)
+    print(f"\n[written] {args.out}")
+
+
+if __name__ == "__main__":
+    main()
