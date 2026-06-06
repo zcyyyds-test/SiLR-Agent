@@ -101,6 +101,85 @@ def apply_action(mgr, action):
     return mgr.last_penalty
 
 
+def _spearman(xs, ys):
+    """Spearman rank correlation (stdlib)."""
+    n = len(xs)
+    if n < 3:
+        return None
+
+    def ranks(v):
+        order = sorted(range(n), key=lambda i: v[i])
+        r = [0.0] * n
+        i = 0
+        while i < n:
+            j = i
+            while j + 1 < n and v[order[j + 1]] == v[order[i]]:
+                j += 1
+            avg = (i + j) / 2.0 + 1
+            for k in range(i, j + 1):
+                r[order[k]] = avg
+            i = j + 1
+        return r
+    rx, ry = ranks(xs), ranks(ys)
+    mx = sum(rx) / n
+    my = sum(ry) / n
+    num = sum((rx[i] - mx) * (ry[i] - my) for i in range(n))
+    dx = sum((rx[i] - mx) ** 2 for i in range(n)) ** 0.5
+    dy = sum((ry[i] - my) ** 2 for i in range(n)) ** 0.5
+    return round(num / (dx * dy), 3) if dx > 0 and dy > 0 else None
+
+
+def value_landscape(scenario_id):
+    """For every admissible action: its rD, rE, and TRUE one-step value (penalty
+    reduction). Tests which reward is the better PRM (ranks actions by true value)
+    and how degenerate the scalar reward is (distinct levels / GRPO-advantage var)."""
+    import statistics as st
+    cfg = build_anm_domain_config(with_observer=True, gating_policy="progress_mag")
+    loader = ANMScenarioLoader()
+    sc = loader.load(scenario_id)
+    mgr = GymANMManager(seed=0)
+    loader.setup_episode(mgr, sc)
+    verifier = SiLRVerifier(mgr, domain_config=cfg)
+    base_pen = float(mgr.last_penalty)
+    rows = [r for r in score_actions(mgr, verifier) if r["admissible"]]
+    rD = [r["rD"] for r in rows]
+    rE = [r["rE"] for r in rows]
+    # TRUE value of each action = penalty reduction after applying it (fresh mgr)
+    values = []
+    for r in rows:
+        m2 = GymANMManager(seed=0)
+        loader.setup_episode(m2, sc)
+        pen = apply_action(m2, r["action"])
+        values.append(round(base_pen - float(pen), 4))  # higher = better
+    # PRM quality: which reward ranks actions by true value?
+    rho_D = _spearman(rD, values)
+    rho_E = _spearman(rE, values)
+    # scalar degeneracy: distinct reward levels + GRPO advantage variance
+    nD = len(set(round(x, 4) for x in rD))
+    nE = len(set(round(x, 4) for x in rE))
+    varD = round(st.pvariance(rD), 5) if len(rD) > 1 else 0.0
+    varE = round(st.pvariance(rE), 5) if len(rE) > 1 else 0.0
+    # E's top tie-group: actions E rates best — can it tell good from bad?
+    emax = max(rE)
+    tie = [i for i in range(len(rows)) if abs(rE[i] - emax) < 1e-9]
+    tie_val = [values[i] for i in tie]
+    tie_rD = [rD[i] for i in tie]
+    return {
+        "base_penalty": round(base_pen, 4), "n_admissible": len(rows),
+        "prm_quality_spearman": {"rD_vs_value": rho_D, "rE_vs_value": rho_E},
+        "scalar_degeneracy": {"distinct_levels_D": nD, "distinct_levels_E": nE,
+                              "grpo_adv_var_D": varD, "grpo_adv_var_E": varE},
+        "E_top_tiegroup": {
+            "n_tied": len(tie), "E_value": round(emax, 4),
+            "true_value_range": [round(min(tie_val), 4), round(max(tie_val), 4)],
+            "true_value_spread": round(max(tie_val) - min(tie_val), 4),
+            "rD_within_tie_range": [round(min(tie_rD), 4), round(max(tie_rD), 4)],
+            "rD_resolves_tie": (max(tie_rD) - min(tie_rD)) > 1e-6,
+            "best_true_in_tie": round(max(tie_val), 4),
+            "best_true_overall": round(max(values), 4)},
+    }
+
+
 def greedy_rollout(scenario_id, reward_key, max_steps=8):
     """Greedily apply argmax-`reward_key` among ADMISSIBLE actions; track penalty."""
     cfg = build_anm_domain_config(with_observer=True, gating_policy="progress_mag")
@@ -184,6 +263,15 @@ def main():
                   f"n_post={argE['n_post']} | rD={argE['rD']:.3f} rE={argE['rE']:.3f}")
         print(f"  greedy-D penalty traj: {roll_D['penalty_traj']} recovered={roll_D['recovered']}")
         print(f"  greedy-E penalty traj: {roll_E['penalty_traj']} recovered={roll_E['recovered']}")
+        vl = value_landscape(sid)
+        report[sid]["value_landscape"] = vl
+        q = vl["prm_quality_spearman"]; d = vl["scalar_degeneracy"]; t = vl["E_top_tiegroup"]
+        print(f"  PRM quality (Spearman reward-vs-true-value): rD={q['rD_vs_value']}  rE={q['rE_vs_value']}")
+        print(f"  scalar degeneracy: distinct levels D={d['distinct_levels_D']} E={d['distinct_levels_E']} "
+              f"| GRPO-adv var D={d['grpo_adv_var_D']} E={d['grpo_adv_var_E']}")
+        print(f"  E top tie-group: {t['n_tied']} actions tied at rE={t['E_value']}; "
+              f"their TRUE value spans {t['true_value_range']} (spread {t['true_value_spread']}); "
+              f"D resolves tie={t['rD_resolves_tie']}")
 
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     with open(args.out, "w") as f:
