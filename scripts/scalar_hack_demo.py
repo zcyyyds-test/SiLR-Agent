@@ -59,6 +59,25 @@ def main():
     print("               product order against both hacks. Anti-hacking is monotone in")
     print("               how much constraint geometry the reward preserves.")
 
+    # Behavioural consequence (analytic, no tuning): cumulative episode reward of a
+    # DENIAL-OF-RECOVERY stalling policy vs a policy that actually recovers.
+    r_stall = {"binary C": compute_binary_reward(vr(pre, dict(pre))),
+               "count E": compute_scalar_reward(vr(pre, dict(pre))),
+               "geom D": compute_grpo_reward(vr(pre, dict(pre)))}
+    r_prog = {"binary C": compute_binary_reward(vr(pre, {("loading", 1): 2.0})),
+              "count E": compute_scalar_reward(vr(pre, {("loading", 1): 2.0})),
+              "geom D": compute_grpo_reward(vr(pre, {("loading", 1): 2.0}))}
+    H_STALL, K_RECOVER = 8, 3   # stall the whole episode vs recover in 3 steps
+    print(f"\n=== behavioural: cumulative reward, STALL {H_STALL} steps (recovery=0) vs "
+          f"RECOVER in {K_RECOVER} steps (recovery=1) ===")
+    print(f"{'reward':10s} | {'stall-policy cum':>16s} | {'recover-policy cum':>18s} | rewards stalling more?")
+    for k in ("binary C", "count E", "geom D"):
+        cs = H_STALL * r_stall[k]
+        cr = K_RECOVER * r_prog[k]
+        print(f"{k:10s} | {cs:16.2f} | {cr:18.2f} | {'YES — denial-of-recovery wins' if cs > cr + 1e-9 else 'no'}")
+    print("Under binary, stalling 8 steps (4.0) beats recovering in 3 (1.5): the reward "
+          "INCENTIVISES denial-of-recovery. Geometric gives stalling ~0 -> recovery wins.")
+
 
 if __name__ == "__main__":
     main()
