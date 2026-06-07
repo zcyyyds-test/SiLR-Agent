@@ -282,11 +282,12 @@ def value_landscape(scenario_id):
         conf_D[f"{int(frac*100)}pct"] = round(cD / pairs, 3) if pairs else 0.0
     conf_rate_E = conf_E["5pct"]
     conf_rate_D = conf_D["5pct"]
-    # learned-binary-PRM ceiling: the BEST a binary-labelled learner (Math-Shepherd-
-    # style P(recover)) can do is a 2-level reward. We give it the OPTIMAL threshold
-    # (minimising confusion). Even so, all same-side actions tie -> a floor on its
-    # confusion vs the graded true value. (0 GPU; an information-theoretic bound, not
-    # a trained model -- a real learned PRM cannot beat its label granularity here.)
+    # BINARY-PROJECTION ceiling (scoped per verify-panel 2026-06-07 codex+ds): the best
+    # a HARD 2-level reward can do at the OPTIMAL threshold. This bounds binarised /
+    # discrete-label projections ONLY -- it is NOT a bound on a real learned PRM, which
+    # outputs a CONTINUOUS probability (OpenAI PRM / Math-Shepherd / R-PRM all do) and
+    # can in principle exceed it. A reference point on the resolution ladder, NOT an
+    # information-theoretic upper bound on learned PRMs.
     delta_b = 0.05 * vmax
     best_binconf = 1.0
     for thr in sorted(set(values)):
