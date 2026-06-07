@@ -36,8 +36,28 @@ def softmax(zs):
     return [e / s for e in es]
 
 
+_USE_REAL = False
+_REAL = {}
+
+
+def _load_real():
+    from silr.verifier.types import VerificationResult, Verdict  # noqa
+    from silr.training.reward import compute_grpo_reward, compute_scalar_reward  # noqa
+    _REAL.update(VR=VerificationResult, V=Verdict, D=compute_grpo_reward, E=compute_scalar_reward)
+
+
 def step_reward(arm, k, fam, alive_sigma, fam_of):
     """reward for clearing branch k given the pre-clear surviving {idx: sigma}."""
+    if _USE_REAL:
+        pre = {(fam_of[j], j): alive_sigma[j] for j in alive_sigma}
+        post = {(fam_of[j], j): alive_sigma[j] for j in alive_sigma if j != k}
+        vr = _REAL["VR"](verdict=_REAL["V"].SAFE_PROGRESS, action={},
+                         baseline_branches=pre, post_branches=post)
+        if arm == "D":
+            return _REAL["D"](vr)
+        if arm == "E":
+            return _REAL["E"](vr)
+        return (sum(pre.values()) - sum(post.values())) / (sum(pre.values()) + 1e-9)  # E2
     tot = sum(alive_sigma.values()) + 1e-9
     if arm == "E2":
         return alive_sigma[k] / tot
@@ -127,7 +147,13 @@ def main():
     p.add_argument("--H", type=int, default=4)
     p.add_argument("--nS", type=int, default=1)
     p.add_argument("--nL", type=int, default=1)
+    p.add_argument("--real", action="store_true", help="use real compute_grpo_reward/compute_scalar_reward")
     args = p.parse_args()
+    global _USE_REAL
+    if args.real:
+        _USE_REAL = True
+        _load_real()
+        print("[using REAL silr reward functions]")
     print("=== multi-family sigma-het training: per-family geom (D) vs severity-scalar "
           "(E2) vs count (E) ===")
     print(f"task: L(sigma~20,non-urgent) + {args.nS}xS(sigma~2,urgent grace={args.grace}), "
