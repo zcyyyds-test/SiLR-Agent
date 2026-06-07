@@ -66,6 +66,14 @@ def eval_episode(client, scenario_id, gated, max_steps, max_proposals, observe_t
     # magnitude drift) rather than merely reduce count? Captured from the
     # accepted action's persisted Φ = (S, σ).
     from silr.agent.types import StepOutcome
+    def _fam_summary(branches):
+        out = {}
+        for k, v in branches.items():
+            fam = k[0] if isinstance(k, (list, tuple)) else str(k)
+            c, s = out.get(fam, (0, 0.0))
+            out[fam] = (c + 1, round(s + float(v), 4))
+        return out
+
     step_trace = []
     first_admissible_step = None
     for i, s in enumerate(result.steps):
@@ -90,6 +98,11 @@ def eval_episode(client, scenario_id, gated, max_steps, max_proposals, observe_t
             # worst-branch reduction: did this step shrink the single most severe branch?
             "worst_branch_reduced": (max(pre.values()) - max(post.values())) if (pre and post)
             else (max(pre.values()) if pre else 0.0),
+            # per-family residual (k[0] = constraint_type) so we can see WHICH family
+            # a policy leaves violated -- the sigma-het mechanism check (does the scalar
+            # arm clear the big-sigma power family but leave the small-sigma soc family?)
+            "post_fam": _fam_summary(post),
+            "pre_fam": _fam_summary(pre),
         }
         step_trace.append(item)
     return {
