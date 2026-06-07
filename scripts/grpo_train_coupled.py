@@ -126,8 +126,10 @@ def train(arm, couple, floor, growth, nL, nS, H, iters=120, G=32, lr=0.03,
           step_cost=0.02, seed=0):
     rng = random.Random(seed)
     theta = [0.0, 0.0, 0.0]
+    curve = []
     for _ in range(iters):
         eps = [rollout(theta, rng, arm, couple, floor, growth, nL, nS, H, step_cost) for _ in range(G)]
+        curve.append(sum(1 for r, _ in eps if r) / G)
         rets = [sum(s[2] for s in tj) for _, tj in eps]
         mu = st.mean(rets); sd = st.pstdev(rets) or 1e-6
         adv = [(R - mu) / sd for R in rets]
@@ -141,7 +143,7 @@ def train(arm, couple, floor, growth, nL, nS, H, iters=120, G=32, lr=0.03,
         for d in range(2):
             theta[d] += lr * grad[d] / G
     final = sum(1 for _ in range(400) if rollout(theta, rng, arm, couple, floor, growth, nL, nS, H, step_cost)[0]) / 400
-    return final, theta
+    return final, theta, curve
 
 
 def main():
@@ -154,6 +156,7 @@ def main():
     p.add_argument("--nS", type=int, default=2)
     p.add_argument("--H", type=int, default=6)
     p.add_argument("--real", action="store_true")
+    p.add_argument("--curve", default=None, help="write per-iter learning curve CSV")
     args = p.parse_args()
     global _USE_REAL
     if args.real:
@@ -161,15 +164,28 @@ def main():
     print(f"=== coupled sigma-het training: geom D vs count E (bonus=0) ===")
     print(f"L({args.nL}x sigma~7, growth{args.growth}) + S({args.nS}x sigma~1, floor{args.floor}), "
           f"hard-clear-L drains S by couple={args.couple}, H={args.H}")
-    res = {}
+    res = {}; curves = {}
     for arm in ("D", "E"):
-        fr = [train(arm, args.couple, args.floor, args.growth, args.nL, args.nS, args.H, seed=3000 + s)[0]
-              for s in range(args.seeds)]
-        res[arm] = fr
+        runs = [train(arm, args.couple, args.floor, args.growth, args.nL, args.nS, args.H, seed=3000 + s)
+                for s in range(args.seeds)]
+        res[arm] = [r[0] for r in runs]
+        curves[arm] = [r[2] for r in runs]
     print(f"\nfinal recovery over {args.seeds} seeds:")
     print(f"  D geometric (per-family + drift) : {st.mean(res['D']):.3f}")
     print(f"  E count (scalar projection)      : {st.mean(res['E']):.3f}")
     print(f"  D - E = {st.mean(res['D']) - st.mean(res['E']):+.3f}")
+    if args.curve:
+        n = len(curves["D"][0])
+        with open(args.curve, "w") as fh:
+            fh.write("iter,D_recovery,E_recovery\n")
+            for it in range(n):
+                d = st.mean([c[it] for c in curves["D"]])
+                e = st.mean([c[it] for c in curves["E"]])
+                fh.write(f"{it},{d:.4f},{e:.4f}\n")
+        print(f"[learning curve written: {args.curve}]")
+        for it in (0, 5, 10, 20, 40, n - 1):
+            print(f"  iter {it:3d}: D {st.mean([c[it] for c in curves['D']]):.3f}  "
+                  f"E {st.mean([c[it] for c in curves['E']]):.3f}")
 
 
 if __name__ == "__main__":
