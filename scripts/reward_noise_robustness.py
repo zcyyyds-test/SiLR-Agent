@@ -48,17 +48,20 @@ def confusion_noisy(rvals, values, sigma_frac, rng, frac=0.05):
     noisy = [r + rng.gauss(0, sigma_frac * sd) for r in rvals]
     vmax = max(values) if values else 0.0
     delta = frac * vmax
-    pr = soft = 0
-    # with continuous noise nothing ties exactly; instead count pairs the noisy reward
-    # ORDERS WRONG (lower reward for the higher-value action) = a corrupted GRPO signal.
-    wrong = 0
+    pr = 0
+    # fraction of different-value pairs the noisy reward ranks WRONG (lower reward for
+    # the higher-value action). Exact ties count as 0.5 (no signal either way), not as
+    # full errors -- fixes the codex 2026-06-07 note that '<=' inflated the sigma=0 rate.
+    wrong = 0.0
     for i in range(n):
         for j in range(i + 1, n):
             if abs(values[i] - values[j]) > delta:
                 pr += 1
                 hi, lo = (i, j) if values[i] > values[j] else (j, i)
-                if noisy[hi] <= noisy[lo]:
-                    wrong += 1
+                if noisy[hi] < noisy[lo]:
+                    wrong += 1.0
+                elif noisy[hi] == noisy[lo]:
+                    wrong += 0.5
     return wrong / pr if pr else 0.0
 
 

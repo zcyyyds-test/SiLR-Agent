@@ -56,42 +56,54 @@ def confusion_at_state(loader, sc, mgr, verifier, frac=0.05):
     return conf("rE"), conf("rD")
 
 
+def run_policy(loader, scenarios, cfg, policy, max_steps, rng):
+    """policy in {'greedy_D','greedy_E','random'}: which action advances the trajectory.
+    'random' = neutral (no arm bias) -> removes the selection-bias concern (codex
+    2026-06-07: greedy-D visits D-favourable states)."""
+    cE_all, cD_all = [], []
+    n_states = 0
+    for sid in scenarios:
+        sc = loader.load(sid)
+        mgr = GymANMManager(seed=0)
+        loader.setup_episode(mgr, sc)
+        verifier = SiLRVerifier(mgr, domain_config=cfg)
+        for _ in range(max_steps):
+            if mgr.last_penalty < 1e-6:
+                break
+            r = confusion_at_state(loader, sc, mgr, verifier)
+            if r is not None:
+                cE_all.append(r[0]); cD_all.append(r[1]); n_states += 1
+            rows = [x for x in score_actions(mgr, verifier) if x["admissible"]]
+            if not rows:
+                break
+            if policy == "greedy_D":
+                nxt = max(rows, key=lambda x: x["rD"])
+            elif policy == "greedy_E":
+                nxt = max(rows, key=lambda x: x["rE"])
+            else:  # random admissible -- neutral, no arm bias
+                nxt = rows[rng.randrange(len(rows))]
+            apply_action(mgr, nxt["action"])
+    return cE_all, cD_all, n_states
+
+
 def main():
+    import random
     p = argparse.ArgumentParser()
     p.add_argument("--scenarios", nargs="+", required=True)
     p.add_argument("--max-steps", type=int, default=4)
     args = p.parse_args()
     cfg = build_anm_domain_config(with_observer=True, gating_policy="progress_mag")
     loader = ANMScenarioLoader()
-    init_cE, init_cD, onp_cE, onp_cD = [], [], [], []
-    n_states = 0
-    for sid in args.scenarios:
-        sc = loader.load(sid)
-        mgr = GymANMManager(seed=0)
-        loader.setup_episode(mgr, sc)
-        verifier = SiLRVerifier(mgr, domain_config=cfg)
-        # greedy-geometric trajectory; measure confusion at each visited violated state
-        for step in range(args.max_steps):
-            if mgr.last_penalty < 1e-6:
-                break
-            r = confusion_at_state(loader, sc, mgr, verifier)
-            if r is not None:
-                cE, cD = r
-                if step == 0:
-                    init_cE.append(cE); init_cD.append(cD)
-                onp_cE.append(cE); onp_cD.append(cD); n_states += 1
-            # advance greedily under geometric reward (the policy whose distribution we probe)
-            rows = [x for x in score_actions(mgr, verifier) if x["admissible"]]
-            if not rows:
-                break
-            best = max(rows, key=lambda x: x["rD"])
-            apply_action(mgr, best["action"])
-    print(f"=== on-policy fidelity ({len(args.scenarios)} scenarios, {n_states} visited "
-          f"violated states along greedy trajectory) ===")
-    print(f"  INITIAL states only: count confusion {st.mean(init_cE):.3f} | geom {st.mean(init_cD):.3f}")
-    print(f"  ALL on-policy states: count confusion {st.mean(onp_cE):.3f} | geom {st.mean(onp_cD):.3f}")
-    print("  ladder holds on-policy if geom << count at the visited states too "
-          "(not just the static initial trap state).")
+    print("=== on-policy fidelity: ladder at states visited under DIFFERENT trajectory "
+          "policies (selection-bias control) ===")
+    print(f"{'trajectory policy':>22} | {'#states':>7} | {'count confusion':>15} | {'geom confusion':>14}")
+    for policy in ("greedy_D", "greedy_E", "random"):
+        rng = random.Random(20260607)
+        cE, cD, n = run_policy(loader, args.scenarios, cfg, policy, args.max_steps, rng)
+        print(f"{policy:>22} | {n:>7} | {st.mean(cE):15.3f} | {st.mean(cD):14.3f}")
+    print("If geom << count under ALL trajectory policies (incl. neutral 'random' and the "
+          "count-favouring 'greedy_E'), the ladder is not a selection-bias artifact of "
+          "probing only D's own distribution.")
 
 
 if __name__ == "__main__":
