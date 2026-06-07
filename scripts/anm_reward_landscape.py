@@ -282,12 +282,32 @@ def value_landscape(scenario_id):
         conf_D[f"{int(frac*100)}pct"] = round(cD / pairs, 3) if pairs else 0.0
     conf_rate_E = conf_E["5pct"]
     conf_rate_D = conf_D["5pct"]
+    # learned-binary-PRM ceiling: the BEST a binary-labelled learner (Math-Shepherd-
+    # style P(recover)) can do is a 2-level reward. We give it the OPTIMAL threshold
+    # (minimising confusion). Even so, all same-side actions tie -> a floor on its
+    # confusion vs the graded true value. (0 GPU; an information-theoretic bound, not
+    # a trained model -- a real learned PRM cannot beat its label granularity here.)
+    delta_b = 0.05 * vmax
+    best_binconf = 1.0
+    for thr in sorted(set(values)):
+        lab = [1 if v >= thr else 0 for v in values]
+        pr = cc = 0
+        for i in range(n):
+            for j in range(i + 1, n):
+                if abs(values[i] - values[j]) > delta_b:
+                    pr += 1
+                    if lab[i] == lab[j]:
+                        cc += 1
+        if pr:
+            best_binconf = min(best_binconf, cc / pr)
     # tie-break regret: GRPO with no signal picks a random action in E's top tie
     # (expected = mean value); the geometric reward picks the best in that group.
     import statistics as _st
     regret = round(max(tie_val) - _st.mean(tie_val), 4) if tie_val else 0.0
+    n_branches_B = max((r["n_pre"] for r in rows), default=0)  # violated branches at trap state
     return {
         "base_penalty": round(base_pen, 4), "n_admissible": len(rows),
+        "n_branches_B": n_branches_B,
         "prm_quality_spearman": {"rD_vs_value": rho_D, "rE_vs_value": rho_E,
                                  "rE2_severity_scalar_vs_value": rho_E2,
                                  "rC_binary_vs_value": rho_C},
@@ -312,6 +332,7 @@ def value_landscape(scenario_id):
         "grpo_signal": {
             "scalar_confusion_rate": conf_rate_E,
             "geometric_confusion_rate": conf_rate_D,
+            "learned_binary_prm_ceiling_confusion": round(best_binconf, 3),
             "scalar_confusion_by_threshold": conf_E,
             "geometric_confusion_by_threshold": conf_D,
             "tie_break_regret": regret},
