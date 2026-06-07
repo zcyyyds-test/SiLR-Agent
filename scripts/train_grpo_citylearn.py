@@ -58,6 +58,7 @@ from silr.training.reward import (
     compute_binary_reward,
     compute_grpo_reward,
     compute_scalar_reward,
+    compute_severity_scalar_reward,
 )
 from silr.verifier import SiLRVerifier
 
@@ -66,7 +67,7 @@ logger = logging.getLogger(__name__)
 # Hardened N=4 multi-type band (cl_mined_*), frozen in scenarios_mined.json.
 DEFAULT_SCENARIOS = [s.id for s in SCENARIOS if s.id.startswith("cl_mined_")]
 
-_ARM_FN = {"C": compute_binary_reward, "D": compute_grpo_reward, "E": compute_scalar_reward}
+_ARM_FN = {"C": compute_binary_reward, "D": compute_grpo_reward, "E": compute_scalar_reward, "E2": compute_severity_scalar_reward}
 
 
 def setup_logging(output_dir: str):
@@ -296,7 +297,7 @@ def grpo_policy_update(model, tokenizer, optimizer, samples, clip_eps, kl_coeff,
 
 def main():
     p = argparse.ArgumentParser(description="Step-level GRPO — CityLearn verifier-as-reward")
-    p.add_argument("--arm", choices=["C", "D", "E"], required=True,
+    p.add_argument("--arm", choices=["C", "D", "E", "E2"], required=True,
                    help="C=binary, D=structured product-order (claim), E=scalar projection")
     p.add_argument("--base-model", default="Qwen/Qwen3-8B")
     p.add_argument("--quant", choices=["bf16", "4bit"], default="bf16",

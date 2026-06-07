@@ -246,6 +246,41 @@ def compute_scalar_reward(
     return _fail_penalty(result.check_results)
 
 
+def compute_severity_scalar_reward(
+    result: VerificationResult,
+    config: Optional[RewardConfig] = None,
+) -> float:
+    """Arm E2 — severity-scalar GRPO process reward (the strongest scalar baseline).
+
+    Identical verdict scaffold to arms D/E, but the SAFE_PROGRESS step is scored by
+    the **total-severity reduction fraction** — (Σσ_pre − Σσ_post)/Σσ_pre — a single
+    scalar that keeps severity information (unlike count E) but COLLAPSES the product
+    order over physically-incomparable families into one dimension. Under sigma-
+    heterogeneity it is dominated by the large-σ family, so it rewards clearing the
+    big family and under-weights a small-σ bottleneck family — the projection that
+    arm D's per-family normalization is designed to beat. (In a single-family domain
+    this reduces to arm D's within-family weighting, so D > E2 only shows in the
+    multi-type / sigma-het regime.)
+    """
+    if result.verdict == Verdict.ERROR:
+        return -1.0
+    if result.verdict == Verdict.PASS:
+        return _pass_reward(result.check_results, config)
+    if result.verdict == Verdict.SAFE_PROGRESS:
+        pre = result.baseline_branches
+        post = result.post_branches or {}
+        if not pre:
+            return _SP_W_SEVERITY
+        sum_pre = sum(pre.values())
+        sum_post = sum(post.get(k, 0.0) for k in pre)  # surviving severity of pre-branches
+        # add any drift on surviving branches into the residual so a magnitude
+        # reallocation is not free (matches the severity-scalar used in landscaping)
+        sum_post = sum(post.values()) if post else 0.0
+        return max(-1.0, (sum_pre - sum_post) / (sum_pre + 1e-8))
+    # FAIL
+    return _fail_penalty(result.check_results)
+
+
 def compute_binary_reward(
     result: VerificationResult,
     config: Optional[RewardConfig] = None,
