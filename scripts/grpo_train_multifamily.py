@@ -71,13 +71,13 @@ def step_reward(arm, k, fam, alive_sigma, fam_of):
     return (alive_sigma[k] / (fams[fam[k]] + 1e-9)) / len(fams)
 
 
-def rollout(theta, rng, arm, grace, bonus, step_cost, n_L=1, n_S=1, H=4):
+def rollout(theta, rng, arm, grace, bonus, step_cost, n_L=1, n_S=1, H=4, sigL=20.0):
     # build branches: L family (large, non-urgent), S family (small, urgent)
     sigma = {}
     fam = {}
     bid = 0
     for _ in range(n_L):
-        sigma[bid] = rng.uniform(16.0, 24.0); fam[bid] = "L"; bid += 1
+        sigma[bid] = rng.uniform(0.8 * sigL, 1.2 * sigL); fam[bid] = "L"; bid += 1
     for _ in range(n_S):
         sigma[bid] = rng.uniform(1.0, 3.0); fam[bid] = "S"; bid += 1
     alive = {k: True for k in sigma}
@@ -116,12 +116,12 @@ def rollout(theta, rng, arm, grace, bonus, step_cost, n_L=1, n_S=1, H=4):
 
 
 def train(arm, grace, bonus, iters=80, G=24, lr=0.05, step_cost=0.02, seed=0,
-          n_L=1, n_S=1, H=4):
+          n_L=1, n_S=1, H=4, sigL=20.0):
     rng = random.Random(seed)
     theta = [0.0, 0.0]
     curve = []
     for _ in range(iters):
-        eps = [rollout(theta, rng, arm, grace, bonus, step_cost, n_L, n_S, H) for _ in range(G)]
+        eps = [rollout(theta, rng, arm, grace, bonus, step_cost, n_L, n_S, H, sigL) for _ in range(G)]
         curve.append(sum(1 for r, _ in eps if r) / G)
         rets = [sum(s[2] for s in tj) for _, tj in eps]
         mu = st.mean(rets); sd = st.pstdev(rets) or 1e-6
@@ -135,7 +135,7 @@ def train(arm, grace, bonus, iters=80, G=24, lr=0.05, step_cost=0.02, seed=0,
                 grad[0] += A * (feats[ci] - fbar0)
                 grad[1] += A * (1 - 1)  # bias feature constant -> handled implicitly
         theta[0] += lr * grad[0] / G
-    final = st.mean([sum(1 for _ in range(300) if rollout(theta, rng, arm, grace, bonus, step_cost, n_L, n_S, H)[0]) / 300])
+    final = st.mean([sum(1 for _ in range(300) if rollout(theta, rng, arm, grace, bonus, step_cost, n_L, n_S, H, sigL)[0]) / 300])
     return curve, theta, final
 
 
@@ -148,6 +148,7 @@ def main():
     p.add_argument("--nS", type=int, default=1)
     p.add_argument("--nL", type=int, default=1)
     p.add_argument("--real", action="store_true", help="use real compute_grpo_reward/compute_scalar_reward")
+    p.add_argument("--sigL", type=float, default=20.0)
     args = p.parse_args()
     global _USE_REAL
     if args.real:
@@ -164,7 +165,7 @@ def main():
         fr, tt = [], []
         for s in range(args.seeds):
             _, theta, final = train(arm, args.grace, args.bonus, seed=2000 + s,
-                                     n_S=args.nS, n_L=args.nL, H=args.H)
+                                     n_S=args.nS, n_L=args.nL, H=args.H, sigL=args.sigL)
             fr.append(final); tt.append(theta[0])
         res[arm] = fr; th[arm] = tt
     print(f"\nfinal recovery (clear urgent S in time) over {args.seeds} seeds:")
