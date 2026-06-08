@@ -206,6 +206,7 @@ def collect_rollouts(model, tokenizer, scenarios, agent_config, rollouts_per_sce
                 all_samples.append(StepSample(
                     obs_text=obs_text, action_text=action_text,
                     reward=reward, group_key=(scenario.id,),
+                    traj_id=rollout_ctr - 1,  # this rollout's id (ctr already ++'d)
                 ))
 
     for sid in per_total:
@@ -408,7 +409,12 @@ def main():
 
         logger.info("Phase 2: advantages...")
         compute_log_probs(model, tokenizer, samples)
-        compute_advantages(samples)
+        if os.environ.get("SILR_TRAJ_ADV") == "1":
+            from silr.training.grpo_trainer import compute_advantages_trajectory
+            logger.info("  [trajectory-return advantage] (SILR_TRAJ_ADV=1)")
+            compute_advantages_trajectory(samples)
+        else:
+            compute_advantages(samples)
 
         group_sizes = Counter()
         group_std = {}

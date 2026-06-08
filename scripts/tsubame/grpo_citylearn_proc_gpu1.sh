@@ -42,6 +42,7 @@ export PYTHONPATH="$PROJECT"; export PATH="$ENV_DIR/bin:$PATH"
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
 export TOKENIZERS_PARALLELISM=false
 export SILR_CITYLEARN_N_BUILDINGS=4
+export SILR_TRAJ_ADV="${TRAJ_ADV:-0}"   # 1 = trajectory-return advantage (codex fix)
 cd "$PROJECT"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
 "$ENV_DIR/bin/python" -c "import domains.citylearn.simulator as s; assert s.N_BUILDINGS==4; print('[band-ok] N=4')"

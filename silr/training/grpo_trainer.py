@@ -49,6 +49,47 @@ class StepSample:
     group_key: tuple  # (scenario_id,)
     advantage: float = 0.0
     log_prob: float = 0.0
+    traj_id: int = -1  # rollout/episode id (for trajectory-return advantage)
+
+
+def compute_advantages_trajectory(samples: Sequence[StepSample]) -> None:
+    """Trajectory-RETURN advantage (panel 2026-06-08, codex root cause).
+
+    Step-level scenario z-score advantage truncates delayed consequences: a count
+    reward's "clear the big family now, floor the small one later" is invisible if
+    each step is normalised on its own. This computes, per scenario group, the
+    episode RETURN of each rollout (sum of its step rewards), z-scores the returns
+    ACROSS rollouts, and assigns each rollout's return-advantage to ALL its steps --
+    exactly what the tabular GRPO sims do (where geometric D wins decisively). This
+    preserves the path-quality / delayed-consequence signal the geometric reward
+    encodes. Enable with SILR_TRAJ_ADV=1.
+    """
+    # scenario group -> {traj_id: [steps]}
+    scen: dict[tuple, dict[int, list[StepSample]]] = defaultdict(lambda: defaultdict(list))
+    for s in samples:
+        scen[s.group_key][s.traj_id].append(s)
+
+    for trajs in scen.values():
+        returns = {tid: sum(st.reward for st in steps) for tid, steps in trajs.items()}
+        n = len(returns)
+        if n <= 1:
+            for steps in trajs.values():
+                for st in steps:
+                    st.advantage = 0.0
+            continue
+        mean_R = sum(returns.values()) / n
+        var_R = sum((R - mean_R) ** 2 for R in returns.values()) / n
+        std_R = sqrt(var_R)
+        if std_R == 0.0:
+            for steps in trajs.values():
+                for st in steps:
+                    st.advantage = 0.0
+            continue
+        for tid, steps in trajs.items():
+            adv = (returns[tid] - mean_R) / (std_R + 1e-8)
+            adv = max(-3.0, min(3.0, adv))
+            for st in steps:
+                st.advantage = adv
 
 
 def compute_advantages(samples: Sequence[StepSample]) -> None:
