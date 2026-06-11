@@ -28,5 +28,36 @@ Table~\ref{tab:reward} reads as a monotone ablation chain, $\text{D} > \text{D-f
 \paragraph{Internalization generalizes.}
 On $15$ held-out scenarios disjoint from training, D recovers $14/15$ ungated against the untrained base's $9/15$ (one-sided Fisher exact $p{=}0.04$)---the policy carries the geometry to unseen instances, ruling out in-distribution memorization. The scalar arm E reaches the same ungated rate ($14/15$), but its gated recovery falls to $0.80$, below base's $0.87$: the two arms separate by \emph{mechanism} rather than headline rate---D degrades gracefully when the gate is removed, whereas E overfits to the gate's support filter. (Held-out figures are a single adapter, seed $0$.)
 
+\begin{table}[t]
+\centering
+\caption{The scalarization failure class: trained recovery of each reward in the two multi-family stress regimes ($16$ training seeds each, GRPO over the production reward functions). Every scalarization fails in at least one regime---adding a drift term rescues count in the coupling regime but leaves it priority-blind under $\sigma$-heterogeneity, and the severity scalar collapses in both---while the full product-order geometry is the only reward robust in both. The homogeneous limit ($\sigma_L/\sigma_S{=}1$, Fig.~\ref{fig:trainenh}b) is the built-in negative control: with no heterogeneity to mis-rank, all arms tie.}
+\label{tab:failureclass}
+\begin{tabular}{lcc}
+\toprule
+ & \multicolumn{2}{c}{trained recovery} \\
+\cmidrule(lr){2-3}
+Training reward & $\sigma$-het regime & coupling regime \\
+\midrule
+\textbf{geometric (full $\Phi$)} & $\mathbf{1.00}$ & $\mathbf{1.00}$ \\
+severity-scalar ($\Sigma\sigma$ descent) & $0.00$ & $0.04$ \\
+count ($|S|$ descent) & $0.80$ & $0.12$ \\
+count $+$ drift penalty & $0.80$ & $1.00$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/train_enhancement.pdf}
+\caption{Training dynamics in the multi-family stress regimes. (a)~Coupling regime: the geometric reward converges to full recovery within five GRPO iterations, while the count reward---blind to the cross-family drift its own actions cause---is driven \emph{below} its random initialization: maximizing cleared count actively teaches the policy to sacrifice the fragile family. (b)~Trained recovery versus $\sigma$-heterogeneity: the severity scalar's failure activates at $\sigma_L/\sigma_S\!\approx\!4$ and is total from $8$ onward; CityLearn's measured ratio ($286$, dashed) sits deep inside the collapsed regime. At the homogeneous limit both arms tie---the failure is caused by heterogeneity, not by the construction.}
+\label{fig:trainenh}
+\end{figure}
+
+\paragraph{The multi-family failure class.}
+When several physically incomparable violation families are active at once, any scalar reward must collapse the product order into one dimension, and we can characterize exactly what is lost: with $B$ concurrent violations a count-based reward takes at most $B{+}1$ distinct values, and over a continuous reduction of any single branch it is flat---zero gradient, hence zero GRPO advantage---on $98\%$ of the action range, whereas the graded geometric reward varies everywhere. To turn this structural deficit into trained behavior we run a controlled training-dynamics analysis in the spirit of specification-gaming probes~\cite{krakovna2020specification}: two minimal multi-family recovery regimes that each isolate one component of the geometry, with GRPO on the unmodified production reward functions. In the \emph{$\sigma$-heterogeneity regime} (one large-$\sigma$ family, one small-$\sigma$ family whose violation is urgent), the severity scalar is hijacked by raw magnitude---it learns to chase the large family and recovers $0\%$ of episodes---while per-family normalization makes the urgent family's elimination worth a full family and recovers $100\%$. In the \emph{coupling regime} (clearing the large family drifts the small family toward an irreversible limit), the count reward is blind to the drift its own actions cause and trains to $12\%$; the drift-aware geometric reward trains to $100\%$. Table~\ref{tab:failureclass} completes the ablation square: restoring the drift term rescues count in the coupling regime ($1.00$) but cannot restore cross-family priority ($0.80$ under $\sigma$-heterogeneity), and the severity scalar fails in both regimes. Scalarization itself loses the dimensions; patching a scalar recovers one regime at a time, and only the full geometry is robust in both. The sweep in Fig.~\ref{fig:trainenh}b shows the failure is not an artifact of a chosen operating point: it activates at $\sigma_L/\sigma_S\!\approx\!4$, is total from $8$ onward---CityLearn's measured heterogeneity is $286$---and vanishes in the homogeneous limit, where all arms tie.
+
+\paragraph{Mechanism fingerprints at full scale.}
+Training Qwen3-8B with GRPO on the multi-type CityLearn band (four buildings, $\sigma$-het $286$) reproduces the same mechanism in a full-scale system, and exposes a credit-assignment requirement that step-level GRPO misses. Per-step advantage normalization truncates delayed consequences---a per-step z-score cannot propagate the cost of flooring the battery family back to the early step that caused it---and under it the count arm spuriously dominates; restoring trajectory-return credit, exactly the estimator under which the controlled analysis operates, removes the artifact. The geometric reward's advantage signal tracks the true one-step action value at $\rho=0.96$ versus $0.79$ for count (GRPO advantages computed over the measured per-action rewards), and the trained policies separate along the predicted axis: after training, the count arm leaves the battery family at $14\%$ higher residual severity than the geometric arm at the same violation count---the signature of a severity-blind signal. Seed-level variance at this scale ($\mathrm{sd}\approx0.14$ across training seeds) puts a floor on outcome-level power (${>}20$ seeds to resolve a $0.05$ recovery gap), so we read the full-scale experiments at the mechanism level, where the fingerprints are consistent across seeds.
+
 \paragraph{Scope.}
-This is a single-violation-family, single-model ($8$B) study; the in-distribution effect is modest relative to evaluation noise---identical greedy decodes vary by $\pm1/9$ across runs (GPU matmul, temperature $0$), which is why we pool five training seeds and anchor on the held-out test. Concurrently activating multiple, physically incomparable violation families---where a scalar surrogate must collapse the product order and the geometric advantage should be largest---is the natural next test (\S\ref{sec:discussion}).
+The single-family study is one model ($8$B) with in-distribution effects modest relative to evaluation noise---identical greedy decodes vary by $\pm1/9$ across runs---which is why we pool five training seeds and anchor on the held-out test; the multi-family claim is a failure-class result (which reward structures \emph{can} be trained against which regimes), established on the production reward functions under controlled dynamics and corroborated at full scale by the mechanism fingerprints above, not an end-to-end deployment benchmark.

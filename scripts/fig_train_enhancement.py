@@ -36,7 +36,11 @@ def coupled_curves(seeds=24):
 
 
 def het_sweep(seeds=16):
-    ratios = [1, 2, 4, 8, 20, 50, 286]
+    # dense 10-point sweep (panel 2026-06-11): sigma-het=1 is the natural negative
+    # control (all arms tie -- no heterogeneity, no hijack), and the dense ladder
+    # shows CityLearn's measured 286 sits deep inside the collapsed regime, not at
+    # a cherry-picked point.
+    ratios = [1, 2, 4, 8, 16, 32, 64, 128, 256, 286]
     D, E2 = [], []
     for sl in ratios:
         d = st.mean([M.train("D", 4, 0.0, seed=2000 + s, n_S=1, n_L=4, H=4, sigL=float(sl))[2] for s in range(seeds)])

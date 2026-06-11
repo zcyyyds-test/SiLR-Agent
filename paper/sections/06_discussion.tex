@@ -10,5 +10,5 @@ The admission invariant (Prop.~\ref{prop:inv}) assumes recovery needs no transie
 \paragraph{Scope and design properties.}
 The security claim is scoped to a \emph{fixed} compromised-LLM adversary on a trusted simulator (a corrupted model behind an intact control stack); adaptive adversaries and simulator--reality mismatch are out of scope.
 
-\paragraph{Future work.}
-The process-reward result of \S\ref{sec:reward} is established on a single violation family; the natural extension is benchmarks that concurrently activate multiple families, extending the product order across $S$, $\sigma$, and inter-family ordering---the regime in which a scalar surrogate must collapse incomparable violations and the geometric reward should separate most sharply.
+\paragraph{Limitations and future work.}
+The full-scale multi-family experiments are read at the mechanism level: resolving the outcome-level recovery gap at LLM scale requires ${>}20$ training seeds at the measured seed variance (\S\ref{sec:reward}). Our scalar baselines are fixed projections of $\Phi$ rather than a separately trained reward model---a learned PRM with continuous output is not bounded by the count or severity projections and remains the natural head-to-head comparison. Scaling the seed budget and adding that trained-PRM arm are the immediate next steps.
