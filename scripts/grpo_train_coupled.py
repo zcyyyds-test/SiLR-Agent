@@ -53,6 +53,14 @@ def reward(arm, pre, post):
     surv = pre_k & post_k
     if arm == "E":  # count
         return (len(pre) - len(post)) / (len(pre) + 1e-9)
+    if arm == "ED":  # count + drift penalty (ablation: is E's failure just missing
+        # drift information, or the scalar geometry itself? panel codex 2026-06-11)
+        drifts = [max(0.0, post[k] - pre[k]) / (pre[k] + 1e-8) for k in surv]
+        return (len(pre) - len(post)) / (len(pre) + 1e-9) - 0.3 * min(max(drifts, default=0.0), 1.0)
+    if arm == "E2":  # severity-scalar (sum-sigma reduction; sees drift via sum but
+        # collapses families -- the strongest scalar baseline)
+        sp=sum(pre.values()); so=sum(post.values())
+        return max(-1.0,(sp-so)/(sp+1e-9))
     # D per-family support_elim + severity_red - drift
     fams = {}
     for k in pre_k:
@@ -165,7 +173,7 @@ def main():
     print(f"L({args.nL}x sigma~7, growth{args.growth}) + S({args.nS}x sigma~1, floor{args.floor}), "
           f"hard-clear-L drains S by couple={args.couple}, H={args.H}")
     res = {}; curves = {}
-    for arm in ("D", "E"):
+    for arm in ("D", "E", "ED", "E2"):
         runs = [train(arm, args.couple, args.floor, args.growth, args.nL, args.nS, args.H, seed=3000 + s)
                 for s in range(args.seeds)]
         res[arm] = [r[0] for r in runs]
@@ -173,7 +181,9 @@ def main():
     print(f"\nfinal recovery over {args.seeds} seeds:")
     print(f"  D geometric (per-family + drift) : {st.mean(res['D']):.3f}")
     print(f"  E count (scalar projection)      : {st.mean(res['E']):.3f}")
-    print(f"  D - E = {st.mean(res['D']) - st.mean(res['E']):+.3f}")
+    print(f"  ED count + drift (ablation)      : {st.mean(res['ED']):.3f}")
+    print(f"  E2 severity-scalar               : {st.mean(res['E2']):.3f}")
+    print(f"  D - E = {st.mean(res['D']) - st.mean(res['E']):+.3f}   D - ED = {st.mean(res['D']) - st.mean(res['ED']):+.3f}")
     if args.curve:
         n = len(curves["D"][0])
         with open(args.curve, "w") as fh:
