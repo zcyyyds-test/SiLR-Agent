@@ -180,3 +180,5 @@ Llama-3.1-8B & $5/15$ {\scriptsize[0.15,0.58]}  & $\mathbf{15/15}$ {\scriptsize[
 \label{sec:eval:cost}
 
 Each verifier call performs one $\mathrm{copy}\to\mathrm{apply}\to\mathrm{solve}$ plus three predicate evaluations: $17.5$--$30.0$\,ms on one CPU core, dominated by the solver---under $0.15\%$ of the $\sim$22\,s wall-clock of one LLM ReAct step.
+
+Sections~\ref{sec:method}--\ref{sec:eval} establish the product order as a runtime admission criterion. A natural question is whether the same geometry can be \emph{internalized} by the policy itself, so that recovery no longer depends on the gate at deployment; the next section addresses this by reusing the verifier as a GRPO process reward.

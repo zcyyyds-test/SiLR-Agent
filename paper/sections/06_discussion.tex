@@ -10,5 +10,8 @@ The admission invariant (Prop.~\ref{prop:inv}) assumes recovery needs no transie
 \paragraph{Scope and design properties.}
 The security claim is scoped to a \emph{fixed} compromised-LLM adversary on a trusted simulator (a corrupted model behind an intact control stack); adaptive adversaries and simulator--reality mismatch are out of scope.
 
+\paragraph{From gate to training signal.}
+The process-reward results of \S\ref{sec:reward} close the loop on the admission story: the product order is not only the criterion a runtime gate should enforce but the unit of structure a policy can internalize. The same scalarization that is unsound as an admission rule (Prop.~\ref{prop:gap}) collapses the advantage signal as a reward (Prop.~\ref{prop:collapse}); structured admission and structured reward are two faces of preserving the violation geometry.
+
 \paragraph{Limitations and future work.}
-The full-scale multi-family experiments are read at the mechanism level: resolving the outcome-level recovery gap at LLM scale requires ${>}20$ training seeds at the measured seed variance (\S\ref{sec:reward}). Our scalar baselines are fixed projections of $\Phi$ rather than a separately trained reward model---a learned PRM with continuous output is not bounded by the count or severity projections and remains the natural head-to-head comparison. Scaling the seed budget and adding that trained-PRM arm are the immediate next steps.
+The full-scale multi-family experiments are read at the mechanism level (the held-out single-family test uses one adapter, seed $0$); resolving the outcome-level recovery gap at LLM scale requires ${>}20$ training seeds at the measured seed variance (\S\ref{sec:reward}). Future work includes scaling the seed budget and comparing against a learned process reward model with continuous output.
