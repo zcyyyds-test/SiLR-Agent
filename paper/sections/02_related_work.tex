@@ -8,7 +8,7 @@ Shielding~\cite{alshiekh2018safe} synthesizes a finite-state shield from a tempo
 Recent work adds runtime enforcement to tool-using LLM agents through architectural gates, guard agents, or rule languages: SARC's Pre-Action Gate~\cite{sarc2026} (the closest binary baseline, admitting a tool call only when a hand-written predicate holds), AgentSpec's runtime-enforcement DSL~\cite{agentspec2026}, GuardAgent~\cite{guardagent2025} and ShieldAgent~\cite{shieldagent2025} (compiling guard policies), and VeriGuard~\cite{veriguard2025} (verified code generation plus monitoring). These make LLM agents more governable but do not target post-violation recovery admission: a terminal predicate (as a SARC-style Pre-Action Gate instantiates) preserves safety but deadlocks multi-step recovery (Sec.~\ref{sec:eval:rq1}).
 
 \paragraph{LLM agents for power-grid control.}
-Grid-Agent~\cite{gridagent2025} is the closest same-domain near-neighbor: it couples LLM agents with sandboxed power-flow validation, rollback of negative actions, and monotonic-progress behavior for power-grid control. The mechanisms differ in kind: Grid-Agent's monotonic check is a \emph{post-hoc} rollback that applies an action and reverts it on regression, whereas \silr{}'s product order is a \emph{pre-action} admission predicate that never applies a geometry-poor step and emits graded verdicts reusable as a training signal.
+Grid-Agent~\cite{gridagent2025} is the closest same-domain near-neighbor: it couples LLM agents with sandboxed power-flow validation, rollback of negative actions, and monotonic-progress behavior for power-grid control. The mechanisms differ in kind: Grid-Agent's check is a \emph{post-hoc} rollback that reverts an action unless the violation set is resolved without introducing new violations---a support-level criterion with no per-branch severity guard---whereas \silr{}'s product order is a \emph{pre-action} admission predicate that never applies a geometry-poor step and emits graded verdicts reusable as a training signal.
 
 \paragraph{Multi-objective optimization and scalarization.}
 Scalarization trade-offs are classically studied as a \emph{static} representational question---e.g., linear scalarization cannot reach non-convex Pareto regions~\cite{miettinen1999nonlinear}. The scalar projection trap (Sec.~\ref{sec:method:trap}) is a \emph{behavioral} phenomenon of the runtime gate: in a ReAct loop the gate is a commitment operator, so an admitted aggregate-improving step restarts the per-step search from a plateau state---a failure of the gate's trajectory dynamics, not merely of an aggregate's expressiveness.
@@ -37,5 +37,5 @@ MPS / Recovery RL~\cite{bastani2019mps,thananjeyan2021recovery} & \ding{55} & \d
 \silr{} (ours)                              & \ding{51} & \ding{51} & \ding{51} & \ding{51} \\
 \bottomrule
 \end{tabular*}\\[2pt]
-{\footnotesize $^\dagger$scalar/penalty progress only; $^\ddagger$applies then reverts (post-hoc rollback).}
+{\footnotesize $^\dagger$support-level violation validation, no per-branch severity guard; $^\ddagger$applies then reverts (post-hoc rollback).}
 \end{table}

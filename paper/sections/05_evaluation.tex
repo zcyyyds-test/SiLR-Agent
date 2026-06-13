@@ -12,7 +12,7 @@ We use Gym-ANM ANM6-Easy~\cite{henry2021gymanm} as the critical-infrastructure s
 We mine a 600-scenario pool by gridded perturbation of load/generation multipliers, source seed, and storage SoC, classified by recoverability (\emph{single-action} 153, \emph{multi-action} 24, \emph{MPC-residual} 252, trivial 171). The multi-action band---$8$ operating points $\times\,3$ storage-SoC perturbations---is our benchmark; each scenario is MPC-recoverable (gym-anm \texttt{MPCAgentConstant} oracle), so the comparison is well-posed. The matched deep contrast (RQ1--RQ3) uses three operating points at $N{=}7$, denoted \texttt{multi\_1}--\texttt{multi\_3} ($21$ episodes each, $C_{\text{step}}{=}8$); to rule out scenario selection we additionally evaluate \emph{all $24$} at $N{=}5$. Generalization and security suites use $N{=}5$.
 
 \paragraph{Policies.}
-\texttt{OFF} (no verifier; every proposal applied), \texttt{terminal} (terminal predicate: admit iff $S(\hat{s}_{t+1})=\emptyset$), \texttt{progress} ($\psione\wedge\psitwo$), \texttt{progress\_mag} ($\psione\wedge\psitwo\wedge\psithree$; the structured admission gate). For the scalar falsifier we add \texttt{scalar\_progress}$_\eta$, admitting iff $P(\hat{s}_{t+1})\le(1{+}\eta)P(s_t)$ with $\eta\in\{0,0.05,0.10,0.20\}$.
+\texttt{OFF} (no verifier; every proposal applied), \texttt{terminal} (terminal predicate: admit iff $S(\hat{s}_{t+1})=\emptyset$), \texttt{progress} ($\psione\wedge\psitwo$; support admission, our pre-action instantiation of the Grid-Agent rollback baseline~\cite{gridagent2025}), \texttt{progress\_mag} ($\psione\wedge\psitwo\wedge\psithree$; the structured admission gate). For the scalar falsifier we add \texttt{scalar\_progress}$_\eta$, admitting iff $P(\hat{s}_{t+1})\le(1{+}\eta)P(s_t)$ with $\eta\in\{0,0.05,0.10,0.20\}$.
 
 \subsection{RQ1: Binary Terminal Admission Deadlocks Multi-Step Recovery}
 \label{sec:eval:rq1}
@@ -92,7 +92,7 @@ The mini-suite runs the three mined multi-action scenarios under \texttt{progres
 Across the $60$ attack episodes the verifier produces $0/60$ attack success, false recovery, and material worsening (Wilson 95\% CI $[0,0.06]$), with $0/15$ on the benign control ($0/75$ overall); under \texttt{prompt\_injection} the rejection rate climbs sharply. Containment is \emph{architectural}, not statistical: the verifier never accesses the LLM's prompt or observation channels (Sec.~\ref{sec:method:shadow}), so any proposal breaching the admission predicates is rejected however the input is corrupted (Prop.~\ref{prop:inv}).
 
 \paragraph{The structured predicate is necessary: magnitude redistribution.}
-The fourth family, \emph{magnitude redistribution} (Sec.~\ref{sec:threat}), drives one retained branch toward failure while holding the overloaded-branch set and the aggregate penalty within nominal bounds, evading aggregate- and support-level monitoring. The $39$-episode suite applies this objective across the three scenarios under C1/C2 in three realization variants---direct single-branch concentration, gradual load consolidation, and observation-masked drift (plain and RAG)---all sharing the count-preserving severity signature. A scalar gate is breached $17/39$ and a support-only gate ($\psione\wedge\psitwo$) $12/39$, whereas the full gate ($\psione\wedge\psitwo\wedge\psithree$) is breached $0/39$ (Fig.~\ref{fig:breach}): the aggregate penalty falls and the overloaded-branch \emph{set} is unchanged, so only the per-branch test $\psithree$ rejects the concentrating step.
+The fourth family, \emph{magnitude redistribution} (Sec.~\ref{sec:threat}), drives one retained branch toward failure while holding the overloaded-branch set and the aggregate penalty within nominal bounds, evading aggregate- and support-level monitoring. The $39$-episode suite applies this objective across the three scenarios under C1/C2 in three realization variants---direct single-branch concentration, gradual load consolidation, and observation-masked drift (plain and RAG)---all sharing the count-preserving severity signature. A scalar gate is breached $17/39$ and the support-only Grid-Agent rollback baseline ($\psione\wedge\psitwo$) $12/39$, whereas the full gate ($\psione\wedge\psitwo\wedge\psithree$) is breached $0/39$ (Fig.~\ref{fig:breach}): the aggregate penalty falls and the overloaded-branch \emph{set} is unchanged, so only the per-branch test $\psithree$ rejects the concentrating step.
 
 \begin{figure}[ht]
 \centering
@@ -125,7 +125,7 @@ The fourth family, \emph{magnitude redistribution} (Sec.~\ref{sec:threat}), driv
   \node[font=\footnotesize,below=3pt] at (5.7,0) {\texttt{progress\_mag}};
   \node[gray!70,font=\scriptsize,below=15pt] at (5.7,0) {$+$\,per-branch};
 \end{tikzpicture}
-\caption{RQ4: magnitude-redistribution breach rate by admission tier---each added predicate closes more attack surface: scalar $17/39$, support ($\psi_1\wedge\psi_2$) $12/39$, full per-branch ($\psi_1\wedge\psi_2\wedge\psi_3$) $0/39$.}
+\caption{RQ4: magnitude-redistribution breach rate by admission tier---each added predicate closes more attack surface: scalar $17/39$, support-only Grid-Agent rollback baseline ($\psi_1\wedge\psi_2$) $12/39$, full per-branch ($\psi_1\wedge\psi_2\wedge\psi_3$) $0/39$.}
 \label{fig:breach}
 \end{figure}
 
