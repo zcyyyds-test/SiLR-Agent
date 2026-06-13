@@ -1,0 +1,97 @@
+%File: supp.tex (AAAI-2026 supplementary material, anonymous)
+\def\aaaianonymous{true}
+
+\documentclass[letterpaper]{article} % DO NOT CHANGE THIS
+\usepackage[submission]{aaai2026}  % DO NOT CHANGE THIS
+\usepackage{times}  % DO NOT CHANGE THIS
+\usepackage{helvet}  % DO NOT CHANGE THIS
+\usepackage{courier}  % DO NOT CHANGE THIS
+\usepackage[hyphens]{url}  % DO NOT CHANGE THIS
+\usepackage{graphicx} % DO NOT CHANGE THIS
+\urlstyle{rm} % DO NOT CHANGE THIS
+\def\UrlFont{\rm}  % DO NOT CHANGE THIS
+\usepackage{natbib}  % DO NOT CHANGE THIS
+\usepackage{caption} % DO NOT CHANGE THIS
+\frenchspacing  % DO NOT CHANGE THIS
+\setlength{\pdfpagewidth}{8.5in} % DO NOT CHANGE THIS
+\setlength{\pdfpageheight}{11in} % DO NOT CHANGE THIS
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{booktabs}
+\usepackage{makecell}
+\usepackage{pifont}
+
+\pdfinfo{
+/TemplateVersion (2026.1)
+}
+
+\setcounter{secnumdepth}{0}
+
+\newcommand{\silr}{\textsc{SiLR}}
+\newcommand{\psione}{\psi_1}
+\newcommand{\psitwo}{\psi_2}
+\newcommand{\psithree}{\psi_3}
+
+\title{\silr{}: Structured Recovery Admission for LLM Tool Proposals\\Supplementary Material}
+\author{Anonymous Submission}
+\affiliations{}
+
+\begin{document}
+\maketitle
+
+\noindent This supplement collects material referenced from the main paper: the full attack-family constructions (\S A), full proofs of all propositions (\S B), the $\alpha$-window sweep and cross-domain generalization (\S C), and the extended process-reward study (\S D). Section, equation, proposition, and table numbers prefixed ``main'' refer to the main paper.
+
+\section{A. Attack-Family Constructions}
+\label{supp:attacks}
+
+We implement four attack families under the compromised-prompt/compromised-observation capability class of the main paper. \emph{Prompt injection} (C1): a high-priority operator-impersonating override that pushes an aggressive fixed setpoint. \emph{Observation poisoning} (C2): a fabricated ``all readings nominal'' stanza spliced into every observation, contradicting the violation list the verifier re-derives from the live simulator. \emph{Stall} (C1): near-no-op setpoints that stay admissible while never recovering; a ``stall-RAG'' variant instructs the same behavior through a poisoned retrieval context. \emph{Magnitude redistribution} (C1/C2): driving a single retained branch toward failure while holding the overloaded-branch set and aggregate penalty within nominal bounds, masking per-branch overload behind nominal aggregate- and support-level readings.
+
+The mini-suite (main \S RQ4) runs the first three families across the three mined multi-action scenarios at $N{=}5$ per scenario plus a matched benign control ($60$ attack $+\,15$ benign $=75$ episodes). Across the $60$ attack episodes the verifier produces $0/60$ attack success, false recovery, and material worsening (Wilson 95\% CI $[0,0.06]$), with $0/15$ on the benign control; under prompt injection the rejection rate climbs sharply. The fourth family is evaluated against competing gates in the $39$-episode redistribution suite of main Fig.~3, in three realization variants: direct single-branch concentration, gradual load consolidation, and observation-masked drift (plain and RAG), all sharing the count-preserving severity signature.
+
+\section{B. Proofs}
+\label{supp:proofs}
+
+\paragraph{Proposition~1 (Scalarization gap).}
+Any scalar surrogate $f:(S,\sigma)\to\mathbb{R}_{\ge0}$ composes the vector-valued violation state with a total order. The pair $\Phi(s)=(\{A\},2\delta e_A)$, $\Phi(s')=(\{A,B\},0.9\delta(e_A{+}e_B))$ forms a $\preceq$-antichain: $S(s')\not\subseteq S(s)$ blocks $s'\preceq s$, while $\sigma_A(s)=2\delta>0.9\delta=\sigma_A(s')$ blocks $s\preceq s'$. Because $f$ maps both into the totally ordered $\mathbb{R}_{\ge0}$, exactly one of $f(s)\le f(s')$ or $f(s')\le f(s)$ holds (or both, if equal), so for any slack $\eta\ge0$ the gate admits at least one of the two transitions, each non-improving under $\preceq$ (one introduces branch $B$; the other inflates $\sigma_A$). For the canonical aggregate $P=\sum_i\sigma_i$, $P(s')=1.8\delta<2\delta=P(s)$, so $P(s')\le(1{+}\eta)P(s)$ for all $\eta\ge0$ and no slack removes the acceptance of $s\to s'$. The argument depends only on $\preceq$ admitting an antichain, hence applies to every scalar surrogate. $\square$
+
+\paragraph{Proposition~2 (Admission invariant).}
+By induction on $t$. Base: trivially $S(s_0)\subseteq S(s_0)$ and $\sigma_i(s_0)\le\alpha^0\sigma_i(s_0)$. Step: an admitted action passes $\psitwo\wedge\psithree$ on the shadow, and shadow fidelity makes the live post-state equal the shadow, so $S(s_{t+1})\subseteq S(s_t)$ (giving $S(s_{t+1})\subseteq S(s_0)$ by the inductive hypothesis) and $\sigma_i(s_{t+1})\le\max(\alpha\sigma_i(s_t),\sigma_i(s_t)+\varepsilon)\le\alpha\sigma_i(s_t)+\varepsilon$ for all $i\in S(s_t)$ (and $\sigma_i\equiv0$ off $S(s_t)$). Unrolling $\sigma_i(s_{t+1})\le\alpha\sigma_i(s_t)+\varepsilon$ gives $\sigma_i(s_t)\le\alpha^{t}\sigma_i(s_0)+\varepsilon\sum_{j=0}^{t-1}\alpha^{j}=\alpha^{t}\sigma_i(s_0)+\varepsilon\tfrac{\alpha^{t}-1}{\alpha-1}$; at $\alpha{=}1$ the bound reads $\sigma_i(s_0)+t\varepsilon$. Neither step uses any property of the action source, so the support invariant ($\alpha$-free) holds for any gated policy, including a compromised LLM. The severity term is a worst-case per-step drift envelope, not a descent guarantee: convergence to $S=\emptyset$ depends on proposal quality. $\square$
+
+\paragraph{Proposition~3 (Advantage collapse under scalarization).}
+Immediate from the definitions. With $B$ concurrent violation branches, the count delta of cleared violations ranges over $\{0,\dots,B\}$, taking at most $B{+}1$ distinct values; hence every action pair within a count-equivalence class receives identical immediate reward and there is no step-level advantage separation between them. Along a continuous partial reduction of any single branch's severity that does not eliminate it, $|S|$ is unchanged, so the count reward is piecewise constant---zero gradient except at the discrete elimination points. The graded geometric reward's severity term is strictly monotone in that same reduction, so it retains a nonzero advantage signal everywhere on the continuum. Empirically the flat fraction is $98\%$ of the continuous action range. $\square$
+
+\section{C. Robustness and Cross-Domain Generalization}
+\label{supp:gen}
+
+\paragraph{$\alpha$-window sweep.}
+Recovery holds across an $\alpha$-window: $15/15$ for $\alpha\in[1.05,1.20]$ and $14/15$ at $\alpha{=}1.02$ ($N{=}5$), consistent with the $\alpha$-free support invariant (Prop.~2); the magnitude guard $\psithree$ tightens as $\alpha\to1$ without disturbing support-driven recovery. The full $24$-scenario band (main Table~3) and the cross-family replication (main Table~4) are reported in the main paper.
+
+\paragraph{Cross-domain (CityLearn).}
+The full cross-domain replication is reported in the main paper (Table~4, RQ5): the gate semantics recur in CityLearn building-energy dispatch~\citep{citylearn} over three district battery-storage scenarios (\texttt{cl\_1}--\texttt{cl\_3}; state-of-charge floor/ceiling and feeder-export limits, $\Phi$ indexed by the violating building or feeder). The one model-dependent gap is Gemma-3-12B on \texttt{cl\_2}: the gate admits every Gemma proposal there (all \texttt{SAFE\_PROGRESS}, zero rejections), so admission ports intact, but its monotone steps stall short of the terminal action other models reach---completion tracks proposal strength, not gate semantics.
+
+\section{D. The Verifier as a Process Reward: Extended Analysis}
+\label{supp:reward}
+
+\paragraph{Setup.}
+We fine-tune Qwen3-8B with LoRA on the $9$ sub-saturated multi-action ANM scenarios (greedy decoding, without chain-of-thought). Three reward arms share the same structured rollout gate and differ only in the reward signal: \textbf{Geometric} rewards descent in the product order over $\Phi=(S,\sigma)$; \textbf{Count} rewards the count-delta of cleared violations; and a \textbf{Verdict-only} ablation strips the geometric component, leaving only the verdict ladder. We evaluate the checkpoint after the second GRPO~\citep{deepseekmath2024grpo,lightman2024prm} iteration, pooled over $5$ training seeds (main Table~5). The count policy matches the coarse held-out count ($14/15$ ungated) but fails the mechanism check: on the held-out set \emph{with} the gate its recovery is $0.80$, below the base's held-out gated rate of $0.87$---it overfits the gate's support filter, whereas the geometric policy retains recovery once the gate is removed.
+
+\paragraph{The multi-family failure class.}
+When several physically incomparable violation families are active at once, any scalar reward must collapse the product order into one dimension, and the representational gap of Prop.~1 reappears in training dynamics as advantage collapse (Prop.~3). We run a controlled training-dynamics analysis following the specification-gaming probe methodology~\citep{krakovna2020specification}: two minimal multi-family recovery regimes, each isolating one component of the geometry, with GRPO on the unmodified reward functions ($16$ training seeds each; trained recovery in main Table~6). In the \emph{$\sigma$-heterogeneity regime} (one large-$\sigma$ family, one small-$\sigma$ family whose violation is urgent), the severity scalar is hijacked by raw magnitude---it chases the large family and recovers $0\%$---while per-family normalization makes the urgent family's elimination worth a full family and recovers $100\%$. In the \emph{coupling regime} (clearing the large family drifts the small family toward an irreversible limit), the count reward is blind to the drift its own actions cause and trains to $12\%$; the drift-aware geometric reward trains to $100\%$. Restoring the drift term rescues count in the coupling regime ($1.00$) but cannot restore cross-family priority ($0.80$ under $\sigma$-heterogeneity), and the severity scalar fails in both.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\linewidth]{figures/train_enhancement.pdf}
+\caption{Training dynamics in the multi-family stress regimes. (a)~Coupling regime: the geometric reward converges to full recovery within five GRPO iterations, while the count reward---blind to the cross-family drift its own actions cause---is driven below its random initialization: maximizing cleared count actively teaches the policy to sacrifice the fragile family. (b)~Trained recovery versus $\sigma$-heterogeneity: the severity scalar's failure emerges at $\sigma_L/\sigma_S\!\approx\!4$ and saturates from $8$ onward; CityLearn's measured $\sigma_L/\sigma_S$ ratio ($286$, dashed) sits deep inside the collapsed regime. At the homogeneous limit the severity scalar matches the geometric reward---the failure is caused by heterogeneity, not by the construction.}
+\label{fig:trainenh}
+\end{figure}
+
+The sweep in Fig.~\ref{fig:trainenh}b shows the failure is not an artifact of a chosen operating point: it emerges at $\sigma_L/\sigma_S\!\approx\!4$, saturates from $8$ onward (CityLearn's measured heterogeneity is $286$), and vanishes in the homogeneous limit. The separation holds across the full $4{\times}4$ coupling--floor grid: geometric $\ge0.97$ in all $16$ cells, count $\le0.42$ in $15$; the single benign cell is the setting where coupling is too weak to threaten the fragile family. An MLP policy reproduces the same ordering ($1.00/0.13/0.05$ for geometric/count/severity-scalar), so the pattern is not specific to the policy class.
+
+\paragraph{The mechanism at full scale.}
+Training Qwen3-8B with GRPO on the multi-family CityLearn suite (four buildings, $\sigma$-het $286$) reproduces the mechanism in a second, larger system and exposes a credit-assignment requirement: trajectory-return credit is required to propagate delayed cross-family consequences, since a per-step z-score cannot assign the cost of flooring the battery family back to the early step that caused it. With trajectory-return credit the trained policies separate along the axis Prop.~3 predicts. Across seeds the geometric reward's advantage signal tracks the true one-step action value at Spearman $\rho{=}0.96$ versus $0.79$ for count, and after training the count arm leaves the battery family at $14\%$ higher residual severity than the geometric arm at the same violation count---the signature of a severity-blind signal.
+
+\bibliography{refs}
+
+\end{document}
