@@ -193,11 +193,14 @@ class SiLRVerifier:
             "progress_mag",
             "scalar_progress",
             "rollback",
+            "scalar_maxsev",
+            "scalar_lex",
         ):
             raise ValueError(
                 f"Unknown gating_policy {self._gating_policy!r}; "
                 f"expected 'terminal', 'progress', 'progress_mag', "
-                f"'scalar_progress', or 'rollback'"
+                f"'scalar_progress', 'rollback', 'scalar_maxsev', "
+                f"or 'scalar_lex'"
             )
         self._reporter = ReportGenerator()
 
@@ -247,12 +250,23 @@ class SiLRVerifier:
                 "progress_mag",
                 "scalar_progress",
                 "rollback",
+                "scalar_maxsev",
+                "scalar_lex",
             ):
                 baseline_checks = [
                     checker.check(shadow.system_state, shadow.base_mva)
                     for checker in self._checkers
                 ]
-                if self._gating_policy in ("progress", "progress_mag", "rollback"):
+                if self._gating_policy in (
+                    "progress",
+                    "progress_mag",
+                    "rollback",
+                    # Strong-scalar baselines (sup-norm, lexicographic) project the
+                    # same per-branch state Φ=(S,σ) onto a total order; they read the
+                    # branch map but, unlike ψ₂/ψ₃, do not enforce support inclusion.
+                    "scalar_maxsev",
+                    "scalar_lex",
+                ):
                     # Φ(s) = (S, σ): the per-branch baseline against which the
                     # structured predicates ψ₂/ψ₃ are evaluated.
                     baseline_branches = _violation_branches(baseline_checks)
@@ -370,6 +384,67 @@ class SiLRVerifier:
                         fail_reason = (
                             f"Admissible scalar recovery step "
                             f"(penalty {baseline:.4f} -> {post:.4f})"
+                        )
+            elif self._gating_policy == "scalar_maxsev":
+                # Strongest scalar candidate #1 (sup-norm gate): admit iff the
+                # max per-branch severity ‖σ‖_∞ does not increase beyond the
+                # scalar-progress slack. This is a TOTAL order on σ — it keeps
+                # more geometry than Σσ but, projecting onto max alone, is blind
+                # to a count-preserving redistribution that lifts a non-max
+                # branch and to support swaps. Prop 1 predicts it is unsound.
+                post_branches = _violation_branches(check_results)
+                base_max = max(baseline_branches.values(), default=0.0)
+                post_max = max(post_branches.values(), default=0.0)
+                threshold = _scalar_progress_threshold(base_max)
+                if post_max > threshold:
+                    verdict = Verdict.FAIL
+                    fail_reason = (
+                        f"Sup-norm severity worsened: {base_max:.4f} -> "
+                        f"{post_max:.4f} > threshold {threshold:.4f}"
+                    )
+                else:
+                    verdict = Verdict.SAFE_PROGRESS
+                    fail_reason = (
+                        f"Admissible sup-norm scalar step "
+                        f"(‖σ‖∞ {base_max:.4f} -> {post_max:.4f})"
+                    )
+            elif self._gating_policy == "scalar_lex":
+                # Strongest scalar candidate #2 (lexicographic gate): admit iff
+                # (|S|, Σσ) does not increase in lexicographic order — first the
+                # violation count, then the aggregate severity within the scalar
+                # slack. Still a TOTAL order: it ranks every Φ-antichain pair and
+                # so, per Prop 1, accepts a non-improving step on some such pair.
+                post_branches = _violation_branches(check_results)
+                base_count = len(baseline_branches)
+                post_count = len(post_branches)
+                base_sum = sum(baseline_branches.values())
+                post_sum = sum(post_branches.values())
+                if post_count > base_count:
+                    verdict = Verdict.FAIL
+                    fail_reason = (
+                        f"Lexicographic worsened on count: |S| "
+                        f"{base_count} -> {post_count}"
+                    )
+                elif post_count < base_count:
+                    verdict = Verdict.SAFE_PROGRESS
+                    fail_reason = (
+                        f"Admissible lexicographic step (|S| {base_count} -> "
+                        f"{post_count})"
+                    )
+                else:
+                    sum_threshold = _scalar_progress_threshold(base_sum)
+                    if post_sum > sum_threshold:
+                        verdict = Verdict.FAIL
+                        fail_reason = (
+                            f"Lexicographic worsened on Σσ at equal count "
+                            f"{post_count}: {base_sum:.4f} -> {post_sum:.4f} "
+                            f"> threshold {sum_threshold:.4f}"
+                        )
+                    else:
+                        verdict = Verdict.SAFE_PROGRESS
+                        fail_reason = (
+                            f"Admissible lexicographic step (|S|={post_count}, "
+                            f"Σσ {base_sum:.4f} -> {post_sum:.4f})"
                         )
             elif self._gating_policy in ("progress", "progress_mag", "rollback"):
                 # ψ₂ — support inclusion: the post-action violation support set
