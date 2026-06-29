@@ -9,8 +9,8 @@ Why this script exists (paper context):
     FAIL) for each (scenario, policy) cell, with N independent reps.
   - the three policies — verifier OFF (no admission gating), verifier
     terminal (zero-violation-only admission, the original SiLR semantics),
-    verifier progress (recoverability-preserving admission), and the
-    scalar-progress falsification baseline — span the ablation space defined
+    verifier progress (recoverability-preserving admission), rollback
+    (support-only post-hoc baseline), and the scalar-progress falsification baseline — span the ablation space defined
     by the panel.
 
 Run on AMD ``silr-anm`` env, with vLLM serving Qwen3-14B on port 8001:
@@ -54,6 +54,7 @@ POLICIES = (
     (False, "terminal", "OFF"),        # gating_policy ignored when verify off
     (True,  "terminal", "terminal"),
     (True,  "progress", "progress"),
+    (True,  "rollback", "rollback"),
     (True,  "progress_mag", "progress_mag"),
     (True,  "scalar_progress", "scalar_progress"),
 )
@@ -257,6 +258,7 @@ def build_output(
     all_episodes: list[dict[str, Any]],
     cells: dict[str, list[dict[str, Any]]],
     complete: bool,
+    scenario_metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     expected = len(args.scenarios) * len(selected_policies) * args.reps
     return {
@@ -266,7 +268,11 @@ def build_output(
             "expected_episodes": expected,
         },
         "config": sanitized_config(vars(args)),
-        "scenario_manifest": scenario_manifest(args.scenarios),
+        "scenario_manifest": (
+            scenario_metadata
+            if scenario_metadata is not None
+            else scenario_manifest(args.scenarios)
+        ),
         "code_fingerprint": code_fingerprint(extra_paths=("scripts/anm_eval_sweep.py",)),
         "policies": [p[2] for p in selected_policies],
         "episodes": all_episodes,
@@ -277,8 +283,22 @@ def build_output(
 def write_output_atomic(path: str, payload: dict[str, Any]) -> None:
     tmp_path = f"{path}.tmp"
     with open(tmp_path, "w") as f:
-        json.dump(payload, f, indent=2)
+        json.dump(payload, f, indent=2, default=_json_default)
     os.replace(tmp_path, path)
+
+
+def _json_default(obj: Any):
+    """Keep experiment artifacts writable when tools emit numpy scalars."""
+    if hasattr(obj, "item"):
+        try:
+            return obj.item()
+        except Exception:
+            pass
+    if hasattr(obj, "value"):
+        return obj.value
+    if isinstance(obj, set):
+        return sorted(obj)
+    return str(obj)
 
 
 def main() -> None:
@@ -325,6 +345,10 @@ def main() -> None:
         parser.error(f"Unknown policy label(s): {unknown_policies}")
     if not selected_policies:
         parser.error("At least one policy must be selected.")
+    try:
+        scenario_metadata = scenario_manifest(args.scenarios)
+    except KeyError as exc:
+        parser.error(str(exc))
 
     client = OpenAIClient(
         model=args.model,
@@ -397,7 +421,14 @@ def main() -> None:
                 )
                 write_output_atomic(
                     args.output,
-                    build_output(args, selected_policies, all_episodes, cells, complete=False),
+                    build_output(
+                        args,
+                        selected_policies,
+                        all_episodes,
+                        cells,
+                        complete=False,
+                        scenario_metadata=scenario_metadata,
+                    ),
                 )
             logger.info("")
 
@@ -439,10 +470,21 @@ def main() -> None:
             )
         logger.info("")
 
-    output = build_output(args, selected_policies, all_episodes, cells, complete=True)
+    output = build_output(
+        args,
+        selected_policies,
+        all_episodes,
+        cells,
+        complete=True,
+        scenario_metadata=scenario_metadata,
+    )
     write_output_atomic(args.output, output)
     logger.info("\nWrote %s episodes + aggregates to %s", len(all_episodes), args.output)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        logging.getLogger("anm_eval_sweep").exception("Fatal error in ANM sweep")
+        raise

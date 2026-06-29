@@ -23,6 +23,19 @@ def _env_int(name: str) -> int | None:
     return value if value > 0 else None
 
 
+def _env_bool(name: str) -> bool | None:
+    raw = os.environ.get(name)
+    if raw is None or raw == "":
+        return None
+    value = raw.strip().lower()
+    if value in {"1", "true", "yes", "on"}:
+        return True
+    if value in {"0", "false", "no", "off"}:
+        return False
+    logger.warning("Ignoring invalid boolean env %s=%r", name, raw)
+    return None
+
+
 class OpenAIClient(BaseLLMClient):
     """Client for OpenAI-compatible APIs.
 
@@ -70,7 +83,11 @@ class OpenAIClient(BaseLLMClient):
         # None = leave server default; False = disable the Qwen3 <think> block so
         # the action parser sees a direct action (the vLLM server path has no
         # LocalModelClient chat-template control). Set via extra_body in chat().
-        self._enable_thinking = enable_thinking
+        self._enable_thinking = (
+            enable_thinking
+            if enable_thinking is not None
+            else _env_bool("SILR_QWEN_ENABLE_THINKING")
+        )
 
     def supports_tool_use(self) -> bool:
         # SILR_DISABLE_TOOLS=1 forces bare-text mode (tools=None) so cross-family

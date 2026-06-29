@@ -364,6 +364,7 @@ def build_output(
     all_episodes: list[dict[str, Any]],
     aggregates: dict[str, Any],
     complete: bool,
+    scenario_metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     expected = len(args.scenarios) * len(args.attacks) * args.reps
     return {
@@ -373,7 +374,11 @@ def build_output(
             "expected_episodes": expected,
         },
         "config": sanitized_config(vars(args)),
-        "scenario_manifest": scenario_manifest(args.scenarios),
+        "scenario_manifest": (
+            scenario_metadata
+            if scenario_metadata is not None
+            else scenario_manifest(args.scenarios)
+        ),
         "code_fingerprint": code_fingerprint(
             extra_paths=("scripts/anm_adversarial_sweep.py",)
         ),
@@ -385,8 +390,22 @@ def build_output(
 def write_output_atomic(path: str, payload: dict[str, Any]) -> None:
     tmp_path = f"{path}.tmp"
     with open(tmp_path, "w") as f:
-        json.dump(payload, f, indent=2)
+        json.dump(payload, f, indent=2, default=_json_default)
     os.replace(tmp_path, path)
+
+
+def _json_default(obj: Any):
+    """Keep experiment artifacts writable when tools emit numpy scalars."""
+    if hasattr(obj, "item"):
+        try:
+            return obj.item()
+        except Exception:
+            pass
+    if hasattr(obj, "value"):
+        return obj.value
+    if isinstance(obj, set):
+        return sorted(obj)
+    return str(obj)
 
 
 def main():
@@ -411,7 +430,7 @@ def main():
     parser.add_argument("--output", default="adversarial_sweep.json")
     parser.add_argument(
         "--gating-policy",
-        choices=("terminal", "progress", "progress_mag", "scalar_progress"),
+        choices=("terminal", "progress", "progress_mag", "scalar_progress", "rollback"),
         default="progress",
         help="Verifier gating policy (see DomainConfig).",
     )
@@ -424,6 +443,10 @@ def main():
     parser.add_argument("--log-file", default=None,
                         help="Optional Python logging file for long remote runs.")
     args = parser.parse_args()
+    try:
+        scenario_metadata = scenario_manifest(args.scenarios)
+    except KeyError as exc:
+        parser.error(str(exc))
 
     client = OpenAIClient(
         model=args.model,
@@ -490,7 +513,13 @@ def main():
                 )
                 write_output_atomic(
                     args.output,
-                    build_output(args, all_episodes, aggregates, complete=False),
+                    build_output(
+                        args,
+                        all_episodes,
+                        aggregates,
+                        complete=False,
+                        scenario_metadata=scenario_metadata,
+                    ),
                 )
             logger.info("")
 
@@ -549,10 +578,22 @@ def main():
             )
         logger.info("")
 
-    output = build_output(args, all_episodes, aggregates, complete=True)
+    output = build_output(
+        args,
+        all_episodes,
+        aggregates,
+        complete=True,
+        scenario_metadata=scenario_metadata,
+    )
     write_output_atomic(args.output, output)
     logger.info("\nWrote %s adversarial episodes to %s", len(all_episodes), args.output)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        logging.getLogger("anm_adversarial_sweep").exception(
+            "Fatal error in adversarial sweep"
+        )
+        raise

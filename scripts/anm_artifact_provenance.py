@@ -146,6 +146,7 @@ def sanitized_config(config: dict[str, Any]) -> dict[str, Any]:
             out[key] = "***REDACTED***"
     for key in (
         "SILR_MAX_TOKENS",
+        "SILR_QWEN_ENABLE_THINKING",
         "SILR_SCALAR_PROGRESS_RELATIVE_SLACK",
         "SILR_SYNC_ID",
         "CUDA_VISIBLE_DEVICES",

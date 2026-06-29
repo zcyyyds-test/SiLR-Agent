@@ -52,11 +52,29 @@ cl_mined_002_t11_smax-smin-exp cl_mined_007_t12_smax-smin-exp cl_mined_012_t13_s
 cl_mined_003_t11_smin-exp cl_mined_008_t12_smin-exp cl_mined_013_t13_smin-exp \
 cl_mined_004_t11_smax-smin cl_mined_009_t12_smax-smin cl_mined_014_t13_smax-smin"
 
-echo "[proc-reward train arm $ARM seed $SEED: rbonus=$RBONUS maxsteps=$MAXSTEPS iters=$ITERS] $(date)"
+SCEN_USE="${SCENOVR:-$SCEN12}"   # SCENOVR overrides the default 12 (comma-separated; e.g. hard subset)
+SCEN_USE="${SCEN_USE//+/ }"      # + -> spaces (qsub -v splits on comma, cannot carry space)
+
+# Rolling checkpoint trimmer: the group SSD quota is tight (698MB/ckpt at LoRA r=64
+# fp32; 5 ckpts/run blew the quota on 2026-06-09). Keep only the NEWEST iter while
+# training: as soon as iter_{k+1} lands, drop iter_k. Eval only ever uses the last
+# iter. Peak footprint per job: ~1.4GB instead of 3.4GB.
+(
+  while :; do
+    for it in 1 2 3; do
+      [ -d "$OUT_DIR/iter_$((it+1))" ] && rm -rf "$OUT_DIR/iter_$it" 2>/dev/null
+    done
+    sleep 180
+  done
+) &
+TRIM_PID=$!
+trap 'kill $TRIM_PID 2>/dev/null' EXIT
+echo "[proc-reward train arm $ARM seed $SEED: rbonus=$RBONUS maxsteps=$MAXSTEPS iters=$ITERS traj=$SILR_TRAJ_ADV] $(date)"
+echo "[scenarios] $SCEN_USE"
 "$ENV_DIR/bin/python" -u scripts/train_grpo_citylearn.py \
   --arm "$ARM" --seed "$SEED" \
   --base-model "$BASE_MODEL" \
-  --scenarios $SCEN12 \
+  --scenarios $SCEN_USE \
   --iterations "$ITERS" --rollouts-per-scenario 6 \
   --max-steps "$MAXSTEPS" --max-proposals 3 --temperature 0.7 \
   --step-cost "$STEPCOST" --recovery-bonus "$RBONUS" \

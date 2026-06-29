@@ -839,6 +839,678 @@
       "initial_soc": {
         "6": 0.99
       }
+    },
+    {
+      "id": "mined_multi_action_9_l0p25g1p0_s25",
+      "description": "Mined v2: seed=25, load\u00d70.25, gen\u00d71.0, soc=native. Default state: 3 violations ({'voltage': 0, 'branch_loading': 3, 'storage_soc': 0}), penalty 7.99. MPC: recovered=True, post-violations=0, penalty=0.00. Single-action solvable: False.",
+      "difficulty": "medium",
+      "class": "multi_action",
+      "P_load": {
+        "1": -0.78125,
+        "3": -4.0625,
+        "5": -2.34375
+      },
+      "P_pot": {
+        "2": 26.916666666666668,
+        "4": 29.15833333333333
+      },
+      "source_seed": 25,
+      "load_mul": 0.25,
+      "gen_mul": 1.0,
+      "soc_pert": "native",
+      "default_penalty": 7.989711120738598,
+      "default_violation_count": 3,
+      "mpc_recovered": true,
+      "mpc_penalty": 0.0,
+      "mpc_post_violations": 0,
+      "single_action_solvable": false,
+      "initial_soc": {
+        "6": 0.003680292969901653
+      }
+    },
+    {
+      "id": "mined_multi_action_9_l0p25g1p0_s25_socnear_min",
+      "description": "Mined v2: seed=25, load\u00d70.25, gen\u00d71.0, soc=near_min. Default state: 3 violations ({'voltage': 0, 'branch_loading': 3, 'storage_soc': 0}), penalty 7.99. MPC: recovered=True, post-violations=0, penalty=0.00. Single-action solvable: False.",
+      "difficulty": "medium",
+      "class": "multi_action",
+      "P_load": {
+        "1": -0.78125,
+        "3": -4.0625,
+        "5": -2.34375
+      },
+      "P_pot": {
+        "2": 26.916666666666668,
+        "4": 29.15833333333333
+      },
+      "source_seed": 25,
+      "load_mul": 0.25,
+      "gen_mul": 1.0,
+      "soc_pert": "near_min",
+      "default_penalty": 7.989711120738598,
+      "default_violation_count": 3,
+      "mpc_recovered": true,
+      "mpc_penalty": 0.0,
+      "mpc_post_violations": 0,
+      "single_action_solvable": false,
+      "initial_soc": {
+        "6": 0.01
+      }
+    },
+    {
+      "id": "mined_multi_action_9_l0p25g1p0_s25_socnear_max",
+      "description": "Mined v2: seed=25, load\u00d70.25, gen\u00d71.0, soc=near_max. Default state: 3 violations ({'voltage': 0, 'branch_loading': 3, 'storage_soc': 0}), penalty 7.99. MPC: recovered=True, post-violations=0, penalty=0.00. Single-action solvable: False.",
+      "difficulty": "medium",
+      "class": "multi_action",
+      "P_load": {
+        "1": -0.78125,
+        "3": -4.0625,
+        "5": -2.34375
+      },
+      "P_pot": {
+        "2": 26.916666666666668,
+        "4": 29.15833333333333
+      },
+      "source_seed": 25,
+      "load_mul": 0.25,
+      "gen_mul": 1.0,
+      "soc_pert": "near_max",
+      "default_penalty": 7.989711120738598,
+      "default_violation_count": 3,
+      "mpc_recovered": true,
+      "mpc_penalty": 0.0,
+      "mpc_post_violations": 0,
+      "single_action_solvable": false,
+      "initial_soc": {
+        "6": 0.99
+      }
+    },
+    {
+      "id": "mined_multi_action_10_l0p25g1p0_s28",
+      "description": "Mined v2: seed=28, load\u00d70.25, gen\u00d71.0, soc=native. Default state: 4 violations ({'voltage': 0, 'branch_loading': 4, 'storage_soc': 0}), penalty 17.59. MPC: recovered=True, post-violations=0, penalty=0.00. Single-action solvable: False.",
+      "difficulty": "medium",
+      "class": "multi_action",
+      "P_load": {
+        "1": -0.5,
+        "3": -5.0,
+        "5": 0.0
+      },
+      "P_pot": {
+        "2": 30.0,
+        "4": 40.0
+      },
+      "source_seed": 28,
+      "load_mul": 0.25,
+      "gen_mul": 1.0,
+      "soc_pert": "native",
+      "default_penalty": 17.59200333540986,
+      "default_violation_count": 4,
+      "mpc_recovered": true,
+      "mpc_penalty": 0.0,
+      "mpc_post_violations": 0,
+      "single_action_solvable": false,
+      "initial_soc": {
+        "6": 0.00032198600883155405
+      }
+    },
+    {
+      "id": "mined_multi_action_10_l0p25g1p0_s28_socnear_min",
+      "description": "Mined v2: seed=28, load\u00d70.25, gen\u00d71.0, soc=near_min. Default state: 4 violations ({'voltage': 0, 'branch_loading': 4, 'storage_soc': 0}), penalty 17.59. MPC: recovered=True, post-violations=0, penalty=0.00. Single-action solvable: False.",
+      "difficulty": "medium",
+      "class": "multi_action",
+      "P_load": {
+        "1": -0.5,
+        "3": -5.0,
+        "5": 0.0
+      },
+      "P_pot": {
+        "2": 30.0,
+        "4": 40.0
+      },
+      "source_seed": 28,
+      "load_mul": 0.25,
+      "gen_mul": 1.0,
+      "soc_pert": "near_min",
+      "default_penalty": 17.59200333540986,
+      "default_violation_count": 4,
+      "mpc_recovered": true,
+      "mpc_penalty": 0.0,
+      "mpc_post_violations": 0,
+      "single_action_solvable": false,
+      "initial_soc": {
+        "6": 0.01
+      }
+    },
+    {
+      "id": "mined_multi_action_10_l0p25g1p0_s28_socnear_max",
+      "description": "Mined v2: seed=28, load\u00d70.25, gen\u00d71.0, soc=near_max. Default state: 4 violations ({'voltage': 0, 'branch_loading': 4, 'storage_soc': 0}), penalty 17.59. MPC: recovered=True, post-violations=0, penalty=0.00. Single-action solvable: False.",
+      "difficulty": "medium",
+      "class": "multi_action",
+      "P_load": {
+        "1": -0.5,
+        "3": -5.0,
+        "5": 0.0
+      },
+      "P_pot": {
+        "2": 30.0,
+        "4": 40.0
+      },
+      "source_seed": 28,
+      "load_mul": 0.25,
+      "gen_mul": 1.0,
+      "soc_pert": "near_max",
+      "default_penalty": 17.59200333540986,
+      "default_violation_count": 4,
+      "mpc_recovered": true,
+      "mpc_penalty": 0.0,
+      "mpc_post_violations": 0,
+      "single_action_solvable": false,
+      "initial_soc": {
+        "6": 0.99
+      }
+    },
+    {
+      "id": "mined_multi_action_11_l1p0g1p0_s31",
+      "description": "Mined v2: seed=31, load\u00d71.0, gen\u00d71.0, soc=native. Default state: 3 violations ({'voltage': 0, 'branch_loading': 3, 'storage_soc': 0}), penalty 7.19. MPC: recovered=True, post-violations=0, penalty=0.00. Single-action solvable: False.",
+      "difficulty": "medium",
+      "class": "multi_action",
+      "P_load": {
+        "1": -2.0,
+        "3": -20.0,
+        "5": 0.0
+      },
+      "P_pot": {
+        "2": 30.0,
+        "4": 40.0
+      },
+      "source_seed": 31,
+      "load_mul": 1.0,
+      "gen_mul": 1.0,
+      "soc_pert": "native",
+      "default_penalty": 7.1919136323136845,
+      "default_violation_count": 3,
+      "mpc_recovered": true,
+      "mpc_penalty": 0.0,
+      "mpc_post_violations": 0,
+      "single_action_solvable": false,
+      "initial_soc": {
+        "6": 0.004725447059792366
+      }
+    },
+    {
+      "id": "mined_multi_action_11_l1p0g1p0_s31_socnear_min",
+      "description": "Mined v2: seed=31, load\u00d71.0, gen\u00d71.0, soc=near_min. Default state: 3 violations ({'voltage': 0, 'branch_loading': 3, 'storage_soc': 0}), penalty 7.19. MPC: recovered=True, post-violations=0, penalty=0.00. Single-action solvable: False.",
+      "difficulty": "medium",
+      "class": "multi_action",
+      "P_load": {
+        "1": -2.0,
+        "3": -20.0,
+        "5": 0.0
+      },
+      "P_pot": {
+        "2": 30.0,
+        "4": 40.0
+      },
+      "source_seed": 31,
+      "load_mul": 1.0,
+      "gen_mul": 1.0,
+      "soc_pert": "near_min",
+      "default_penalty": 7.1919136323136845,
+      "default_violation_count": 3,
+      "mpc_recovered": true,
+      "mpc_penalty": 0.0,
+      "mpc_post_violations": 0,
+      "single_action_solvable": false,
+      "initial_soc": {
+        "6": 0.01
+      }
+    },
+    {
+      "id": "mined_multi_action_11_l1p0g1p0_s31_socnear_max",
+      "description": "Mined v2: seed=31, load\u00d71.0, gen\u00d71.0, soc=near_max. Default state: 3 violations ({'voltage': 0, 'branch_loading': 3, 'storage_soc': 0}), penalty 7.19. MPC: recovered=True, post-violations=0, penalty=0.00. Single-action solvable: False.",
+      "difficulty": "medium",
+      "class": "multi_action",
+      "P_load": {
+        "1": -2.0,
+        "3": -20.0,
+        "5": 0.0
+      },
+      "P_pot": {
+        "2": 30.0,
+        "4": 40.0
+      },
+      "source_seed": 31,
+      "load_mul": 1.0,
+      "gen_mul": 1.0,
+      "soc_pert": "near_max",
+      "default_penalty": 7.1919136323136845,
+      "default_violation_count": 3,
+      "mpc_recovered": true,
+      "mpc_penalty": 0.0,
+      "mpc_post_violations": 0,
+      "single_action_solvable": false,
+      "initial_soc": {
+        "6": 0.99
+      }
+    },
+    {
+      "id": "mined_multi_action_12_l1p0g1p0_s70",
+      "description": "Mined v2: seed=70, load\u00d71.0, gen\u00d71.0, soc=native. Default state: 3 violations ({'voltage': 0, 'branch_loading': 3, 'storage_soc': 0}), penalty 7.19. MPC: recovered=True, post-violations=0, penalty=0.00. Single-action solvable: False.",
+      "difficulty": "medium",
+      "class": "multi_action",
+      "P_load": {
+        "1": -2.0,
+        "3": -20.0,
+        "5": 0.0
+      },
+      "P_pot": {
+        "2": 30.0,
+        "4": 40.0
+      },
+      "source_seed": 70,
+      "load_mul": 1.0,
+      "gen_mul": 1.0,
+      "soc_pert": "native",
+      "default_penalty": 7.1919136323136845,
+      "default_violation_count": 3,
+      "mpc_recovered": true,
+      "mpc_penalty": 0.0,
+      "mpc_post_violations": 0,
+      "single_action_solvable": false,
+      "initial_soc": {
+        "6": 0.009652239563946082
+      }
+    },
+    {
+      "id": "mined_multi_action_12_l1p0g1p0_s70_socnear_min",
+      "description": "Mined v2: seed=70, load\u00d71.0, gen\u00d71.0, soc=near_min. Default state: 3 violations ({'voltage': 0, 'branch_loading': 3, 'storage_soc': 0}), penalty 7.19. MPC: recovered=True, post-violations=0, penalty=0.00. Single-action solvable: False.",
+      "difficulty": "medium",
+      "class": "multi_action",
+      "P_load": {
+        "1": -2.0,
+        "3": -20.0,
+        "5": 0.0
+      },
+      "P_pot": {
+        "2": 30.0,
+        "4": 40.0
+      },
+      "source_seed": 70,
+      "load_mul": 1.0,
+      "gen_mul": 1.0,
+      "soc_pert": "near_min",
+      "default_penalty": 7.1919136323136845,
+      "default_violation_count": 3,
+      "mpc_recovered": true,
+      "mpc_penalty": 0.0,
+      "mpc_post_violations": 0,
+      "single_action_solvable": false,
+      "initial_soc": {
+        "6": 0.01
+      }
+    },
+    {
+      "id": "mined_multi_action_12_l1p0g1p0_s70_socnear_max",
+      "description": "Mined v2: seed=70, load\u00d71.0, gen\u00d71.0, soc=near_max. Default state: 3 violations ({'voltage': 0, 'branch_loading': 3, 'storage_soc': 0}), penalty 7.19. MPC: recovered=True, post-violations=0, penalty=0.00. Single-action solvable: False.",
+      "difficulty": "medium",
+      "class": "multi_action",
+      "P_load": {
+        "1": -2.0,
+        "3": -20.0,
+        "5": 0.0
+      },
+      "P_pot": {
+        "2": 30.0,
+        "4": 40.0
+      },
+      "source_seed": 70,
+      "load_mul": 1.0,
+      "gen_mul": 1.0,
+      "soc_pert": "near_max",
+      "default_penalty": 7.1919136323136845,
+      "default_violation_count": 3,
+      "mpc_recovered": true,
+      "mpc_penalty": 0.0,
+      "mpc_post_violations": 0,
+      "single_action_solvable": false,
+      "initial_soc": {
+        "6": 0.99
+      }
+    },
+    {
+      "id": "mined_multi_action_13_l0p25g1p0_s40",
+      "description": "Mined v2: seed=40, load\u00d70.25, gen\u00d71.0, soc=native. Default state: 4 violations ({'voltage': 0, 'branch_loading': 4, 'storage_soc': 0}), penalty 17.59. MPC: recovered=True, post-violations=0, penalty=0.00. Single-action solvable: False.",
+      "difficulty": "medium",
+      "class": "multi_action",
+      "P_load": {
+        "1": -0.5,
+        "3": -5.0,
+        "5": 0.0
+      },
+      "P_pot": {
+        "2": 30.0,
+        "4": 40.0
+      },
+      "source_seed": 40,
+      "load_mul": 0.25,
+      "gen_mul": 1.0,
+      "soc_pert": "native",
+      "default_penalty": 17.59200333540986,
+      "default_violation_count": 4,
+      "mpc_recovered": true,
+      "mpc_penalty": 0.0,
+      "mpc_post_violations": 0,
+      "single_action_solvable": false,
+      "initial_soc": {
+        "6": 0.0005965206004477419
+      }
+    },
+    {
+      "id": "mined_multi_action_13_l0p25g1p0_s40_socnear_min",
+      "description": "Mined v2: seed=40, load\u00d70.25, gen\u00d71.0, soc=near_min. Default state: 4 violations ({'voltage': 0, 'branch_loading': 4, 'storage_soc': 0}), penalty 17.59. MPC: recovered=True, post-violations=0, penalty=0.00. Single-action solvable: False.",
+      "difficulty": "medium",
+      "class": "multi_action",
+      "P_load": {
+        "1": -0.5,
+        "3": -5.0,
+        "5": 0.0
+      },
+      "P_pot": {
+        "2": 30.0,
+        "4": 40.0
+      },
+      "source_seed": 40,
+      "load_mul": 0.25,
+      "gen_mul": 1.0,
+      "soc_pert": "near_min",
+      "default_penalty": 17.59200333540986,
+      "default_violation_count": 4,
+      "mpc_recovered": true,
+      "mpc_penalty": 0.0,
+      "mpc_post_violations": 0,
+      "single_action_solvable": false,
+      "initial_soc": {
+        "6": 0.01
+      }
+    },
+    {
+      "id": "mined_multi_action_13_l0p25g1p0_s40_socnear_max",
+      "description": "Mined v2: seed=40, load\u00d70.25, gen\u00d71.0, soc=near_max. Default state: 4 violations ({'voltage': 0, 'branch_loading': 4, 'storage_soc': 0}), penalty 17.59. MPC: recovered=True, post-violations=0, penalty=0.00. Single-action solvable: False.",
+      "difficulty": "medium",
+      "class": "multi_action",
+      "P_load": {
+        "1": -0.5,
+        "3": -5.0,
+        "5": 0.0
+      },
+      "P_pot": {
+        "2": 30.0,
+        "4": 40.0
+      },
+      "source_seed": 40,
+      "load_mul": 0.25,
+      "gen_mul": 1.0,
+      "soc_pert": "near_max",
+      "default_penalty": 17.59200333540986,
+      "default_violation_count": 4,
+      "mpc_recovered": true,
+      "mpc_penalty": 0.0,
+      "mpc_post_violations": 0,
+      "single_action_solvable": false,
+      "initial_soc": {
+        "6": 0.99
+      }
+    },
+    {
+      "id": "mined_multi_action_14_l1p0g1p0_s41",
+      "description": "Mined v2: seed=41, load\u00d71.0, gen\u00d71.0, soc=native. Default state: 3 violations ({'voltage': 0, 'branch_loading': 3, 'storage_soc': 0}), penalty 7.19. MPC: recovered=True, post-violations=0, penalty=0.00. Single-action solvable: False.",
+      "difficulty": "medium",
+      "class": "multi_action",
+      "P_load": {
+        "1": -2.0,
+        "3": -20.0,
+        "5": 0.0
+      },
+      "P_pot": {
+        "2": 30.0,
+        "4": 40.0
+      },
+      "source_seed": 41,
+      "load_mul": 1.0,
+      "gen_mul": 1.0,
+      "soc_pert": "native",
+      "default_penalty": 7.1919136323136845,
+      "default_violation_count": 3,
+      "mpc_recovered": true,
+      "mpc_penalty": 0.0,
+      "mpc_post_violations": 0,
+      "single_action_solvable": false,
+      "initial_soc": {
+        "6": 0.008269880859307448
+      }
+    },
+    {
+      "id": "mined_multi_action_14_l1p0g1p0_s41_socnear_min",
+      "description": "Mined v2: seed=41, load\u00d71.0, gen\u00d71.0, soc=near_min. Default state: 3 violations ({'voltage': 0, 'branch_loading': 3, 'storage_soc': 0}), penalty 7.19. MPC: recovered=True, post-violations=0, penalty=0.00. Single-action solvable: False.",
+      "difficulty": "medium",
+      "class": "multi_action",
+      "P_load": {
+        "1": -2.0,
+        "3": -20.0,
+        "5": 0.0
+      },
+      "P_pot": {
+        "2": 30.0,
+        "4": 40.0
+      },
+      "source_seed": 41,
+      "load_mul": 1.0,
+      "gen_mul": 1.0,
+      "soc_pert": "near_min",
+      "default_penalty": 7.1919136323136845,
+      "default_violation_count": 3,
+      "mpc_recovered": true,
+      "mpc_penalty": 0.0,
+      "mpc_post_violations": 0,
+      "single_action_solvable": false,
+      "initial_soc": {
+        "6": 0.01
+      }
+    },
+    {
+      "id": "mined_multi_action_14_l1p0g1p0_s41_socnear_max",
+      "description": "Mined v2: seed=41, load\u00d71.0, gen\u00d71.0, soc=near_max. Default state: 3 violations ({'voltage': 0, 'branch_loading': 3, 'storage_soc': 0}), penalty 7.19. MPC: recovered=True, post-violations=0, penalty=0.00. Single-action solvable: False.",
+      "difficulty": "medium",
+      "class": "multi_action",
+      "P_load": {
+        "1": -2.0,
+        "3": -20.0,
+        "5": 0.0
+      },
+      "P_pot": {
+        "2": 30.0,
+        "4": 40.0
+      },
+      "source_seed": 41,
+      "load_mul": 1.0,
+      "gen_mul": 1.0,
+      "soc_pert": "near_max",
+      "default_penalty": 7.1919136323136845,
+      "default_violation_count": 3,
+      "mpc_recovered": true,
+      "mpc_penalty": 0.0,
+      "mpc_post_violations": 0,
+      "single_action_solvable": false,
+      "initial_soc": {
+        "6": 0.99
+      }
+    },
+    {
+      "id": "mined_multi_action_15_l1p0g1p0_s75",
+      "description": "Mined v2: seed=75, load\u00d71.0, gen\u00d71.0, soc=native. Default state: 3 violations ({'voltage': 0, 'branch_loading': 3, 'storage_soc': 0}), penalty 7.19. MPC: recovered=True, post-violations=0, penalty=0.00. Single-action solvable: False.",
+      "difficulty": "medium",
+      "class": "multi_action",
+      "P_load": {
+        "1": -2.0,
+        "3": -20.0,
+        "5": 0.0
+      },
+      "P_pot": {
+        "2": 30.0,
+        "4": 40.0
+      },
+      "source_seed": 75,
+      "load_mul": 1.0,
+      "gen_mul": 1.0,
+      "soc_pert": "native",
+      "default_penalty": 7.1919136323136845,
+      "default_violation_count": 3,
+      "mpc_recovered": true,
+      "mpc_penalty": 0.0,
+      "mpc_post_violations": 0,
+      "single_action_solvable": false,
+      "initial_soc": {
+        "6": 0.0068433175872764426
+      }
+    },
+    {
+      "id": "mined_multi_action_15_l1p0g1p0_s75_socnear_min",
+      "description": "Mined v2: seed=75, load\u00d71.0, gen\u00d71.0, soc=near_min. Default state: 3 violations ({'voltage': 0, 'branch_loading': 3, 'storage_soc': 0}), penalty 7.19. MPC: recovered=True, post-violations=0, penalty=0.00. Single-action solvable: False.",
+      "difficulty": "medium",
+      "class": "multi_action",
+      "P_load": {
+        "1": -2.0,
+        "3": -20.0,
+        "5": 0.0
+      },
+      "P_pot": {
+        "2": 30.0,
+        "4": 40.0
+      },
+      "source_seed": 75,
+      "load_mul": 1.0,
+      "gen_mul": 1.0,
+      "soc_pert": "near_min",
+      "default_penalty": 7.1919136323136845,
+      "default_violation_count": 3,
+      "mpc_recovered": true,
+      "mpc_penalty": 0.0,
+      "mpc_post_violations": 0,
+      "single_action_solvable": false,
+      "initial_soc": {
+        "6": 0.01
+      }
+    },
+    {
+      "id": "mined_multi_action_15_l1p0g1p0_s75_socnear_max",
+      "description": "Mined v2: seed=75, load\u00d71.0, gen\u00d71.0, soc=near_max. Default state: 3 violations ({'voltage': 0, 'branch_loading': 3, 'storage_soc': 0}), penalty 7.19. MPC: recovered=True, post-violations=0, penalty=0.00. Single-action solvable: False.",
+      "difficulty": "medium",
+      "class": "multi_action",
+      "P_load": {
+        "1": -2.0,
+        "3": -20.0,
+        "5": 0.0
+      },
+      "P_pot": {
+        "2": 30.0,
+        "4": 40.0
+      },
+      "source_seed": 75,
+      "load_mul": 1.0,
+      "gen_mul": 1.0,
+      "soc_pert": "near_max",
+      "default_penalty": 7.1919136323136845,
+      "default_violation_count": 3,
+      "mpc_recovered": true,
+      "mpc_penalty": 0.0,
+      "mpc_post_violations": 0,
+      "single_action_solvable": false,
+      "initial_soc": {
+        "6": 0.99
+      }
+    },
+    {
+      "id": "mined_multi_action_16_l0p25g1p0_s44",
+      "description": "Mined v2: seed=44, load\u00d70.25, gen\u00d71.0, soc=native. Default state: 4 violations ({'voltage': 0, 'branch_loading': 4, 'storage_soc': 0}), penalty 14.70. MPC: recovered=True, post-violations=0, penalty=0.00. Single-action solvable: False.",
+      "difficulty": "medium",
+      "class": "multi_action",
+      "P_load": {
+        "1": -0.59375,
+        "3": -4.6875,
+        "5": -0.78125
+      },
+      "P_pot": {
+        "2": 36.75,
+        "4": 36.375
+      },
+      "source_seed": 44,
+      "load_mul": 0.25,
+      "gen_mul": 1.0,
+      "soc_pert": "native",
+      "default_penalty": 14.70065807622552,
+      "default_violation_count": 4,
+      "mpc_recovered": true,
+      "mpc_penalty": 0.0,
+      "mpc_post_violations": 0,
+      "single_action_solvable": false,
+      "initial_soc": {
+        "6": 0.00969183948144422
+      }
+    },
+    {
+      "id": "mined_multi_action_16_l0p25g1p0_s44_socnear_min",
+      "description": "Mined v2: seed=44, load\u00d70.25, gen\u00d71.0, soc=near_min. Default state: 4 violations ({'voltage': 0, 'branch_loading': 4, 'storage_soc': 0}), penalty 14.70. MPC: recovered=True, post-violations=0, penalty=0.00. Single-action solvable: False.",
+      "difficulty": "medium",
+      "class": "multi_action",
+      "P_load": {
+        "1": -0.59375,
+        "3": -4.6875,
+        "5": -0.78125
+      },
+      "P_pot": {
+        "2": 36.75,
+        "4": 36.375
+      },
+      "source_seed": 44,
+      "load_mul": 0.25,
+      "gen_mul": 1.0,
+      "soc_pert": "near_min",
+      "default_penalty": 14.70065807622552,
+      "default_violation_count": 4,
+      "mpc_recovered": true,
+      "mpc_penalty": 0.0,
+      "mpc_post_violations": 0,
+      "single_action_solvable": false,
+      "initial_soc": {
+        "6": 0.01
+      }
+    },
+    {
+      "id": "mined_multi_action_16_l0p25g1p0_s44_socnear_max",
+      "description": "Mined v2: seed=44, load\u00d70.25, gen\u00d71.0, soc=near_max. Default state: 4 violations ({'voltage': 0, 'branch_loading': 4, 'storage_soc': 0}), penalty 14.70. MPC: recovered=True, post-violations=0, penalty=0.00. Single-action solvable: False.",
+      "difficulty": "medium",
+      "class": "multi_action",
+      "P_load": {
+        "1": -0.59375,
+        "3": -4.6875,
+        "5": -0.78125
+      },
+      "P_pot": {
+        "2": 36.75,
+        "4": 36.375
+      },
+      "source_seed": 44,
+      "load_mul": 0.25,
+      "gen_mul": 1.0,
+      "soc_pert": "near_max",
+      "default_penalty": 14.70065807622552,
+      "default_violation_count": 4,
+      "mpc_recovered": true,
+      "mpc_penalty": 0.0,
+      "mpc_post_violations": 0,
+      "single_action_solvable": false,
+      "initial_soc": {
+        "6": 0.99
+      }
     }
   ]
 }

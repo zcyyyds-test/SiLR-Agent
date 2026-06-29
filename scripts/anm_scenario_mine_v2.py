@@ -32,6 +32,9 @@ from __future__ import annotations
 import argparse
 import itertools
 import json
+import logging
+import os
+import sys
 import time
 from typing import Any
 
@@ -45,6 +48,28 @@ from gym_anm.simulator.components import StorageUnit
 LOAD_MULTIPLIERS = (0.25, 1.0, 2.0, 3.0)
 GEN_MULTIPLIERS = (0.0, 1.0)
 SOC_PERTURBATIONS = ("native", "near_min", "near_max")
+
+
+def setup_run_logger(log_file: str | None) -> logging.Logger:
+    logger = logging.getLogger("anm_scenario_mine_v2")
+    logger.handlers.clear()
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(logging.Formatter("%(message)s"))
+    logger.addHandler(console_handler)
+
+    if log_file:
+        log_dir = os.path.dirname(log_file)
+        if log_dir:
+            os.makedirs(log_dir, exist_ok=True)
+        file_handler = logging.FileHandler(log_file, encoding="utf-8")
+        file_handler.setFormatter(
+            logging.Formatter("%(asctime)s %(levelname)s %(message)s")
+        )
+        logger.addHandler(file_handler)
+    return logger
 
 
 def violation_summary(mgr, cfg) -> dict[str, Any]:
@@ -186,17 +211,27 @@ def classify(seed: int, load_mul: float, gen_mul: float, soc_pert: str,
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--seed-start", type=int, default=0)
     parser.add_argument("--n-seeds", type=int, default=25)
     parser.add_argument("--output", default="mined_scenarios_v2.json")
+    parser.add_argument("--log-file", default=None)
     args = parser.parse_args()
+    logger = setup_run_logger(args.log_file)
 
     cfg = build_anm_domain_config()
 
     total_candidates = args.n_seeds * len(LOAD_MULTIPLIERS) * len(GEN_MULTIPLIERS) * len(SOC_PERTURBATIONS)
-    print(f"Mining v2: {args.n_seeds} seeds × {len(LOAD_MULTIPLIERS)} load × "
-          f"{len(GEN_MULTIPLIERS)} gen × {len(SOC_PERTURBATIONS)} soc = "
-          f"{total_candidates} candidates")
-    print()
+    logger.info(
+        "Mining v2: seeds %s..%s (%s total) × %s load × %s gen × %s soc = %s candidates",
+        args.seed_start,
+        args.seed_start + args.n_seeds - 1,
+        args.n_seeds,
+        len(LOAD_MULTIPLIERS),
+        len(GEN_MULTIPLIERS),
+        len(SOC_PERTURBATIONS),
+        total_candidates,
+    )
+    logger.info("")
 
     catalogue: list[dict[str, Any]] = []
     counts: dict[str, int] = {}
@@ -205,7 +240,7 @@ def main():
     t0 = time.time()
     next_print = 0
 
-    for seed in range(args.n_seeds):
+    for seed in range(args.seed_start, args.seed_start + args.n_seeds):
         for load_mul, gen_mul, soc_pert in itertools.product(
             LOAD_MULTIPLIERS, GEN_MULTIPLIERS, SOC_PERTURBATIONS
         ):
@@ -233,27 +268,42 @@ def main():
             if cls["class"] in ("multi_action", "mpc_unsolved"):
                 d = cls.get("default", {})
                 if d:
-                    print(f"  seed={seed} load×{load_mul} gen×{gen_mul} "
-                          f"soc={soc_pert:<9} -> {cls['class']:<12} "
-                          f"viol={d['total']} {d['by_checker']} "
-                          f"pen={d['penalty']:.2f}")
+                    logger.info(
+                        "  seed=%s load×%s gen×%s soc=%-9s -> %-12s "
+                        "viol=%s %s pen=%.2f",
+                        seed,
+                        load_mul,
+                        gen_mul,
+                        soc_pert,
+                        cls["class"],
+                        d["total"],
+                        d["by_checker"],
+                        d["penalty"],
+                    )
 
-        done = (seed + 1) * len(LOAD_MULTIPLIERS) * len(GEN_MULTIPLIERS) * len(SOC_PERTURBATIONS)
+        done = (seed - args.seed_start + 1) * len(LOAD_MULTIPLIERS) * len(GEN_MULTIPLIERS) * len(SOC_PERTURBATIONS)
         if done >= next_print:
-            print(f"  [progress] seed {seed+1}/{args.n_seeds}, "
-                  f"done {done}/{total_candidates}, "
-                  f"counts={counts}, type_diversity={type_counts}")
+            logger.info(
+                "  [progress] seed %s/%s, done %s/%s, counts=%s, type_diversity=%s",
+                seed,
+                args.seed_start + args.n_seeds - 1,
+                done,
+                total_candidates,
+                counts,
+                type_counts,
+            )
             next_print = done + 50
 
     dt = time.time() - t0
-    print(f"\n=== mined {len(catalogue)} candidates in {dt:.1f}s ===")
-    print(f"  class counts: {counts}")
-    print(f"  per-checker stress diversity (non-trivial entries): {type_counts}")
+    logger.info("")
+    logger.info("=== mined %s candidates in %.1fs ===", len(catalogue), dt)
+    logger.info("  class counts: %s", counts)
+    logger.info("  per-checker stress diversity (non-trivial entries): %s", type_counts)
 
     with open(args.output, "w") as f:
         json.dump({"counts": counts, "stress_diversity": type_counts,
                    "catalogue": catalogue}, f, indent=2)
-    print(f"  wrote {args.output}")
+    logger.info("  wrote %s", args.output)
 
 
 if __name__ == "__main__":

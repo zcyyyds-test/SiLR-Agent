@@ -4,7 +4,7 @@ Domain-agnostic verification pipeline:
 
 1. Validate action name against allowed_actions
 2. Create shadow copy of the system
-3. (progress-family policies) Snapshot pre-action violation baseline on the shadow
+3. (progress-family / rollback policies) Snapshot pre-action violation baseline on the shadow
 4. Execute action on shadow via Tool layer
 5. Run steady-state solver on shadow → check convergence
 6. (Optional) Run post-solve hook (e.g., TDS for power grids)
@@ -13,7 +13,7 @@ Domain-agnostic verification pipeline:
    ``gating_policy``:
 
    - PASS         post state has zero violations (= recovered)
-   - SAFE_PROGRESS  progress-family only: post state is an admissible
+   - SAFE_PROGRESS  progress-family/rollback only: post state is an admissible
                   non-terminal recovery step under the selected predicate
    - FAIL         solver diverged, post-solve hook failed, post state
                   worsened, or (``terminal`` policy) state not recovered
@@ -192,11 +192,12 @@ class SiLRVerifier:
             "progress",
             "progress_mag",
             "scalar_progress",
+            "rollback",
         ):
             raise ValueError(
                 f"Unknown gating_policy {self._gating_policy!r}; "
-                f"expected 'terminal', 'progress', 'progress_mag', or "
-                f"'scalar_progress'"
+                f"expected 'terminal', 'progress', 'progress_mag', "
+                f"'scalar_progress', or 'rollback'"
             )
         self._reporter = ReportGenerator()
 
@@ -241,12 +242,17 @@ class SiLRVerifier:
             # baseline; terminal policy ignores it. Snapshotting on the shadow
             # (not the live manager) guarantees a self-consistent before/after
             # comparison even if the shadow_setup_hook mutates state.
-            if self._gating_policy in ("progress", "progress_mag", "scalar_progress"):
+            if self._gating_policy in (
+                "progress",
+                "progress_mag",
+                "scalar_progress",
+                "rollback",
+            ):
                 baseline_checks = [
                     checker.check(shadow.system_state, shadow.base_mva)
                     for checker in self._checkers
                 ]
-                if self._gating_policy in ("progress", "progress_mag"):
+                if self._gating_policy in ("progress", "progress_mag", "rollback"):
                     # Φ(s) = (S, σ): the per-branch baseline against which the
                     # structured predicates ψ₂/ψ₃ are evaluated.
                     baseline_branches = _violation_branches(baseline_checks)
@@ -365,7 +371,7 @@ class SiLRVerifier:
                             f"Admissible scalar recovery step "
                             f"(penalty {baseline:.4f} -> {post:.4f})"
                         )
-            elif self._gating_policy in ("progress", "progress_mag"):
+            elif self._gating_policy in ("progress", "progress_mag", "rollback"):
                 # ψ₂ — support inclusion: the post-action violation support set
                 # S(ŝ) must be contained in the baseline support set S(s),
                 # evaluated *per branch*. This fails count-preserving support
@@ -433,6 +439,13 @@ class SiLRVerifier:
                             f"branches ⊆ baseline, per-branch severity within "
                             f"envelope)"
                         )
+                elif self._gating_policy == "rollback":
+                    verdict = Verdict.SAFE_PROGRESS
+                    fail_reason = (
+                        f"Rollback baseline admits post-hoc state (support "
+                        f"{len(baseline_branches)} -> {len(post_branches)} "
+                        f"branches; no new violation branch outside baseline)"
+                    )
                 else:
                     verdict = Verdict.SAFE_PROGRESS
                     fail_reason = (

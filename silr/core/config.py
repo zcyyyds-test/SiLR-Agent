@@ -100,6 +100,12 @@ class DomainConfig:
       test whether structured predicates add value beyond a single numeric
       threshold; it is not the recommended runtime policy.
 
+    - ``"rollback"``: post-hoc rollback baseline for related-work comparison.
+      In this shadow-execution implementation it is the permissive,
+      support-only version: admit a non-terminal post state iff it introduces
+      no violation branch outside the pre-action baseline. It deliberately does
+      not apply the ``progress_mag`` per-branch severity envelope.
+
     The terminal-safety goal (``Verdict.PASS`` = zero violations) is
     preserved in progress-family policies; they only widen the set of
     *admissible* (apply-gated) actions, not the terminal recovery

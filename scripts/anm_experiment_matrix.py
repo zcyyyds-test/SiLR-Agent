@@ -121,7 +121,7 @@ def benign_matrix() -> tuple[
     dict[tuple[str, str], str],
 ]:
     scenarios = [r["id"] for r in scenario_rows()]
-    policies = ["OFF", "terminal", "progress", "progress_mag"]
+    policies = ["OFF", "terminal", "progress", "rollback", "progress_mag"]
     matrix: dict[tuple[str, str], str] = {}
     stale: dict[tuple[str, str], str] = {}
     current_manifest = current_scenario_manifest()
@@ -161,6 +161,7 @@ def attack_matrix() -> list[tuple[str, str, str, str]]:
     rows: list[tuple[str, str, str, str]] = []
     sources = [
         ("progress", "adversarial_v1.json"),
+        ("rollback", "anm_redistribution_rollback_amd_gpu0.json"),
         ("progress_mag", "adversarial_progmag_v1.json"),
         ("progress+L4", "adversarial_stallmit_v1.json"),
         ("progress_mag+L4", "adversarial_full_v1.json"),
@@ -291,8 +292,8 @@ def render() -> str:
     lines.append("")
     lines.append("## Benign Coverage")
     lines.append("")
-    lines.append("| Scenario | OFF | terminal | progress | progress_mag |")
-    lines.append("|---|---|---|---|---|")
+    lines.append("| Scenario | OFF | terminal | progress | rollback | progress_mag |")
+    lines.append("|---|---|---|---|---|---|")
     for s in scenarios:
         cells = [matrix.get((s, p), stale.get((s, p), "MISSING")) for p in policies]
         lines.append("| `" + s + "` | " + " | ".join(cells) + " |")

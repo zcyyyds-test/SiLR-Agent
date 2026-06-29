@@ -14,7 +14,8 @@ class Verdict(Enum):
       (= recovered). The terminal-safety goal of the episode.
     - ``SAFE_PROGRESS``: post-action state is *admissible* under the
       selected progress-family criterion. The structured policies use
-      violation types/counts and optional severity magnitude; the
+      violation branches and optional severity magnitude; the ``rollback``
+      baseline uses the support-only branch predicate; the
       ``scalar_progress`` ablation uses the domain-native scalar penalty.
       Only emitted when the domain's gating policy explicitly enables
       non-terminal recovery admission.

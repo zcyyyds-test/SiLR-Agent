@@ -40,8 +40,11 @@ from scripts.train_grpo_anm import LocalModelClient, DEFAULT_SCENARIOS
 logger = logging.getLogger("grpo_eval")
 
 
-def eval_episode(client, scenario_id, gated, max_steps, max_proposals):
-    cfg = build_anm_domain_config(with_observer=True, gating_policy="progress_mag")
+GATING_POLICIES = ("terminal", "progress", "progress_mag", "scalar_progress", "rollback")
+
+
+def eval_episode(client, scenario_id, gated, max_steps, max_proposals, gating_policy):
+    cfg = build_anm_domain_config(with_observer=True, gating_policy=gating_policy)
     loader = ANMScenarioLoader()
     sc = loader.load(scenario_id)
     mgr = GymANMManager(seed=sc.source_seed if sc.source_seed is not None else 42)
@@ -87,6 +90,7 @@ def eval_episode(client, scenario_id, gated, max_steps, max_proposals):
     return {
         "scenario": scenario_id,
         "gated": gated,
+        "gating_policy": gating_policy,
         "recovered": bool(result.recovered),
         "default_penalty": default_penalty,
         "final_penalty": mgr.last_penalty,
@@ -123,6 +127,12 @@ def main():
     p.add_argument("--max-steps", type=int, default=8)
     p.add_argument("--max-proposals", type=int, default=3)
     p.add_argument("--max-new-tokens", type=int, default=512)
+    p.add_argument(
+        "--gating-policy",
+        choices=GATING_POLICIES,
+        default="progress_mag",
+        help="Verifier policy for gated episodes; ungated episodes still disable verification.",
+    )
     p.add_argument("--output", required=True)
     p.add_argument("--log-file", default=None)
     args = p.parse_args()
@@ -133,8 +143,8 @@ def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s",
                         handlers=handlers)
 
-    logger.info("Greedy eval | label=%s | adapter=%s | %d scenarios",
-                args.label, args.adapter or "(none)", len(args.scenarios))
+    logger.info("Greedy eval | label=%s | adapter=%s | policy=%s | %d scenarios",
+                args.label, args.adapter or "(none)", args.gating_policy, len(args.scenarios))
     tokenizer = AutoTokenizer.from_pretrained(args.base_model, trust_remote_code=True,
                                               padding_side="right")
     if tokenizer.pad_token is None:
@@ -153,7 +163,14 @@ def main():
     for regime_gated in (True, False):
         for sid in args.scenarios:
             t0 = time.time()
-            r = eval_episode(client, sid, regime_gated, args.max_steps, args.max_proposals)
+            r = eval_episode(
+                client,
+                sid,
+                regime_gated,
+                args.max_steps,
+                args.max_proposals,
+                args.gating_policy,
+            )
             records.append(r)
             logger.info("  [%s] %s recovered=%s pen=%.2f (def %.2f) rej/prop=%d/%d (%.1fs)",
                         "gated" if regime_gated else "ungated", sid, r["recovered"],
@@ -163,6 +180,7 @@ def main():
     gated = [r for r in records if r["gated"]]
     ungated = [r for r in records if not r["gated"]]
     summary = {"label": args.label, "adapter": args.adapter,
+               "gating_policy": args.gating_policy,
                "gated": _agg(gated), "ungated": _agg(ungated)}
     out = {"summary": summary, "records": records}
     tmp = args.output + ".tmp"
